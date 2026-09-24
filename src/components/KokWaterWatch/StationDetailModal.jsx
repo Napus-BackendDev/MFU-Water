@@ -174,10 +174,13 @@ export default function StationDetailModal({
             <div className="p-3.5 rounded-2xl bg-white border border-[#B4975A]/40 shadow-xs space-y-2">
               <div className="flex items-center justify-between text-xs">
                 <span className="font-bold text-slate-800 flex items-center gap-1.5">
-                  <Activity className="w-3.5 h-3.5 text-[#B4975A]" />
-                  ผลการตรวจวัดล่าสุดของเครื่องนี้
+                  <Activity className="w-3.5 h-3.5 text-[#A6192E]" />
+                  <span>ข้อมูลตรวจวัดปัจจุบัน (ค่าล่าสุด)</span>
+                  <span className="text-[9px] font-mono text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200">
+                    LATEST
+                  </span>
                 </span>
-                <span className="text-[10px] text-slate-400">
+                <span className="text-[10px] text-slate-500 font-mono">
                   {new Date(latestLog.collection_time).toLocaleDateString('th-TH')} {new Date(latestLog.collection_time).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })} น.
                 </span>
               </div>

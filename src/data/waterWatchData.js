@@ -114,8 +114,8 @@ export const INITIAL_SUBMISSIONS = [
     sample_code: 'KOK-20260923-0001',
     schema_version: '1.0',
     station_id: 'ST-01',
-    station_name: 'สถานีสะพานท่าตอน (แม่น้ำกกตอนบน)',
-    coordinates: [99.3603, 20.0619],
+    station_name: 'สถานีต้นน้ำกกเหนือสะพานท่าตอน',
+    coordinates: [99.3585, 20.0655],
     collection_time: '2026-09-23T09:30:00+07:00',
     gps_accuracy_meters: 8.5,
     entry_type: 'realtime', // 'realtime' | 'retrospective'
@@ -185,8 +185,8 @@ export const INITIAL_SUBMISSIONS = [
     sample_code: 'KOK-20260923-0002',
     schema_version: '1.0',
     station_id: 'ST-02',
-    station_name: 'สถานีชุมชนบ้านท่าดอย',
-    coordinates: [99.3565, 20.0648],
+    station_name: 'สถานีสะพานท่าตอน (สะพานข้ามแม่น้ำกก)',
+    coordinates: [99.3615, 20.0610],
     collection_time: '2026-09-23T10:45:00+07:00',
     gps_accuracy_meters: 6.2,
     entry_type: 'realtime',
@@ -197,11 +197,11 @@ export const INITIAL_SUBMISSIONS = [
       organization: 'ศูนย์สิ่งแวดล้อมชุมชนท่าตอน'
     },
     sample_nature: {
-      water_source: 'ลำห้วยสาขาบรรจบแม่น้ำกก',
+      water_source: 'แม่น้ำกก (บริเวณสะพานข้าม)',
       water_appearance: 'ใส ไม่มีตะกอน',
       odor: 'ไม่พบกลิ่นผิดปกติ',
       rain_last_24h: 'ไม่มีฝนตก',
-      notes: 'ชาวบ้านใช้น้ำจุดนี้ทำประปาภูเขา'
+      notes: 'จุดศูนย์กลางชุมชนท่าตอน'
     },
     measurements: {
       arsenic: {
@@ -235,7 +235,7 @@ export const INITIAL_SUBMISSIONS = [
     images: [
       {
         id: 'img-003',
-        title: 'ลำน้ำสาขาบ้านท่าดอย',
+        title: 'สะพานท่าตอน',
         url: 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=800&auto=format&fit=crop&q=80',
         drive_file_id: 'DRV_FILE_ST02_01',
         size_kb: 510
@@ -248,8 +248,8 @@ export const INITIAL_SUBMISSIONS = [
     record_id: 'rec-003-init',
     sample_code: 'KOK-20260923-0003',
     station_id: 'ST-03',
-    station_name: 'สถานีบ้านใหม่หมอกจ๋าม',
-    coordinates: [99.4350, 20.0320],
+    station_name: 'สถานีโค้งน้ำท่าตอนตะวันออก',
+    coordinates: [99.3850, 20.0535],
     collection_time: '2026-09-23T11:30:00+07:00',
     gps_accuracy_meters: 10.1,
     entry_type: 'realtime',

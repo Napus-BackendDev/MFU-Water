@@ -87,7 +87,13 @@ export default function WaterWatchMap({
       // Calculate submissions for this station
       const stLogs = submissions.filter(sub => {
         if (sub.station_id === st.id || sub.station_id === st.code) return true;
-        if (sub.station_name && sub.station_name.includes(st.name)) return true;
+        if (sub.station_name && (sub.station_name.includes(st.name) || st.name.includes(sub.station_name))) return true;
+        if (sub.coordinates && st.coordinates) {
+          const [lng, lat] = sub.coordinates;
+          const [sLng, sLat] = st.coordinates;
+          const diff = Math.abs(lng - sLng) + Math.abs(lat - sLat);
+          return diff < 0.005;
+        }
         return false;
       }).sort((a, b) => new Date(b.collection_time || 0) - new Date(a.collection_time || 0));
 
