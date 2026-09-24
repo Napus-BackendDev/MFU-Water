@@ -47,6 +47,7 @@ export default function KokWaterWatchView({ onBackToFloodSim }) {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isListDrawerOpen, setIsListDrawerOpen] = useState(false);
   const [isLegendOpen, setIsLegendOpen] = useState(false);
+  const [isMapPopupActive, setIsMapPopupActive] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
   // Supabase Config State
@@ -296,7 +297,7 @@ export default function KokWaterWatchView({ onBackToFloodSim }) {
       </header>
 
       {/* 2. Interactive Map (Full Screen) */}
-      <div className="absolute inset-0 pt-14 z-0">
+      <div className={`absolute inset-0 pt-14 ${isMapPopupActive ? 'z-30' : 'z-0'}`}>
         <WaterWatchMap
           submissions={submissions}
           selectedSample={selectedSample}
@@ -304,11 +305,16 @@ export default function KokWaterWatchView({ onBackToFloodSim }) {
           selectedStation={selectedStation}
           onSelectStation={(st) => setSelectedStation(st)}
           focusCoords={focusCoords}
+          onPopupChange={(st) => setIsMapPopupActive(!!st)}
         />
       </div>
 
       {/* 3. Floating Navigation & Legend (ซ้ายล่าง) */}
-      <div className="absolute bottom-6 left-5 sm:bottom-6 sm:left-6 z-20 pointer-events-auto flex flex-col items-start gap-2.5 max-w-[260px] sm:max-w-xs">
+      <div className={`absolute bottom-6 left-5 sm:bottom-6 sm:left-6 z-20 pointer-events-auto flex flex-col items-start gap-2.5 max-w-[260px] sm:max-w-xs transition-all duration-200 ${
+        isMapPopupActive 
+          ? 'opacity-0 pointer-events-none translate-y-3 sm:opacity-100 sm:pointer-events-auto sm:translate-y-0' 
+          : 'opacity-100 translate-y-0'
+      }`}>
         {/* ปุ่มกลับหน้าหลักจำลองน้ำท่วม 3D */}
         <button
           type="button"
@@ -370,7 +376,11 @@ export default function KokWaterWatchView({ onBackToFloodSim }) {
     </div>
 
       {/* 4. Action Button: บันทึกข้อมูลน้ำใหม่ (ขวาล่าง - เป็น icon + บนมือถือ / เต็มรูปแบบบน Desktop) */}
-      <div className="absolute bottom-6 right-5 sm:bottom-6 sm:right-6 z-30 pointer-events-auto">
+      <div className={`absolute bottom-6 right-5 sm:bottom-6 sm:right-6 z-20 pointer-events-auto transition-all duration-200 ${
+        isMapPopupActive 
+          ? 'opacity-0 pointer-events-none translate-y-3 sm:opacity-100 sm:pointer-events-auto sm:translate-y-0' 
+          : 'opacity-100 translate-y-0'
+      }`}>
         <button
           type="button"
           onClick={() => {

@@ -10,7 +10,8 @@ export default function WaterWatchMap({
   onSelectSample = null,
   selectedStation = null,
   onSelectStation = null,
-  focusCoords = null
+  focusCoords = null,
+  onPopupChange = null
 }) {
   const mapContainer = useRef(null);
   const mapRef = useRef(null);
@@ -21,6 +22,16 @@ export default function WaterWatchMap({
   const [popupPos, setPopupPos] = useState({ x: 0, y: 0 });
   const hoverTimeoutRef = useRef(null);
   const isHoveringPopupRef = useRef(false);
+  const onPopupChangeRef = useRef(onPopupChange);
+
+  useEffect(() => {
+    onPopupChangeRef.current = onPopupChange;
+  }, [onPopupChange]);
+
+  const updatePopupStation = (st) => {
+    setPopupStation(st);
+    onPopupChangeRef.current?.(st);
+  };
 
   // Initialize Map
   useEffect(() => {
@@ -68,6 +79,11 @@ export default function WaterWatchMap({
 
     map.on('load', () => {
       // ใช้แนวลำน้ำธรรมชาติของแผนที่ Google Maps โดยไม่ต้องวาดเส้นสีฟ้าทับ
+    });
+
+    map.on('click', () => {
+      setPopupStation(null);
+      onPopupChangeRef.current?.(null);
     });
 
     mapRef.current = map;
@@ -181,14 +197,14 @@ export default function WaterWatchMap({
         if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
         const point = map.project(st.coordinates);
         setPopupPos({ x: point.x, y: point.y });
-        setPopupStation(st);
+        updatePopupStation(st);
       });
 
       // Mouse Leave -> หน่วงเวลาเล็กน้อยให้เลื่อนเมาส์เข้าไปในการ์ดได้
       el.addEventListener('mouseleave', () => {
         hoverTimeoutRef.current = setTimeout(() => {
           if (!isHoveringPopupRef.current) {
-            setPopupStation(null);
+            updatePopupStation(null);
           }
         }, 250);
       });
@@ -200,7 +216,7 @@ export default function WaterWatchMap({
         isHoveringPopupRef.current = true;
         const point = map.project(st.coordinates);
         setPopupPos({ x: point.x, y: point.y });
-        setPopupStation(st);
+        updatePopupStation(st);
         map.flyTo({ center: st.coordinates, offset: [0, -100], zoom: 15.2, duration: 750 });
       });
 
@@ -432,7 +448,7 @@ export default function WaterWatchMap({
           onMouseLeave={() => {
             isHoveringPopupRef.current = false;
             hoverTimeoutRef.current = setTimeout(() => {
-              setPopupStation(null);
+              updatePopupStation(null);
             }, 250);
           }}
         >
@@ -455,7 +471,7 @@ export default function WaterWatchMap({
               </div>
               <button
                 type="button"
-                onClick={() => setPopupStation(null)}
+                onClick={() => updatePopupStation(null)}
                 className="p-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
                 title="ปิด"
               >
@@ -533,7 +549,7 @@ export default function WaterWatchMap({
                 type="button"
                 onClick={() => {
                   const target = popupStation;
-                  setPopupStation(null);
+                  updatePopupStation(null);
                   if (onSelectStation) {
                     onSelectStation(target);
                   }
