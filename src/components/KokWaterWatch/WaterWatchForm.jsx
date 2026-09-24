@@ -173,11 +173,12 @@ export default function WaterWatchForm({
 
       for (let i = 0; i < photos.length; i++) {
         const photo = photos[i];
+        const photoTitle = i === 0 ? 'แถบเทียบสีผลตรวจ' : 'สภาพแวดล้อม/จุดเก็บน้ำ';
         if (photo.rawFile) {
           const uploadRes = await uploadSampleImage(photo.rawFile, sampleCode, i);
           uploadedImages.push({
             id: uploadRes.id,
-            title: `ภาพที่ ${i + 1}`,
+            title: photoTitle,
             url: uploadRes.url,
             drive_file_id: uploadRes.path || `SP_${sampleCode}_${i + 1}`,
             size_kb: uploadRes.size_kb,
@@ -186,7 +187,7 @@ export default function WaterWatchForm({
         } else if (photo.url) {
           uploadedImages.push({
             id: photo.id,
-            title: `ภาพที่ ${i + 1}`,
+            title: photoTitle,
             url: photo.url,
             drive_file_id: `LOCAL_${sampleCode}_${i + 1}`,
             size_kb: photo.sizeKb || 0
@@ -335,18 +336,16 @@ export default function WaterWatchForm({
           </div>
         </div>
 
-        {/* 3. Arsenic Level (9 ระดับสี ขนาดใหญ่ กดง่าย อ่านชัดเจน) */}
-        <div className="space-y-1.5">
+        {/* 3. Arsenic Level (9 ระดับสี สวยงาม กดง่าย ไม่เบียด ไม่ซ้อนทับ) */}
+        <div className="space-y-2">
           <div className="flex items-center justify-between text-xs sm:text-sm">
-            <label className="font-bold text-slate-800">
-              โปรดเลือกสีผลตรวจ (Arsenic Level){' '}
+            <label className="font-bold text-slate-800 flex items-center gap-1.5">
+              <span>เลือกสีผลตรวจ (ระดับสารหนู)</span>
               <span className="text-red-500 font-semibold">*ต้องระบุ</span>
             </label>
-            {selectedLevel && (
-              <span className="text-xs sm:text-sm font-bold text-[#A6192E] animate-in fade-in">
-                ระดับ {selectedLevel.level} ({selectedLevel.label} - {selectedLevel.ppb} ppb)
-              </span>
-            )}
+            <span className="text-[11px] sm:text-xs font-semibold text-slate-500">
+              หน่วย ppb
+            </span>
           </div>
 
           <div className="grid grid-cols-9 gap-1 sm:gap-2">
@@ -358,13 +357,13 @@ export default function WaterWatchForm({
                   type="button"
                   disabled={isSubmitting}
                   onClick={() => setSelectedLevel(item)}
-                  className={`p-1 sm:p-1.5 rounded-xl border flex flex-col items-center justify-between text-center transition-all cursor-pointer h-[66px] sm:h-[82px] select-none ${
+                  className={`p-1 sm:p-1.5 rounded-xl border flex flex-col items-center justify-between text-center transition-all cursor-pointer h-[70px] sm:h-[82px] select-none ${
                     isSelected
                       ? 'border-[#A6192E] bg-red-50/95 ring-2 ring-[#A6192E]/50 shadow-md scale-[1.03] z-10'
                       : 'border-slate-200 bg-white hover:border-slate-400 hover:bg-slate-50'
                   }`}
                 >
-                  <span className="text-xs sm:text-sm font-black text-slate-800 leading-none">
+                  <span className="text-[11px] sm:text-xs font-black text-slate-800 leading-none">
                     {item.level}
                   </span>
                   <span
@@ -384,100 +383,145 @@ export default function WaterWatchForm({
                       />
                     )}
                   </span>
-                  <span className="text-[9px] sm:text-[11px] font-bold text-slate-700 whitespace-nowrap leading-none">
-                    {item.label}
+                  <span className="text-[10px] sm:text-[11px] font-bold text-slate-700 leading-none truncate max-w-full">
+                    {item.ppb}
+                    <span className="hidden sm:inline text-[9px] font-normal text-slate-400 ml-0.5">ppb</span>
                   </span>
                 </button>
               );
             })}
           </div>
+
+          {/* สรุปสถานะผลตรวจที่เลือก (อ่านง่าย ชัดเจน ไม่ต้องเพ่ง) */}
+          {selectedLevel ? (
+            <div className="p-2.5 sm:p-3 rounded-xl bg-slate-50 border border-slate-200 flex flex-wrap items-center justify-between gap-2 animate-in fade-in duration-150">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <span
+                  className="w-5 h-5 sm:w-6 sm:h-6 rounded-full border shadow-xs shrink-0"
+                  style={{ backgroundColor: selectedLevel.color, borderColor: selectedLevel.borderColor }}
+                />
+                <div className="text-xs sm:text-sm font-bold text-slate-800 truncate">
+                  ระดับ {selectedLevel.level} • {selectedLevel.ppb} ppb ({selectedLevel.desc})
+                </div>
+              </div>
+              <div>
+                {selectedLevel.ppb <= 10 ? (
+                  <span className="px-2.5 py-0.5 rounded-full text-[11px] sm:text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-200 whitespace-nowrap">
+                    เกณฑ์ปลอดภัย (ดื่มได้)
+                  </span>
+                ) : selectedLevel.ppb <= 50 ? (
+                  <span className="px-2.5 py-0.5 rounded-full text-[11px] sm:text-xs font-bold bg-amber-100 text-amber-800 border border-amber-200 whitespace-nowrap">
+                    เฝ้าระวัง (เกินเกณฑ์บริโภค)
+                  </span>
+                ) : (
+                  <span className="px-2.5 py-0.5 rounded-full text-[11px] sm:text-xs font-bold bg-red-100 text-red-800 border border-red-200 whitespace-nowrap">
+                    เกินมาตรฐานอันตราย
+                  </span>
+                )}
+              </div>
+            </div>
+          ) : (
+            <div className="text-[11px] sm:text-xs text-slate-400 text-center py-0.5">
+              แตะเลือกระดับสี 1-9 ตามแถบสีของชุดทดสอบภาคสนาม
+            </div>
+          )}
         </div>
 
-        {/* 4. Location Section (ดึงพิกัด + กล่องละติจูด/ลองจิจูด) */}
-        <div className="space-y-1.5">
+        {/* 4. Location Section (ดึงพิกัด + ช่องละติจูด/ลองจิจูด แยกเป็น 2 แถว กว้าง โปร่ง อ่านง่าย) */}
+        <div className="space-y-2">
           <div className="flex items-center justify-between text-xs sm:text-sm">
-            <label className="font-bold text-slate-800">
-              ระบุพิกัดที่ตั้ง (Location){' '}
+            <label className="font-bold text-slate-800 flex items-center gap-1.5">
+              <span>ระบุพิกัดที่ตั้ง (Location)</span>
               <span className="text-red-500 font-semibold">*ต้องระบุ</span>
             </label>
             {gpsAccuracy && (
-              <span className="text-xs text-slate-500 font-mono">
+              <span className="text-[11px] text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md font-mono border border-emerald-200">
                 ความแม่นยำ: ±{gpsAccuracy} ม.
               </span>
             )}
           </div>
 
-          <div className="grid grid-cols-12 gap-2 items-center">
-            <button
-              type="button"
-              onClick={handleGetLiveGPS}
-              disabled={isGettingGps || isSubmitting}
-              className="col-span-5 sm:col-span-4 h-11 sm:h-12 px-3 rounded-xl bg-gradient-to-r from-[#E59832] to-[#DF8A20] hover:brightness-105 active:scale-[0.98] text-white font-bold text-xs sm:text-sm shadow-sm transition-all flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-75"
-            >
-              <MapPin className={`w-4 h-4 shrink-0 ${isGettingGps ? 'animate-bounce' : ''}`} />
-              <span className="truncate">
-                {isGettingGps ? 'กำลังดึง...' : 'ดึงพิกัด GPS'}
-              </span>
-            </button>
+          {/* แถวที่ 1: ปุ่มแตะดึง GPS แบบเต็มความกว้าง (Full Width) */}
+          <button
+            type="button"
+            onClick={handleGetLiveGPS}
+            disabled={isGettingGps || isSubmitting}
+            className="w-full h-11 sm:h-12 px-4 rounded-xl bg-gradient-to-r from-[#E59832] to-[#DF8A20] hover:brightness-105 active:scale-[0.99] text-white font-bold text-xs sm:text-sm shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-75"
+          >
+            <MapPin className={`w-4 h-4 shrink-0 ${isGettingGps ? 'animate-bounce' : ''}`} />
+            <span>
+              {isGettingGps ? 'กำลังดึงพิกัด GPS จากอุปกรณ์...' : '📍 แตะเพื่อดึงพิกัด GPS อัตโนมัติ ณ จุดตรวจวัด'}
+            </span>
+          </button>
 
-            <div className="col-span-7 sm:col-span-8 grid grid-cols-2 gap-2">
+          {/* แถวที่ 2: ช่องกรอกละติจูดและลองจิจูดแบบ 2 คอลัมน์เต็มพื้นที่ ไม่ถูกบีบอัด */}
+          <div className="grid grid-cols-2 gap-2.5">
+            <div className="space-y-1">
+              <span className="text-[11px] sm:text-xs font-semibold text-slate-600 block">
+                ละติจูด (Latitude)
+              </span>
               <input
                 type="text"
                 value={latitude}
                 onChange={(e) => setLatitude(e.target.value)}
                 disabled={isSubmitting}
-                placeholder="ละติจูด (Lat)"
-                className="w-full h-11 sm:h-12 bg-[#F3F4F6] border border-slate-300 rounded-xl px-2.5 text-center text-xs sm:text-sm font-mono font-bold text-slate-800 placeholder:text-slate-400 focus:bg-white focus:border-[#A6192E] outline-none transition-all disabled:opacity-60"
+                placeholder="เช่น 19.910482"
+                className="w-full h-11 bg-[#F8F9FA] border border-slate-300 rounded-xl px-3 text-center text-xs sm:text-sm font-mono font-bold text-slate-800 placeholder:text-slate-400 focus:bg-white focus:border-[#A6192E] focus:ring-2 focus:ring-[#A6192E]/20 outline-none transition-all disabled:opacity-60"
               />
+            </div>
+            <div className="space-y-1">
+              <span className="text-[11px] sm:text-xs font-semibold text-slate-600 block">
+                ลองจิจูด (Longitude)
+              </span>
               <input
                 type="text"
                 value={longitude}
                 onChange={(e) => setLongitude(e.target.value)}
                 disabled={isSubmitting}
-                placeholder="ลองจิจูด (Lng)"
-                className="w-full h-11 sm:h-12 bg-[#F3F4F6] border border-slate-300 rounded-xl px-2.5 text-center text-xs sm:text-sm font-mono font-bold text-slate-800 placeholder:text-slate-400 focus:bg-white focus:border-[#A6192E] outline-none transition-all disabled:opacity-60"
+                placeholder="เช่น 99.840517"
+                className="w-full h-11 bg-[#F8F9FA] border border-slate-300 rounded-xl px-3 text-center text-xs sm:text-sm font-mono font-bold text-slate-800 placeholder:text-slate-400 focus:bg-white focus:border-[#A6192E] focus:ring-2 focus:ring-[#A6192E]/20 outline-none transition-all disabled:opacity-60"
               />
             </div>
           </div>
         </div>
 
-        {/* 5. แนบรูปถ่ายหลักฐานยืนยันผลตรวจ (กล่องขนาดสบายตา) */}
+        {/* 5. แนบรูปถ่ายหลักฐานยืนยันผลตรวจ (ไม่แสดงคำว่า ภาพที่ 1 / ภาพที่ 2) */}
         <div className="bg-[#F8F9FA] rounded-2xl border border-slate-200/90 p-3 sm:p-4 space-y-2">
           <div className="flex items-center justify-between text-xs sm:text-sm font-bold text-slate-800">
             <span className="flex items-center gap-1.5">
               <Camera className="w-4 h-4 text-slate-600" />
-              <span>แนบรูปถ่ายหลักฐาน (2 รูป)</span>
+              <span>แนบรูปถ่ายหลักฐานผลตรวจ (2 ช่อง)</span>
             </span>
-            <span className="text-xs text-slate-500 font-normal">
-              แถบเทียบสี / บริเวณริมน้ำ
+            <span className="text-[11px] sm:text-xs text-slate-500 font-normal">
+              แถบสีตรวจ / จุดเก็บตัวอย่าง
             </span>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3">
-            {/* Slot 1: ภาพที่ 1 */}
+            {/* Slot 1: แถบเทียบสีผลตรวจ */}
             <div className="relative">
               <div
                 onClick={() => !isSubmitting && fileInputRef1.current?.click()}
-                className="border border-dashed border-slate-300 hover:border-[#A6192E] rounded-xl p-2 flex items-center justify-center h-18 sm:h-22 bg-white cursor-pointer transition-all hover:bg-slate-50 group overflow-hidden"
+                className="border border-dashed border-slate-300 hover:border-[#A6192E] rounded-xl p-2.5 flex items-center justify-center h-20 sm:h-22 bg-white cursor-pointer transition-all hover:bg-slate-50 group overflow-hidden"
               >
                 {photo1 ? (
                   <div className="relative w-full h-full flex items-center gap-3">
                     <img
                       src={photo1.url}
-                      alt="ภาพที่ 1"
-                      className="w-16 sm:w-20 h-full object-cover rounded-lg"
+                      alt="แถบเทียบสีผลตรวจ"
+                      className="w-16 sm:w-20 h-full object-cover rounded-lg shrink-0"
                     />
                     <div className="flex-1 min-w-0 text-left">
-                      <div className="text-xs sm:text-sm font-bold text-slate-800 truncate">ภาพที่ 1 (แถบสี)</div>
-                      <div className="text-xs text-slate-400 truncate">แตะเพื่อเปลี่ยนรูป</div>
+                      <div className="text-xs sm:text-sm font-bold text-slate-800 truncate">แถบเทียบสีผลตรวจ</div>
+                      <div className="text-[11px] text-slate-400 truncate">แตะเพื่อเปลี่ยนรูป</div>
                     </div>
                   </div>
                 ) : (
                   <div className="flex items-center gap-2.5 text-slate-400 group-hover:text-[#A6192E] transition-colors">
                     <Camera className="w-6 h-6 shrink-0" />
                     <div className="text-left leading-tight">
-                      <span className="text-xs sm:text-sm font-bold text-slate-700 block">ภาพที่ 1</span>
-                      <span className="text-xs text-slate-400 block">แถบเทียบสีผลตรวจ</span>
+                      <span className="text-xs sm:text-sm font-bold text-slate-700 block">แถบเทียบสีผลตรวจ</span>
+                      <span className="text-[11px] text-slate-400 block">Arsenic Strip เทียบกับแถบสี</span>
                     </div>
                   </div>
                 )}
@@ -504,30 +548,30 @@ export default function WaterWatchForm({
               />
             </div>
 
-            {/* Slot 2: ภาพที่ 2 */}
+            {/* Slot 2: สภาพแวดล้อม / จุดเก็บน้ำ */}
             <div className="relative">
               <div
                 onClick={() => !isSubmitting && fileInputRef2.current?.click()}
-                className="border border-dashed border-slate-300 hover:border-[#A6192E] rounded-xl p-2 flex items-center justify-center h-18 sm:h-22 bg-white cursor-pointer transition-all hover:bg-slate-50 group overflow-hidden"
+                className="border border-dashed border-slate-300 hover:border-[#A6192E] rounded-xl p-2.5 flex items-center justify-center h-20 sm:h-22 bg-white cursor-pointer transition-all hover:bg-slate-50 group overflow-hidden"
               >
                 {photo2 ? (
                   <div className="relative w-full h-full flex items-center gap-3">
                     <img
                       src={photo2.url}
-                      alt="ภาพที่ 2"
-                      className="w-16 sm:w-20 h-full object-cover rounded-lg"
+                      alt="สภาพแวดล้อม / จุดเก็บน้ำ"
+                      className="w-16 sm:w-20 h-full object-cover rounded-lg shrink-0"
                     />
                     <div className="flex-1 min-w-0 text-left">
-                      <div className="text-xs sm:text-sm font-bold text-slate-800 truncate">ภาพที่ 2 (ริมแม่น้ำ)</div>
-                      <div className="text-xs text-slate-400 truncate">แตะเพื่อเปลี่ยนรูป</div>
+                      <div className="text-xs sm:text-sm font-bold text-slate-800 truncate">สภาพแวดล้อม / จุดเก็บน้ำ</div>
+                      <div className="text-[11px] text-slate-400 truncate">แตะเพื่อเปลี่ยนรูป</div>
                     </div>
                   </div>
                 ) : (
                   <div className="flex items-center gap-2.5 text-slate-400 group-hover:text-[#A6192E] transition-colors">
                     <Camera className="w-6 h-6 shrink-0" />
                     <div className="text-left leading-tight">
-                      <span className="text-xs sm:text-sm font-bold text-slate-700 block">ภาพที่ 2</span>
-                      <span className="text-xs text-slate-400 block">สภาพแวดล้อม/จุดเก็บน้ำ</span>
+                      <span className="text-xs sm:text-sm font-bold text-slate-700 block">สภาพแวดล้อม / จุดเก็บน้ำ</span>
+                      <span className="text-[11px] text-slate-400 block">บริเวณริมน้ำหรือจุดเก็บตัวอย่าง</span>
                     </div>
                   </div>
                 )}
