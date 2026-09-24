@@ -24,7 +24,8 @@ import {
   Building2,
   Grid,
   SlidersHorizontal,
-  Check
+  Check,
+  MapPin
 } from 'lucide-react';
 import { clusterSubmissions } from '../../data/waterWatchData';
 import {
