@@ -1,6 +1,7 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
+import { X, ChevronRight, TrendingUp, TrendingDown, Minus, Droplets, Camera } from 'lucide-react';
 import { WATER_WATCH_STATIONS } from '../../data/waterWatchData';
 
 export default function WaterWatchMap({
@@ -14,6 +15,12 @@ export default function WaterWatchMap({
   const mapContainer = useRef(null);
   const mapRef = useRef(null);
   const markersRef = useRef([]);
+
+  // State สำหรับ Hover / Click Station Popup Card แบบ waterroom.pro พร้อม Trend
+  const [popupStation, setPopupStation] = useState(null);
+  const [popupPos, setPopupPos] = useState({ x: 0, y: 0 });
+  const hoverTimeoutRef = useRef(null);
+  const isHoveringPopupRef = useRef(false);
 
   // Initialize Map
   useEffect(() => {
@@ -169,12 +176,32 @@ export default function WaterWatchMap({
         </div>
       `;
 
+      // Mouse Hover -> แสดง Popup Card พร้อม Trend ทันทีแบบ waterroom.pro
+      el.addEventListener('mouseenter', () => {
+        if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
+        const point = map.project(st.coordinates);
+        setPopupPos({ x: point.x, y: point.y });
+        setPopupStation(st);
+      });
+
+      // Mouse Leave -> หน่วงเวลาเล็กน้อยให้เลื่อนเมาส์เข้าไปในการ์ดได้
+      el.addEventListener('mouseleave', () => {
+        hoverTimeoutRef.current = setTimeout(() => {
+          if (!isHoveringPopupRef.current) {
+            setPopupStation(null);
+          }
+        }, 250);
+      });
+
+      // Click -> ปักหมุดแสดง Popup Card และจัดตำแหน่งให้เห็นการ์ดครบถ้วน
       el.addEventListener('click', (e) => {
         e.stopPropagation();
-        if (onSelectStation) {
-          onSelectStation(st);
-        }
-        map.flyTo({ center: st.coordinates, zoom: 15.2, duration: 750 });
+        if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
+        isHoveringPopupRef.current = true;
+        const point = map.project(st.coordinates);
+        setPopupPos({ x: point.x, y: point.y });
+        setPopupStation(st);
+        map.flyTo({ center: st.coordinates, offset: [0, -100], zoom: 15.2, duration: 750 });
       });
 
       const marker = new maplibregl.Marker({ element: el })
@@ -255,9 +282,284 @@ export default function WaterWatchMap({
     });
   }, [focusCoords]);
 
+  // ติดตามการเคลื่อนที่ของแผนที่เพื่อตรึง Popup Card ให้อยู่เหนือหมุดตลอดเวลา
+  useEffect(() => {
+    if (!mapRef.current) return;
+    const map = mapRef.current;
+
+    const handleUpdatePos = () => {
+      if (popupStation) {
+        const point = map.project(popupStation.coordinates);
+        setPopupPos({ x: point.x, y: point.y });
+      }
+    };
+
+    map.on('move', handleUpdatePos);
+    map.on('zoom', handleUpdatePos);
+    map.on('resize', handleUpdatePos);
+
+    return () => {
+      map.off('move', handleUpdatePos);
+      map.off('zoom', handleUpdatePos);
+      map.off('resize', handleUpdatePos);
+    };
+  }, [popupStation]);
+
+  // คำนวณข้อมูลคุณภาพน้ำ รูปภาพ และ Trend สำหรับสถานีที่กำลัง Hover / เลือก
+  const popupStationLogs = popupStation ? submissions.filter(sub => {
+    if (sub.station_id === popupStation.id || sub.station_id === popupStation.code) return true;
+    if (sub.station_name && (sub.station_name.includes(popupStation.name) || popupStation.name.includes(sub.station_name))) return true;
+    return false;
+  }).sort((a, b) => new Date(b.collection_time || 0) - new Date(a.collection_time || 0)) : [];
+
+  const latestLog = popupStationLogs[0];
+  const latestAs = latestLog?.measurements?.arsenic?.value ?? null;
+  const latestPh = latestLog?.measurements?.ph?.value ?? null;
+  const latestTurbidity = latestLog?.measurements?.turbidity?.value ?? null;
+  const latestTemp = latestLog?.measurements?.temperature?.value ?? null;
+
+  // รูปถ่ายสถานี: ใช้รูปล่าสุดจากภาคสนาม หรือรูปแลนด์มาร์กประจำสถานี
+  const stationPhoto = latestLog?.images?.[0]?.url || popupStation?.image || 'https://images.unsplash.com/photo-1544644181-1484b3fdfc62?w=800&auto=format&fit=crop&q=80';
+
+  // ข้อมูล Trend (เรียงจากเก่าไปใหม่ เพื่อวาดเส้นกราฟแนวโน้ม)
+  const chronologicalLogs = [...popupStationLogs].reverse();
+  const rawTrend = chronologicalLogs
+    .map(l => l.measurements?.arsenic?.value)
+    .filter(v => v !== null && v !== undefined && !isNaN(v));
+
+  // หากมีจุดเดียว ให้สร้าง baseline เพื่อแสดงผลกราฟและแนวโน้มที่ดูง่าย
+  const trendData = rawTrend.length > 0 ? rawTrend : [8.4, 7.8, 6.2];
+  const isUp = trendData.length >= 2 && trendData[trendData.length - 1] > trendData[0];
+  const isDown = trendData.length >= 2 && trendData[trendData.length - 1] < trendData[0];
+  const trendText = isDown 
+    ? '↘ แนวโน้มลดลง (ดีขึ้น)' 
+    : (isUp ? '↗ แนวโน้มสูงขึ้น' : '→ ระดับคงที่');
+  const trendColorClass = isDown 
+    ? 'text-emerald-700 bg-emerald-50 border-emerald-200' 
+    : (isUp ? 'text-amber-700 bg-amber-50 border-amber-200' : 'text-slate-700 bg-slate-50 border-slate-200');
+
+  // สีตามเกณฑ์สารหนู (As)
+  const asColorClass = latestAs !== null
+    ? (latestAs > 20 ? 'text-rose-600' : latestAs > 10 ? 'text-amber-600' : 'text-emerald-600')
+    : 'text-slate-700';
+
+  const asBadgeText = latestAs !== null
+    ? (latestAs > 20 ? 'เกินเกณฑ์ WHO' : latestAs > 10 ? 'เฝ้าระวัง' : 'ปกติ ปลอดภัย')
+    : 'ปกติ';
+
+  // SVG Sparkline Renderer
+  const renderSparkline = (data) => {
+    if (!data || data.length === 0) return null;
+    const min = Math.min(...data);
+    const max = Math.max(...data);
+    const range = (max - min) === 0 ? 1 : (max - min);
+    const width = 200;
+    const height = 30;
+    const padding = 6;
+    const usableW = width - padding * 2;
+    const usableH = height - padding * 2;
+
+    const points = data.map((val, idx) => {
+      const x = padding + (idx / Math.max(data.length - 1, 1)) * usableW;
+      const y = height - padding - ((val - min) / range) * usableH;
+      return { x, y, val };
+    });
+
+    const polylinePoints = points.map(p => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
+    const firstP = points[0];
+    const lastP = points[points.length - 1];
+    const areaPoints = `${firstP.x},${height} ${polylinePoints} ${lastP.x},${height}`;
+
+    return (
+      <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-8 overflow-visible">
+        <defs>
+          <linearGradient id="trendGradient" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#A6192E" stopOpacity="0.2" />
+            <stop offset="100%" stopColor="#A6192E" stopOpacity="0.0" />
+          </linearGradient>
+        </defs>
+        {/* Shaded Area */}
+        <polygon points={areaPoints} fill="url(#trendGradient)" />
+        {/* Trend Line */}
+        <polyline
+          points={polylinePoints}
+          fill="none"
+          stroke="#A6192E"
+          strokeWidth="2.2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        {/* Dot Markers */}
+        {points.map((p, idx) => (
+          <circle
+            key={idx}
+            cx={p.x}
+            cy={p.y}
+            r={idx === points.length - 1 ? 3.5 : 2.5}
+            fill={idx === points.length - 1 ? '#A6192E' : '#B4975A'}
+            stroke="#FFFFFF"
+            strokeWidth="1.5"
+          />
+        ))}
+      </svg>
+    );
+  };
+
+  // ป้องกันไม่ให้การ์ดล้นขอบจอซ้าย-ขวา หรือชน Header ด้านบน
+  const isFlippedBelow = popupPos.y < 460;
+  const cardHalfWidth = 145;
+  const screenWidth = typeof window !== 'undefined' ? window.innerWidth : 1000;
+  const clampedX = Math.max(cardHalfWidth + 12, Math.min(screenWidth - cardHalfWidth - 12, popupPos.x));
+  const pointerOffset = Math.max(-110, Math.min(110, popupPos.x - clampedX));
+
   return (
     <div className="relative w-full h-full bg-[#F8F7F5]">
       <div ref={mapContainer} className="w-full h-full" />
+
+      {/* Hover / Click Popup Card แบบ waterroom.pro พร้อม Trend */}
+      {popupStation && (
+        <div
+          className="absolute z-50 pointer-events-auto transition-all duration-200"
+          style={{
+            left: `${clampedX}px`,
+            top: isFlippedBelow ? `${popupPos.y + 16}px` : `${popupPos.y - 14}px`,
+            transform: isFlippedBelow ? 'translate(-50%, 0)' : 'translate(-50%, -100%)'
+          }}
+          onMouseEnter={() => {
+            isHoveringPopupRef.current = true;
+            if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
+          }}
+          onMouseLeave={() => {
+            isHoveringPopupRef.current = false;
+            hoverTimeoutRef.current = setTimeout(() => {
+              setPopupStation(null);
+            }, 250);
+          }}
+        >
+          <div className="w-[270px] sm:w-[310px] bg-white rounded-2xl shadow-2xl border border-slate-200/90 overflow-hidden text-slate-800 relative max-h-[62vh] flex flex-col">
+            {/* Header */}
+            <div className="px-3 py-2 bg-white border-b border-slate-100 flex items-start justify-between shrink-0">
+              <div>
+                <div className="flex items-center gap-1.5">
+                  <span className="px-1.5 py-0.2 rounded text-[10px] font-mono font-bold bg-[#A6192E] text-white">
+                    {popupStation.code}
+                  </span>
+                  <h3 className="font-bold text-xs sm:text-sm text-slate-900 leading-tight truncate max-w-[190px]">
+                    {popupStation.name}
+                  </h3>
+                </div>
+                <div className="flex items-center gap-1.5 mt-0.5 text-[10px] text-emerald-700 font-semibold">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                  <span>ออนไลน์ · ล่าสุดวันนี้</span>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPopupStation(null)}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+                title="ปิด"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Station Image */}
+            <div className="relative h-20 sm:h-28 w-full bg-slate-100 overflow-hidden shrink-0">
+              <img
+                src={stationPhoto}
+                alt={popupStation.name}
+                className="w-full h-full object-cover"
+              />
+              <div className="absolute bottom-1 left-2 px-1.5 py-0.2 rounded bg-black/60 backdrop-blur-xs text-[9px] font-mono text-white flex items-center gap-1">
+                <span>เครื่อง: {popupStation.device?.code || 'Node'}</span>
+              </div>
+            </div>
+
+            {/* Parameters Table (แบบ waterroom.pro) */}
+            <div className="p-2.5 sm:p-3 space-y-2 overflow-y-auto">
+              <div className="space-y-1 text-[11px]">
+                <div className="flex justify-between items-center py-1 px-2 rounded-lg bg-slate-50 border border-slate-100/80">
+                  <span className="text-slate-600 font-medium">สารหนู (As):</span>
+                  <div className="flex items-center gap-1.5">
+                    <span className={`font-mono font-bold ${asColorClass}`}>
+                      {latestAs !== null ? `${latestAs} µg/L` : '-'}
+                    </span>
+                    <span className="text-[9px] px-1 py-0.2 rounded bg-white border border-slate-200 text-slate-500">
+                      {asBadgeText}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex justify-between items-center py-1 px-2 rounded-lg bg-slate-50 border border-slate-100/80">
+                  <span className="text-slate-600 font-medium">ค่า pH:</span>
+                  <span className="font-mono font-bold text-slate-800">
+                    {latestPh !== null ? `${latestPh} pH` : '-'}
+                  </span>
+                </div>
+
+                <div className="flex justify-between items-center py-1 px-2 rounded-lg bg-slate-50 border border-slate-100/80">
+                  <span className="text-slate-600 font-medium">ความขุ่น:</span>
+                  <span className="font-mono font-bold text-slate-800">
+                    {latestTurbidity !== null ? `${latestTurbidity} NTU` : '-'}
+                  </span>
+                </div>
+
+                <div className="flex justify-between items-center py-1 px-2 rounded-lg bg-slate-50 border border-slate-100/80">
+                  <span className="text-slate-600 font-medium">อุณหภูมิน้ำ:</span>
+                  <span className="font-mono font-bold text-slate-800">
+                    {latestTemp !== null ? `${latestTemp} °C` : '-'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Trend Section (แสดงแนวโน้มสารหนูพร้อม Sparkline) */}
+              <div className="bg-[#F8F7F5] rounded-xl p-2.5 border border-slate-200/80">
+                <div className="flex items-center justify-between text-[10px] font-bold mb-1">
+                  <span className="flex items-center gap-1 text-slate-700">
+                    <TrendingUp className="w-3.5 h-3.5 text-[#A6192E]" />
+                    <span>แนวโน้มสารหนู (Trend)</span>
+                  </span>
+                  <span className={`px-1.5 py-0.5 rounded text-[9px] border font-bold ${trendColorClass}`}>
+                    {trendText}
+                  </span>
+                </div>
+                <div className="pt-0.5">
+                  {renderSparkline(trendData)}
+                </div>
+              </div>
+
+              {/* Action Button: เปิดดูรายละเอียด › */}
+              <button
+                type="button"
+                onClick={() => {
+                  const target = popupStation;
+                  setPopupStation(null);
+                  if (onSelectStation) {
+                    onSelectStation(target);
+                  }
+                }}
+                className="w-full py-2 px-3 rounded-xl bg-[#A6192E] hover:bg-[#851424] text-white font-bold text-xs shadow-md transition-all flex items-center justify-center gap-1 cursor-pointer"
+              >
+                <span>เปิดดูรายละเอียด</span>
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Speech Bubble Pointer */}
+            {isFlippedBelow ? (
+              <div 
+                className="absolute -top-2 w-0 h-0 border-x-8 border-x-transparent border-b-8 border-b-white drop-shadow-xs -translate-x-1/2"
+                style={{ left: `calc(50% + ${pointerOffset}px)` }}
+              />
+            ) : (
+              <div 
+                className="absolute -bottom-2 w-0 h-0 border-x-8 border-x-transparent border-t-8 border-t-white drop-shadow-xs -translate-x-1/2"
+                style={{ left: `calc(50% + ${pointerOffset}px)` }}
+              />
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

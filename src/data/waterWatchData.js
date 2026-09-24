@@ -12,6 +12,7 @@ export const WATER_WATCH_STATIONS = [
     coordinates: [99.3585, 20.0655], // [lng, lat]
     radiusMeters: 250,
     status: 'active',
+    image: 'https://images.unsplash.com/photo-1544644181-1484b3fdfc62?w=800&auto=format&fit=crop&q=80',
     device: {
       code: 'DEV-KOK-01',
       model: 'Sonde Pro X1 Multi-parameter',
@@ -30,6 +31,7 @@ export const WATER_WATCH_STATIONS = [
     coordinates: [99.3615, 20.0610],
     radiusMeters: 250,
     status: 'active',
+    image: 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=800&auto=format&fit=crop&q=80',
     device: {
       code: 'DEV-KOK-02',
       model: 'Aqualab Field Station v2',
@@ -48,6 +50,7 @@ export const WATER_WATCH_STATIONS = [
     coordinates: [99.3850, 20.0535],
     radiusMeters: 250,
     status: 'active',
+    image: 'https://images.unsplash.com/photo-1579154204601-01588f351e67?w=800&auto=format&fit=crop&q=80',
     device: {
       code: 'DEV-KOK-03',
       model: 'HydroWatch IoT Telemetry Node',
@@ -66,6 +69,7 @@ export const WATER_WATCH_STATIONS = [
     coordinates: [99.4350, 20.0320],
     radiusMeters: 250,
     status: 'active',
+    image: 'https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?w=800&auto=format&fit=crop&q=80',
     device: {
       code: 'DEV-KOK-04',
       model: 'Border Sentry Water Quality Node',
