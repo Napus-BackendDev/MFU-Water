@@ -26,6 +26,8 @@ dist-ssr
 # Scratch & Dev artifacts
 scratch/
 .agents/
+*.py
+tmp_*
 
 # Credentials & Secrets (Strict L0)
 service-account*.json

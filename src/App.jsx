@@ -39,7 +39,7 @@ export default function App() {
   const [selectedLocation, setSelectedLocation] = useState(null); // Default full overview of Thaton & Thadoi
   const [floodStage, setFloodStage] = useState(0); // 0, 25, 50, 75, 100
   const [isPlaying, setIsPlaying] = useState(false);
-  const [is3DMode, setIs3DMode] = useState(true); // Default 3D on Tha Ton
+  const [is3DMode, setIs3DMode] = useState(false); // ค่าเริ่มต้นเป็น 2D (Top-down) ตามที่ผู้ใช้ต้องการ
   const [activeZone, setActiveZone] = useState(null); // Z1, Z2, Z3, Z4
   const [activeCommunity, setActiveCommunity] = useState(null); // huaimaphuang, thaton, huainamyen
   const [waterColorMode, setWaterColorMode] = useState('standard'); // 'standard' | 'mndwi'
@@ -84,14 +84,13 @@ export default function App() {
   }, [isPlaying]);
 
   const handleFocusThaton = () => {
-    setIs3DMode(true);
     setSelectedLocation(null);
     if (window.map) {
       window.map.flyTo({
         center: THATON_CENTER,
         zoom: 14.2,
-        pitch: 42,
-        bearing: 12,
+        pitch: is3DMode ? 42 : 0,
+        bearing: is3DMode ? 12 : 0,
         duration: 1200,
         essential: true
       });
@@ -301,8 +300,8 @@ export default function App() {
               window.map.flyTo({
                 center: coords,
                 zoom: zoom,
-                pitch: 42,
-                bearing: 15,
+                pitch: is3DMode ? 42 : 0,
+                bearing: is3DMode ? 15 : 0,
                 duration: 1200,
                 essential: true
               });

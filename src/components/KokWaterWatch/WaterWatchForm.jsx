@@ -7,30 +7,15 @@ import {
   AlertCircle,
   Check
 } from 'lucide-react';
-import { WATER_WATCH_STATIONS, findNearestStation } from '../../data/waterWatchData';
 import { uploadSampleImage, saveSampleToSupabase } from '../../lib/supabase';
+import { ARSENIC_LEVELS } from '../../data/waterWatchData';
 
-// 9 ระดับสีสารหนู (Arsenic Level 1 - 9 ตามภาพอ้างอิงและมาตรฐานชุดตรวจสารหนู)
-export const ARSENIC_LEVELS = [
-  { level: 1, ppb: 0, label: '0 ppb', color: '#FBF9F2', borderColor: '#D1D5DB', desc: 'สีขาวครีม' },
-  { level: 2, ppb: 5, label: '5 ppb', color: '#FEF3A9', borderColor: '#E5D66E', desc: 'สีเหลืองอ่อน' },
-  { level: 3, ppb: 10, label: '10 ppb', color: '#F7E752', borderColor: '#DAC82A', desc: 'สีเหลืองมะนาว' },
-  { level: 4, ppb: 30, label: '30 ppb', color: '#E8BE36', borderColor: '#C89F19', desc: 'สีเหลืองทอง' },
-  { level: 5, ppb: 50, label: '50 ppb', color: '#DE9922', borderColor: '#B87A11', desc: 'สีเหลืองสด' },
-  { level: 6, ppb: 100, label: '100 ppb', color: '#C07128', borderColor: '#9A5214', desc: 'สีน้ำตาลอ่อน/ส้ม' },
-  { level: 7, ppb: 200, label: '200 ppb', color: '#974E22', borderColor: '#753713', desc: 'สีน้ำตาล' },
-  { level: 8, ppb: 300, label: '300 ppb', color: '#683115', borderColor: '#4F210A', desc: 'สีน้ำตาลเข้ม' },
-  { level: 9, ppb: 500, label: '500 ppb', color: '#31170D', borderColor: '#1F0C06', desc: 'สีน้ำตาลไหม้/ดำ' },
-];
+export { ARSENIC_LEVELS };
 
 export default function WaterWatchForm({
   onCancel,
-  onSubmitSuccess,
-  lockedStation = null,
-  stations = WATER_WATCH_STATIONS
+  onSubmitSuccess
 }) {
-  const activeStations = stations && stations.length > 0 ? stations : WATER_WATCH_STATIONS;
-
   // Local Storage pre-fill for collector information
   const [collectorInfo] = useState(() => {
     let saved = {
@@ -54,15 +39,10 @@ export default function WaterWatchForm({
   const [selectedLevel, setSelectedLevel] = useState(null);
 
   // Location State
-  const [latitude, setLatitude] = useState(
-    lockedStation?.coordinates?.[1] ? lockedStation.coordinates[1].toString() : ''
-  );
-  const [longitude, setLongitude] = useState(
-    lockedStation?.coordinates?.[0] ? lockedStation.coordinates[0].toString() : ''
-  );
+  const [latitude, setLatitude] = useState('');
+  const [longitude, setLongitude] = useState('');
   const [gpsAccuracy, setGpsAccuracy] = useState(null);
   const [isGettingGps, setIsGettingGps] = useState(false);
-  const [selectedStationId, setSelectedStationId] = useState(lockedStation?.id || '');
 
   // Photos State (จำกัด 2 รูปตาม Mockup)
   const [photo1, setPhoto1] = useState(null);
@@ -181,7 +161,7 @@ export default function WaterWatchForm({
           JSON.stringify({
             name: fullName.trim(),
             phone: phone.trim(),
-            org: collectorInfo.org || 'ทีมอาสาสมัครลุ่มน้ำกก มฟล.',
+            org: 'ประชาชนทั่วไป',
             id: collectorInfo.id
           })
         );
@@ -214,42 +194,18 @@ export default function WaterWatchForm({
         }
       }
 
-      // Stage 2: Station matching
-      let targetStationId;
-      let targetStationName;
-      let isOffStation = true;
-
-      if (lockedStation) {
-        targetStationId = lockedStation.id;
-        targetStationName = lockedStation.name;
-        isOffStation = false;
-      } else if (selectedStationId) {
-        const matched = activeStations.find((s) => s.id === selectedStationId);
-        targetStationId = matched ? matched.id : 'OFF-STATION';
-        targetStationName = matched ? matched.name : 'จุดสำรวจภาคสนาม';
-        isOffStation = !matched;
-      } else {
-        const nearest = findNearestStation(parsedLat, parsedLng, activeStations);
-        if (nearest && nearest.distanceMeters && nearest.distanceMeters <= (nearest.radiusMeters || 300)) {
-          targetStationId = nearest.id;
-          targetStationName = nearest.name;
-          isOffStation = false;
-        } else {
-          targetStationId = 'OFF-STATION';
-          targetStationName = nearest ? `จุดตรวจใกล้ ${nearest.name}` : 'จุดสำรวจภาคสนาม (GPS)';
-          isOffStation = true;
-        }
-      }
+      // Stage 2: Coordinate & Location naming
+      const locationLabel = `พิกัด [${parsedLat.toFixed(4)}, ${parsedLng.toFixed(4)}]`;
 
       const newRecord = {
         record_id: recordId,
         sample_code: sampleCode,
-        schema_version: '1.0',
-        station_id: targetStationId,
-        station_name: targetStationName,
+        schema_version: '2.0',
+        station_id: 'COORDINATE-POINT',
+        station_name: locationLabel,
         coordinates: [parsedLng, parsedLat],
         gps_coordinates: [parsedLng, parsedLat],
-        is_off_station: isOffStation,
+        is_off_station: true,
         collection_time: new Date().toISOString(),
         gps_accuracy_meters: gpsAccuracy || 5.0,
         entry_type: 'realtime',
@@ -257,30 +213,29 @@ export default function WaterWatchForm({
           id: collectorInfo.id,
           name: fullName.trim() || 'ผู้ตรวจวัดภาคสนาม',
           phone: phone.trim() || '-',
-          organization: collectorInfo.org,
+          organization: 'ประชาชนทั่วไป',
           notes: ''
         },
         sample_nature: {
-          water_source: isOffStation ? 'จุดสำรวจภาคสนามริมแม่น้ำกก' : targetStationName,
-          water_appearance: 'ปกติ',
-          odor: 'ไม่พบกลิ่นผิดปกติ',
-          rain_last_24h: 'ไม่มีฝนตก',
-          notes: `บันทึกผ่านแถบเทียบสีระดับ ${selectedLevel.level} (${selectedLevel.label})`
+          water_source: `จุดตรวจวัดพิกัดริมแม่น้ำกก (${parsedLat.toFixed(4)}, ${parsedLng.toFixed(4)})`,
+          notes: `บันทึกผ่านแถบเทียบสีระดับ ${selectedLevel.level} (${selectedLevel.label} - ${selectedLevel.desc})`
         },
         measurements: {
           arsenic: {
             value: selectedLevel.ppb,
-            unit: 'µg/L',
-            status: selectedLevel.ppb > 20 ? 'danger' : selectedLevel.ppb > 10 ? 'watch' : 'normal',
+            unit: 'ppb',
+            status: selectedLevel.ppb > 50 ? 'danger' : selectedLevel.ppb > 10 ? 'watch' : 'normal',
             method: 'ชุดทดสอบภาคสนาม (Arsenic Field Test Kit)',
             instrument: `แถบเทียบสีระดับ ${selectedLevel.level} (${selectedLevel.label})`,
             level: selectedLevel.level,
+            label: selectedLevel.label,
+            desc: selectedLevel.desc,
             color: selectedLevel.color
           },
           ph: {
-            value: 7.2,
+            value: null,
             status: 'normal',
-            method: 'ค่ามาตรฐานภาคสนาม',
+            method: null,
             instrument: null
           },
           turbidity: {
@@ -323,303 +278,280 @@ export default function WaterWatchForm({
   };
 
   return (
-    <div className="bg-white rounded-3xl shadow-2xl border border-slate-200/90 w-full max-w-lg mx-auto relative flex flex-col max-h-[92vh] overflow-hidden text-slate-800 animate-in fade-in zoom-in-95 duration-200">
-      {/* Top Close Button (X) */}
-      <button
-        type="button"
-        onClick={onCancel}
-        disabled={isSubmitting}
-        className="absolute top-4 right-4 p-1.5 rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors z-10 cursor-pointer disabled:opacity-50"
-        title="ปิดแบบฟอร์ม"
-      >
-        <X className="w-5 h-5" />
-      </button>
+    <div className="bg-white rounded-3xl shadow-2xl border border-slate-200/90 w-full max-w-[680px] sm:max-w-2xl lg:max-w-3xl mx-auto relative flex flex-col max-h-[92vh] overflow-hidden text-slate-800 animate-in fade-in zoom-in-95 duration-200">
+      {/* Top Header Bar */}
+      <div className="flex items-center justify-between px-5 py-3.5 sm:px-6 sm:py-4 border-b border-slate-100 shrink-0 bg-[#F8F7F5]">
+        <h2 className="text-sm sm:text-base md:text-lg font-bold text-slate-800 flex items-center gap-2">
+          <span className="text-xl">📝</span>
+          <span>บันทึกผลการตรวจสอบคุณภาพน้ำ</span>
+        </h2>
+        <button
+          type="button"
+          onClick={onCancel}
+          disabled={isSubmitting}
+          className="p-1.5 rounded-xl hover:bg-slate-200/70 text-slate-400 hover:text-slate-700 transition-colors cursor-pointer disabled:opacity-50"
+          title="ปิดแบบฟอร์ม"
+        >
+          <X className="w-5 h-5" />
+        </button>
+      </div>
 
-      {/* Scrollable Form Content */}
-      <div className="p-5 sm:p-6 overflow-y-auto space-y-4">
-        {/* Title */}
-        <div className="text-center pt-1 pb-0.5">
-          <h2 className="text-base sm:text-lg font-bold text-slate-800 flex items-center justify-center gap-2">
-            <span>📝</span>
-            <span>บันทึกผลการตรวจสอบ</span>
-          </h2>
-          {lockedStation && (
-            <p className="text-[11px] text-[#A6192E] font-medium mt-0.5">
-              จุดตรวจ: {lockedStation.name}
-            </p>
-          )}
-        </div>
-
+      {/* Form Content - Spacious, Large Fonts for Elderly Volunteers */}
+      <div className="p-4 sm:p-6 md:p-7 space-y-4 sm:space-y-5 overflow-y-auto">
         {errorMessage && (
-          <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700 flex items-center gap-2 animate-in fade-in">
+          <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs sm:text-sm text-red-700 flex items-center gap-2 animate-in fade-in">
             <AlertCircle className="w-4 h-4 shrink-0 text-red-500" />
-            <span>{errorMessage}</span>
+            <span className="font-medium">{errorMessage}</span>
           </div>
         )}
 
-        {/* 1. ชื่อ-นามสกุล / Full Name */}
-        <div className="space-y-1">
-          <label className="block text-xs font-semibold text-slate-700">
-            ชื่อ-นามสกุล / Full Name:
-          </label>
-          <input
-            type="text"
-            value={fullName}
-            onChange={(e) => setFullName(e.target.value)}
-            disabled={isSubmitting}
-            placeholder="ระบุชื่อ-นามสกุลของคุณ"
-            className="w-full text-sm px-3.5 py-2.5 rounded-xl border border-slate-300 focus:border-[#A6192E] focus:ring-2 focus:ring-[#A6192E]/20 bg-white text-slate-800 outline-none transition-all placeholder:text-slate-400 disabled:bg-slate-100"
-          />
+        {/* 1 & 2. ชื่อและเบอร์โทร (Grid 2 คอลัมน์) */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+          <div className="space-y-1">
+            <label className="block text-xs sm:text-sm font-bold text-slate-800">
+              ชื่อ-นามสกุล / Name:
+            </label>
+            <input
+              type="text"
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              disabled={isSubmitting}
+              placeholder="ระบุชื่อ-นามสกุล"
+              className="w-full text-xs sm:text-sm h-11 sm:h-12 px-3.5 rounded-xl border border-slate-300 focus:border-[#A6192E] focus:ring-2 focus:ring-[#A6192E]/20 bg-white text-slate-800 outline-none transition-all placeholder:text-slate-400 disabled:bg-slate-100 font-medium"
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="block text-xs sm:text-sm font-bold text-slate-800">
+              เบอร์โทรศัพท์ / Phone:
+            </label>
+            <input
+              type="tel"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              disabled={isSubmitting}
+              placeholder="เช่น 08X-XXX-XXXX"
+              className="w-full text-xs sm:text-sm h-11 sm:h-12 px-3.5 rounded-xl border border-slate-300 focus:border-[#A6192E] focus:ring-2 focus:ring-[#A6192E]/20 bg-white text-slate-800 outline-none transition-all placeholder:text-slate-400 disabled:bg-slate-100 font-medium font-mono"
+            />
+          </div>
         </div>
 
-        {/* 2. เบอร์โทรศัพท์ / Phone Number */}
-        <div className="space-y-1">
-          <label className="block text-xs font-semibold text-slate-700">
-            เบอร์โทรศัพท์ / Phone Number:
-          </label>
-          <input
-            type="tel"
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-            disabled={isSubmitting}
-            placeholder="เช่น 08X-XXX-XXXX"
-            className="w-full text-sm px-3.5 py-2.5 rounded-xl border border-slate-300 focus:border-[#A6192E] focus:ring-2 focus:ring-[#A6192E]/20 bg-white text-slate-800 outline-none transition-all placeholder:text-slate-400 disabled:bg-slate-100"
-          />
-        </div>
-
-        {/* 3. Arsenic Level (9 ระดับสีเรียงตามภาพอ้างอิง) */}
+        {/* 3. Arsenic Level (9 ระดับสี ขนาดใหญ่ กดง่าย อ่านชัดเจน) */}
         <div className="space-y-1.5">
-          <div className="flex items-center justify-between text-xs">
-            <label className="font-semibold text-slate-700">
-              โปรดเลือกสีที่ตรงกับผลตรวจของท่าน (Arsenic Level){' '}
-              <span className="text-red-500 font-semibold">*ต้องระบุ:</span>
+          <div className="flex items-center justify-between text-xs sm:text-sm">
+            <label className="font-bold text-slate-800">
+              โปรดเลือกสีผลตรวจ (Arsenic Level){' '}
+              <span className="text-red-500 font-semibold">*ต้องระบุ</span>
             </label>
             {selectedLevel && (
-              <span className="text-[11px] font-bold text-[#A6192E] animate-in fade-in">
-                (ระดับ {selectedLevel.level} - {selectedLevel.label})
+              <span className="text-xs sm:text-sm font-bold text-[#A6192E] animate-in fade-in">
+                ระดับ {selectedLevel.level} ({selectedLevel.label} - {selectedLevel.ppb} ppb)
               </span>
             )}
           </div>
 
-          {/* 9 Colors Row */}
-          <div className="overflow-x-auto pb-1 -mx-1 px-1">
-            <div className="grid grid-cols-9 gap-1 sm:gap-1.5 min-w-[340px]">
-              {ARSENIC_LEVELS.map((item) => {
-                const isSelected = selectedLevel?.level === item.level;
-                return (
-                  <button
-                    key={item.level}
-                    type="button"
-                    disabled={isSubmitting}
-                    onClick={() => setSelectedLevel(item)}
-                    className={`p-1 sm:p-1.5 rounded-xl border flex flex-col items-center justify-between text-center transition-all cursor-pointer min-h-[76px] sm:min-h-[82px] select-none ${
-                      isSelected
-                        ? 'border-[#A6192E] bg-red-50/80 ring-2 ring-[#A6192E]/30 shadow-xs scale-[1.02] z-10'
-                        : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
+          <div className="grid grid-cols-9 gap-1 sm:gap-2">
+            {ARSENIC_LEVELS.map((item) => {
+              const isSelected = selectedLevel?.level === item.level;
+              return (
+                <button
+                  key={item.level}
+                  type="button"
+                  disabled={isSubmitting}
+                  onClick={() => setSelectedLevel(item)}
+                  className={`p-1 sm:p-1.5 rounded-xl border flex flex-col items-center justify-between text-center transition-all cursor-pointer h-[66px] sm:h-[82px] select-none ${
+                    isSelected
+                      ? 'border-[#A6192E] bg-red-50/95 ring-2 ring-[#A6192E]/50 shadow-md scale-[1.03] z-10'
+                      : 'border-slate-200 bg-white hover:border-slate-400 hover:bg-slate-50'
+                  }`}
+                >
+                  <span className="text-xs sm:text-sm font-black text-slate-800 leading-none">
+                    {item.level}
+                  </span>
+                  <span
+                    className={`w-5 h-5 sm:w-7 sm:h-7 rounded-full border shadow-xs my-0.5 shrink-0 flex items-center justify-center transition-transform ${
+                      isSelected ? 'ring-2 ring-[#A6192E]' : ''
                     }`}
+                    style={{
+                      backgroundColor: item.color,
+                      borderColor: item.borderColor
+                    }}
                   >
-                    <span className="text-xs font-bold text-slate-700 leading-none">
-                      {item.level}
-                    </span>
-                    <span
-                      className={`w-5 h-5 sm:w-6 sm:h-6 rounded-full border shadow-2xs my-1 shrink-0 flex items-center justify-center transition-transform ${
-                        isSelected ? 'ring-2 ring-[#A6192E]' : ''
-                      }`}
-                      style={{
-                        backgroundColor: item.color,
-                        borderColor: item.borderColor
-                      }}
-                    >
-                      {isSelected && (
-                        <Check
-                          className={`w-3.5 h-3.5 stroke-[3] ${
-                            item.level >= 6 ? 'text-white' : 'text-slate-800'
-                          }`}
-                        />
-                      )}
-                    </span>
-                    <span className="text-[9px] sm:text-[10px] font-medium text-slate-600 whitespace-nowrap leading-none">
-                      {item.label}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
+                    {isSelected && (
+                      <Check
+                        className={`w-3.5 h-3.5 sm:w-4 sm:h-4 stroke-[3] ${
+                          item.level >= 6 ? 'text-white' : 'text-slate-800'
+                        }`}
+                      />
+                    )}
+                  </span>
+                  <span className="text-[9px] sm:text-[11px] font-bold text-slate-700 whitespace-nowrap leading-none">
+                    {item.label}
+                  </span>
+                </button>
+              );
+            })}
           </div>
         </div>
 
-        {/* 4. Location Section */}
-        <div className="space-y-2">
-          <label className="block text-xs font-semibold text-slate-700">
-            ระบุพิกัดที่ตั้ง (Location):{' '}
-            <span className="text-red-500 font-semibold">*ต้องระบุพิกัดที่ตั้ง</span>
-          </label>
+        {/* 4. Location Section (ดึงพิกัด + กล่องละติจูด/ลองจิจูด) */}
+        <div className="space-y-1.5">
+          <div className="flex items-center justify-between text-xs sm:text-sm">
+            <label className="font-bold text-slate-800">
+              ระบุพิกัดที่ตั้ง (Location){' '}
+              <span className="text-red-500 font-semibold">*ต้องระบุ</span>
+            </label>
+            {gpsAccuracy && (
+              <span className="text-xs text-slate-500 font-mono">
+                ความแม่นยำ: ±{gpsAccuracy} ม.
+              </span>
+            )}
+          </div>
 
-          {/* Large GPS Button (สีส้ม/ทองตามภาพอ้างอิง) */}
-          <button
-            type="button"
-            onClick={handleGetLiveGPS}
-            disabled={isGettingGps || isSubmitting}
-            className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-[#E59832] to-[#DF8A20] hover:brightness-105 active:scale-[0.99] text-white font-bold text-xs sm:text-sm shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-75"
-          >
-            <MapPin className={`w-4 h-4 ${isGettingGps ? 'animate-bounce' : ''}`} />
-            <span>
-              {isGettingGps ? 'กำลังดึงพิกัด GPS ปัจจุบัน...' : '📍 กดปุ่มเพื่อดึงพิกัด GPS ปัจจุบัน'}
-            </span>
-          </button>
+          <div className="grid grid-cols-12 gap-2 items-center">
+            <button
+              type="button"
+              onClick={handleGetLiveGPS}
+              disabled={isGettingGps || isSubmitting}
+              className="col-span-5 sm:col-span-4 h-11 sm:h-12 px-3 rounded-xl bg-gradient-to-r from-[#E59832] to-[#DF8A20] hover:brightness-105 active:scale-[0.98] text-white font-bold text-xs sm:text-sm shadow-sm transition-all flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-75"
+            >
+              <MapPin className={`w-4 h-4 shrink-0 ${isGettingGps ? 'animate-bounce' : ''}`} />
+              <span className="truncate">
+                {isGettingGps ? 'กำลังดึง...' : 'ดึงพิกัด GPS'}
+              </span>
+            </button>
 
-          {/* Latitude & Longitude Input/Display Boxes */}
-          <div className="grid grid-cols-2 gap-2">
-            <div className="relative">
+            <div className="col-span-7 sm:col-span-8 grid grid-cols-2 gap-2">
               <input
                 type="text"
                 value={latitude}
                 onChange={(e) => setLatitude(e.target.value)}
                 disabled={isSubmitting}
-                placeholder="ละติจูด (ยังไม่ได้ระบุ)"
-                className="w-full bg-[#F3F4F6] border border-slate-200/90 rounded-xl py-2 px-3 text-center text-xs font-mono text-slate-800 placeholder:text-slate-400 placeholder:font-sans focus:bg-white focus:border-[#A6192E] focus:ring-1 focus:ring-[#A6192E]/20 outline-none transition-all disabled:opacity-60"
+                placeholder="ละติจูด (Lat)"
+                className="w-full h-11 sm:h-12 bg-[#F3F4F6] border border-slate-300 rounded-xl px-2.5 text-center text-xs sm:text-sm font-mono font-bold text-slate-800 placeholder:text-slate-400 focus:bg-white focus:border-[#A6192E] outline-none transition-all disabled:opacity-60"
               />
-            </div>
-            <div className="relative">
               <input
                 type="text"
                 value={longitude}
                 onChange={(e) => setLongitude(e.target.value)}
                 disabled={isSubmitting}
-                placeholder="ลองจิจูด (ยังไม่ได้ระบุ)"
-                className="w-full bg-[#F3F4F6] border border-slate-200/90 rounded-xl py-2 px-3 text-center text-xs font-mono text-slate-800 placeholder:text-slate-400 placeholder:font-sans focus:bg-white focus:border-[#A6192E] focus:ring-1 focus:ring-[#A6192E]/20 outline-none transition-all disabled:opacity-60"
+                placeholder="ลองจิจูด (Lng)"
+                className="w-full h-11 sm:h-12 bg-[#F3F4F6] border border-slate-300 rounded-xl px-2.5 text-center text-xs sm:text-sm font-mono font-bold text-slate-800 placeholder:text-slate-400 focus:bg-white focus:border-[#A6192E] outline-none transition-all disabled:opacity-60"
               />
             </div>
           </div>
-
-          {/* Station preset option & GPS accuracy info */}
-          <div className="flex items-center justify-between text-[11px] text-slate-500 pt-0.5">
-            <div className="flex items-center gap-1.5 flex-1 mr-2">
-              <span className="shrink-0 text-slate-400">หรือเลือกสถานี:</span>
-              <select
-                value={selectedStationId}
-                onChange={(e) => {
-                  const stId = e.target.value;
-                  setSelectedStationId(stId);
-                  const st = activeStations.find((s) => s.id === stId);
-                  if (st) {
-                    setLatitude(st.coordinates[1].toFixed(6));
-                    setLongitude(st.coordinates[0].toFixed(6));
-                  }
-                }}
-                disabled={isSubmitting}
-                className="text-[11px] py-0.5 px-1.5 bg-slate-100 hover:bg-slate-200 border border-slate-200 rounded-lg text-slate-700 outline-none max-w-[210px] truncate cursor-pointer"
-              >
-                <option value="">-- พิกัดอิสระจาก GPS --</option>
-                {activeStations.map((st) => (
-                  <option key={st.id} value={st.id}>
-                    [{st.code}] {st.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            {gpsAccuracy && (
-              <span className="text-[10px] text-slate-400 shrink-0">
-                ±{gpsAccuracy} ม.
-              </span>
-            )}
-          </div>
         </div>
 
-        {/* 5. แนบรูปถ่ายหลักฐานยืนยันผลตรวจ (2 รูปตาม Mockup) */}
-        <div className="bg-[#F8F9FA] rounded-2xl border border-slate-200 p-3 sm:p-4 space-y-2">
-          <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-800">
-            <span>📷</span>
-            <span>แนบรูปถ่ายหลักฐานยืนยันผลตรวจ</span>
+        {/* 5. แนบรูปถ่ายหลักฐานยืนยันผลตรวจ (กล่องขนาดสบายตา) */}
+        <div className="bg-[#F8F9FA] rounded-2xl border border-slate-200/90 p-3 sm:p-4 space-y-2">
+          <div className="flex items-center justify-between text-xs sm:text-sm font-bold text-slate-800">
+            <span className="flex items-center gap-1.5">
+              <Camera className="w-4 h-4 text-slate-600" />
+              <span>แนบรูปถ่ายหลักฐาน (2 รูป)</span>
+            </span>
+            <span className="text-xs text-slate-500 font-normal">
+              แถบเทียบสี / บริเวณริมน้ำ
+            </span>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            {/* Slot 1: ภาพที่ 1 ในการ์ดสีขาวตาม Mockup */}
-            <div className="bg-white rounded-xl border border-slate-200/80 p-2.5 sm:p-3 shadow-2xs space-y-2">
-              <div className="text-center text-xs text-slate-600 font-medium">ภาพที่ 1</div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3">
+            {/* Slot 1: ภาพที่ 1 */}
+            <div className="relative">
               <div
                 onClick={() => !isSubmitting && fileInputRef1.current?.click()}
-                className="border-2 border-dashed border-slate-300 hover:border-[#A6192E] rounded-lg p-2.5 flex flex-col items-center justify-center min-h-[96px] bg-slate-50/50 cursor-pointer transition-all hover:bg-slate-50 relative group"
+                className="border border-dashed border-slate-300 hover:border-[#A6192E] rounded-xl p-2 flex items-center justify-center h-18 sm:h-22 bg-white cursor-pointer transition-all hover:bg-slate-50 group overflow-hidden"
               >
                 {photo1 ? (
-                  <div className="relative w-full h-24">
+                  <div className="relative w-full h-full flex items-center gap-3">
                     <img
                       src={photo1.url}
                       alt="ภาพที่ 1"
-                      className="w-full h-full object-cover rounded-md"
+                      className="w-16 sm:w-20 h-full object-cover rounded-lg"
                     />
-                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded-md flex items-center justify-center text-white text-[11px] font-medium">
-                      คลิกเพื่อเปลี่ยนรูป
+                    <div className="flex-1 min-w-0 text-left">
+                      <div className="text-xs sm:text-sm font-bold text-slate-800 truncate">ภาพที่ 1 (แถบสี)</div>
+                      <div className="text-xs text-slate-400 truncate">แตะเพื่อเปลี่ยนรูป</div>
                     </div>
                   </div>
                 ) : (
-                  <>
-                    <Camera className="w-6 h-6 text-slate-400 group-hover:text-[#A6192E] transition-colors" />
-                    <span className="text-[11px] text-slate-500 text-center mt-1.5 leading-tight">
-                      คลิกเพื่อเลือกภาพหรือถ่ายรูป
-                    </span>
-                  </>
+                  <div className="flex items-center gap-2.5 text-slate-400 group-hover:text-[#A6192E] transition-colors">
+                    <Camera className="w-6 h-6 shrink-0" />
+                    <div className="text-left leading-tight">
+                      <span className="text-xs sm:text-sm font-bold text-slate-700 block">ภาพที่ 1</span>
+                      <span className="text-xs text-slate-400 block">แถบเทียบสีผลตรวจ</span>
+                    </div>
+                  </div>
                 )}
-                <input
-                  ref={fileInputRef1}
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => handleFileSelect(e, 1)}
-                  className="hidden"
-                />
               </div>
-              <button
-                type="button"
-                onClick={() => removePhoto(1)}
-                disabled={isSubmitting}
-                className="w-full text-center text-xs font-medium text-red-500 hover:text-red-700 cursor-pointer pt-0.5 transition-colors disabled:opacity-50"
-              >
-                ลบรูปภาพนี้
-              </button>
+              {photo1 && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    removePhoto(1);
+                  }}
+                  className="absolute top-1.5 right-1.5 p-1 rounded-full bg-red-100 text-red-600 hover:bg-red-200 cursor-pointer shadow-xs"
+                  title="ลบรูปภาพนี้"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+              <input
+                ref={fileInputRef1}
+                type="file"
+                accept="image/*"
+                onChange={(e) => handleFileSelect(e, 1)}
+                className="hidden"
+              />
             </div>
 
-            {/* Slot 2: ภาพที่ 2 ในการ์ดสีขาวตาม Mockup */}
-            <div className="bg-white rounded-xl border border-slate-200/80 p-2.5 sm:p-3 shadow-2xs space-y-2">
-              <div className="text-center text-xs text-slate-600 font-medium">ภาพที่ 2</div>
+            {/* Slot 2: ภาพที่ 2 */}
+            <div className="relative">
               <div
                 onClick={() => !isSubmitting && fileInputRef2.current?.click()}
-                className="border-2 border-dashed border-slate-300 hover:border-[#A6192E] rounded-lg p-2.5 flex flex-col items-center justify-center min-h-[96px] bg-slate-50/50 cursor-pointer transition-all hover:bg-slate-50 relative group"
+                className="border border-dashed border-slate-300 hover:border-[#A6192E] rounded-xl p-2 flex items-center justify-center h-18 sm:h-22 bg-white cursor-pointer transition-all hover:bg-slate-50 group overflow-hidden"
               >
                 {photo2 ? (
-                  <div className="relative w-full h-24">
+                  <div className="relative w-full h-full flex items-center gap-3">
                     <img
                       src={photo2.url}
                       alt="ภาพที่ 2"
-                      className="w-full h-full object-cover rounded-md"
+                      className="w-16 sm:w-20 h-full object-cover rounded-lg"
                     />
-                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded-md flex items-center justify-center text-white text-[11px] font-medium">
-                      คลิกเพื่อเปลี่ยนรูป
+                    <div className="flex-1 min-w-0 text-left">
+                      <div className="text-xs sm:text-sm font-bold text-slate-800 truncate">ภาพที่ 2 (ริมแม่น้ำ)</div>
+                      <div className="text-xs text-slate-400 truncate">แตะเพื่อเปลี่ยนรูป</div>
                     </div>
                   </div>
                 ) : (
-                  <>
-                    <Camera className="w-6 h-6 text-slate-400 group-hover:text-[#A6192E] transition-colors" />
-                    <span className="text-[11px] text-slate-500 text-center mt-1.5 leading-tight">
-                      คลิกเพื่อเลือกภาพหรือถ่ายรูป
-                    </span>
-                  </>
+                  <div className="flex items-center gap-2.5 text-slate-400 group-hover:text-[#A6192E] transition-colors">
+                    <Camera className="w-6 h-6 shrink-0" />
+                    <div className="text-left leading-tight">
+                      <span className="text-xs sm:text-sm font-bold text-slate-700 block">ภาพที่ 2</span>
+                      <span className="text-xs text-slate-400 block">สภาพแวดล้อม/จุดเก็บน้ำ</span>
+                    </div>
+                  </div>
                 )}
-                <input
-                  ref={fileInputRef2}
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => handleFileSelect(e, 2)}
-                  className="hidden"
-                />
               </div>
-              <button
-                type="button"
-                onClick={() => removePhoto(2)}
-                disabled={isSubmitting}
-                className="w-full text-center text-xs font-medium text-red-500 hover:text-red-700 cursor-pointer pt-0.5 transition-colors disabled:opacity-50"
-              >
-                ลบรูปภาพนี้
-              </button>
+              {photo2 && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    removePhoto(2);
+                  }}
+                  className="absolute top-1.5 right-1.5 p-1 rounded-full bg-red-100 text-red-600 hover:bg-red-200 cursor-pointer shadow-xs"
+                  title="ลบรูปภาพนี้"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+              <input
+                ref={fileInputRef2}
+                type="file"
+                accept="image/*"
+                onChange={(e) => handleFileSelect(e, 2)}
+                className="hidden"
+              />
             </div>
           </div>
         </div>
@@ -630,7 +562,7 @@ export default function WaterWatchForm({
             type="button"
             onClick={onCancel}
             disabled={isSubmitting}
-            className="w-32 sm:w-36 py-2.5 px-4 rounded-xl bg-[#8E9CAE] hover:bg-slate-500 active:scale-[0.99] text-white font-semibold text-sm transition-all cursor-pointer shadow-xs disabled:opacity-50"
+            className="w-28 sm:w-36 py-3 px-4 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold text-xs sm:text-sm transition-all cursor-pointer disabled:opacity-50"
           >
             ยกเลิก
           </button>
@@ -638,15 +570,15 @@ export default function WaterWatchForm({
             type="button"
             onClick={handleSubmit}
             disabled={isSubmitting}
-            className="flex-1 py-2.5 px-6 rounded-xl bg-[#A6192E] hover:bg-[#851424] active:scale-[0.99] text-white font-bold text-sm shadow-md shadow-[#A6192E]/25 transition-all cursor-pointer flex items-center justify-center gap-2 disabled:opacity-60"
+            className="flex-1 py-3 px-5 rounded-xl bg-[#A6192E] hover:bg-[#851424] active:scale-[0.99] text-white font-bold text-xs sm:text-sm md:text-base shadow-lg shadow-[#A6192E]/25 transition-all cursor-pointer flex items-center justify-center gap-2 disabled:opacity-60"
           >
             {isSubmitting ? (
               <>
                 <RefreshCw className="w-4 h-4 animate-spin" />
-                <span>กำลังส่งข้อมูลบันทึก...</span>
+                <span>กำลังส่งข้อมูล...</span>
               </>
             ) : (
-              <span>ส่งข้อมูลบันทึก</span>
+              <span>ส่งข้อมูลบันทึกผลการตรวจสอบ</span>
             )}
           </button>
         </div>

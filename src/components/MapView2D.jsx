@@ -18,7 +18,7 @@ export default function MapView2D({
   selectedLocation = null,
   onSelectLocation,
   floodStage = 0, // 0 to 100
-  is3DMode = true,
+  is3DMode = false,
   activeZone = null,
   activeCommunity = null,
   waterColorMode = 'standard', // 'standard' | 'mndwi'
@@ -93,8 +93,8 @@ export default function MapView2D({
         [99.315, 20.015],
         [99.435, 20.105]
       ],
-      pitch: 42, // มุมมอง 3D เฉียงเห็นมิติความเว้าโค้งของภูมิประเทศ
-      bearing: 15,
+      pitch: is3DMode ? 42 : 0, // เริ่มต้น 2D แบนราบ (0 องศา) หรือ 3D (42 องศา)
+      bearing: is3DMode ? 15 : 0,
       maxPitch: 80,
       dragRotate: true,
       touchPitch: true,
@@ -470,12 +470,14 @@ export default function MapView2D({
         const cam = com.camera || {
           center: com.coordinates,
           zoom: 16.0,
-          pitch: 42,
-          bearing: 25
+          pitch: is3DMode ? 42 : 0,
+          bearing: is3DMode ? 25 : 0
         };
 
         map.flyTo({
           ...cam,
+          pitch: is3DMode ? (cam.pitch ?? 42) : 0,
+          bearing: is3DMode ? (cam.bearing ?? 0) : 0,
           duration: 1200,
           essential: true
         });
@@ -487,7 +489,7 @@ export default function MapView2D({
 
       markersRef.current.push(marker);
     });
-  }, [selectedLocation, mapLoaded, onSelectLocation]);
+  }, [selectedLocation, mapLoaded, onSelectLocation, is3DMode]);
 
   // เลื่อนมุมมองเมื่อมีการเลือกสถานที่จากภายนอก
   useEffect(() => {
@@ -496,15 +498,17 @@ export default function MapView2D({
     const cam = selectedLocation.camera || {
       center: selectedLocation.coordinates,
       zoom: 16.0,
-      pitch: 42,
-      bearing: 25
+      pitch: is3DMode ? 42 : 0,
+      bearing: is3DMode ? 25 : 0
     };
     map.flyTo({
       ...cam,
+      pitch: is3DMode ? (cam.pitch ?? 42) : 0,
+      bearing: is3DMode ? (cam.bearing ?? 0) : 0,
       duration: 1200,
       essential: true
     });
-  }, [selectedLocation?.id, mapLoaded]);
+  }, [selectedLocation?.id, mapLoaded, is3DMode]);
 
   return (
     <div className="relative w-full h-full bg-[#080c14] overflow-hidden">

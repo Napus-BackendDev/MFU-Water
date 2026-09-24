@@ -4,244 +4,247 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 import { 
   X, 
   ChevronRight, 
+  ChevronLeft,
   TrendingUp, 
-  TrendingDown, 
-  Minus, 
-  Droplets, 
+  Map, 
+  Globe, 
+  Layers, 
+  Flame, 
+  Clock, 
+  Calendar, 
   Camera, 
-  Edit3,
-  Map,
-  Globe,
-  Layers,
-  Compass
+  Users,
+  ZoomIn,
+  ShieldCheck,
+  AlertTriangle
 } from 'lucide-react';
-import { WATER_WATCH_STATIONS, getStationTelemetry } from '../../data/waterWatchData';
+import { clusterSubmissions } from '../../data/waterWatchData';
+import PPBTrendChart from './PPBTrendChart';
 
-// 1. เส้นพรมแดนไทย - เมียนมา (Thailand - Myanmar International Border Line)
-const THAILAND_MYANMAR_BORDER_GEOJSON = {
-  type: 'FeatureCollection',
-  features: [
-    {
-      type: 'Feature',
-      properties: {
-        name: 'เส้นพรมแดนไทย - เมียนมา (Thailand - Myanmar Border)',
-        type: 'international-border'
-      },
-      geometry: {
-        type: 'LineString',
-        coordinates: [
-          [99.1200, 20.3200],
-          [99.1650, 20.2750],
-          [99.2150, 20.2200],
-          [99.2550, 20.1700],
-          [99.2880, 20.1250],
-          [99.3120, 20.0980],
-          [99.3300, 20.0750], // จุดแม่น้ำกกไหลข้ามพรมแดนเข้าประเทศไทย
-          [99.3420, 20.0480],
-          [99.3380, 20.0100],
-          [99.3180, 19.9650],
-          [99.3000, 19.9150]
-        ]
-      }
-    }
-  ]
-};
+// คอมโพเนนต์แสดงรูปภาพถ่ายหลักฐานของการตรวจล่าสุด พร้อมระบบสลับรูปและ Loading Skeleton
+function EvidencePhotoBox({ 
+  photos = [], 
+  activeIdx = 0, 
+  onSelectIdx, 
+  onExpand 
+}) {
+  const [hasError, setHasError] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
-// 2. เส้นแบ่งเขตจังหวัด เชียงใหม่ - เชียงราย (Chiang Mai - Chiang Rai Provincial Boundary Line)
-const PROVINCE_BORDER_GEOJSON = {
-  type: 'FeatureCollection',
-  features: [
-    {
-      type: 'Feature',
-      properties: {
-        name: 'เส้นแบ่งเขตจังหวัด เชียงใหม่ - เชียงราย',
-        type: 'province-border'
-      },
-      geometry: {
-        type: 'LineString',
-        coordinates: [
-          [99.5300, 20.2600],
-          [99.5420, 20.2000],
-          [99.5520, 20.1400],
-          [99.5580, 20.0800],
-          [99.5600, 20.0200], // จุดรอยต่อแม่น้ำกกข้ามจังหวัด
-          [99.5650, 19.9600],
-          [99.5750, 19.9000],
-          [99.5850, 19.8400]
-        ]
-      }
-    }
-  ]
-};
+  const currentPhoto = photos[activeIdx] || photos[0];
 
-// 3. เส้นแบ่งเขตอำเภอสำคัญ (District Boundary Lines)
-const DISTRICT_BORDER_GEOJSON = {
-  type: 'FeatureCollection',
-  features: [
-    {
-      type: 'Feature',
-      properties: {
-        name: 'แนวแบ่งเขต อ.แม่อาย - อ.ฝาง (เชียงใหม่)',
-        type: 'district'
-      },
-      geometry: {
-        type: 'LineString',
-        coordinates: [
-          [99.2500, 19.9800],
-          [99.3300, 19.9850],
-          [99.4100, 19.9750],
-          [99.4900, 19.9600]
-        ]
-      }
-    },
-    {
-      type: 'Feature',
-      properties: {
-        name: 'แนวแบ่งเขต อ.แม่ฟ้าหลวง - อ.เมืองเชียงราย',
-        type: 'district'
-      },
-      geometry: {
-        type: 'LineString',
-        coordinates: [
-          [99.5600, 20.1200],
-          [99.6500, 20.1000],
-          [99.7400, 20.0700]
-        ]
-      }
-    }
-  ]
-};
+  useEffect(() => {
+    setHasError(false);
+    setIsLoading(true);
+  }, [currentPhoto?.url]);
 
-// 4. ป้ายกำกับเขตการปกครองและประเทศ (Administrative & Territory Badges)
-const ADMINISTRATIVE_BADGES = [
-  {
-    id: 'badge-myanmar',
-    coords: [99.2700, 20.1300],
-    title: '🇲🇲 ประเทศเมียนมา (Myanmar)',
-    subtitle: 'รัฐฉาน (Shan State) · ต้นกำเนิดแม่น้ำกก',
-    type: 'country',
-    bgClass: 'bg-amber-600/95 text-white border-amber-300 ring-2 ring-amber-400/50'
-  },
-  {
-    id: 'badge-thailand',
-    coords: [99.4400, 20.0900],
-    title: '🇹🇭 ประเทศไทย (Thailand)',
-    subtitle: 'ลุ่มน้ำกกตอนบน · ภาคเหนือ',
-    type: 'country',
-    bgClass: 'bg-blue-600/95 text-white border-blue-300 ring-2 ring-blue-400/50'
-  },
-  {
-    id: 'badge-border-point',
-    coords: [99.3300, 20.0750],
-    title: '🚧 ชายแดนไทย - เมียนมา',
-    subtitle: 'จุดแม่น้ำกกไหลข้ามพรมแดนสู่ไทย (กม.0)',
-    type: 'border',
-    bgClass: 'bg-rose-700/95 text-white border-rose-300 ring-2 ring-rose-400/50'
-  },
-  {
-    id: 'badge-mae-ai',
-    coords: [99.3650, 20.0350],
-    title: '🏛️ อ.แม่อาย (จ.เชียงใหม่)',
-    subtitle: 'ต.ท่าตอน / ต.แม่อาย / ต.มะลิกา',
-    type: 'district',
-    bgClass: 'bg-slate-900/95 text-white border-cyan-400 ring-1 ring-cyan-400/40'
-  },
-  {
-    id: 'badge-fang',
-    coords: [99.2200, 19.9200],
-    title: '🏛️ อ.ฝาง (จ.เชียงใหม่)',
-    subtitle: 'พื้นที่เกษตรกรรมและลุ่มน้ำสาขา',
-    type: 'district',
-    bgClass: 'bg-slate-900/95 text-white border-slate-300 ring-1 ring-slate-400/40'
-  },
-  {
-    id: 'badge-cm-cr-border',
-    coords: [99.5600, 20.0200],
-    title: '📍 รอยต่อ จ.เชียงใหม่ - เชียงราย',
-    subtitle: 'แนวแบ่งเขตจังหวัดริมแม่น้ำกก',
-    type: 'province',
-    bgClass: 'bg-purple-800/95 text-white border-purple-300 ring-2 ring-purple-400/50'
-  },
-  {
-    id: 'badge-mae-fah-luang',
-    coords: [99.6500, 20.1400],
-    title: '🏛️ อ.แม่ฟ้าหลวง (จ.เชียงราย)',
-    subtitle: 'แนวเทือกเขาดอยตุงและต้นน้ำสาขา',
-    type: 'district',
-    bgClass: 'bg-slate-900/95 text-white border-emerald-400 ring-1 ring-emerald-400/40'
-  },
-  {
-    id: 'badge-mueang-cr',
-    coords: [99.8250, 19.9100],
-    title: '🏛️ อ.เมืองเชียงราย (จ.เชียงราย)',
-    subtitle: 'พื้นที่ลุ่มน้ำกกตอนกลาง · ตัวเมือง',
-    type: 'district',
-    bgClass: 'bg-slate-900/95 text-white border-sky-400 ring-1 ring-sky-400/40'
+  if (!currentPhoto?.url) {
+    return (
+      <div className="mx-3 mt-2.5 px-3 py-2.5 rounded-xl bg-slate-50 border border-slate-200/80 flex items-center gap-2 text-slate-400 text-[11px] shrink-0">
+        <Camera className="w-4 h-4 text-slate-300 shrink-0" />
+        <span>ไม่มีภาพถ่ายแนบในการตรวจวัดล่าสุด</span>
+      </div>
+    );
   }
-];
+
+  return (
+    <div className="flex flex-col shrink-0">
+      <div
+        className="relative w-full h-40 sm:h-44 bg-slate-900 overflow-hidden group cursor-pointer"
+        onClick={() => onExpand(activeIdx)}
+        title="คลิกเพื่อขยายภาพถ่ายหลักฐานล่าสุด"
+      >
+        {/* Loading skeleton */}
+        {isLoading && (
+          <div className="absolute inset-0 bg-slate-800 animate-pulse flex items-center justify-center">
+            <Camera className="w-8 h-8 text-slate-600 animate-pulse" />
+          </div>
+        )}
+
+        {/* Error Fallback */}
+        {hasError ? (
+          <div className="absolute inset-0 bg-slate-800 flex items-center justify-center flex-col text-slate-400 gap-1.5 p-3">
+            <Camera className="w-7 h-7 text-slate-500" />
+            <span className="text-xs">ไม่สามารถโหลดรูปภาพได้</span>
+          </div>
+        ) : (
+          <img
+            key={currentPhoto.url}
+            src={currentPhoto.url}
+            alt={currentPhoto.title || 'ภาพถ่ายหลักฐานการตรวจล่าสุด'}
+            className={`w-full h-full object-cover transition-all duration-300 group-hover:scale-105 ${
+              isLoading ? 'opacity-0' : 'opacity-100'
+            }`}
+            onLoad={() => setIsLoading(false)}
+            onError={() => {
+              setIsLoading(false);
+              setHasError(true);
+            }}
+          />
+        )}
+
+        {/* Overlay Badge: ภาพถ่ายหลักฐานล่าสุด */}
+        <div className="absolute top-2.5 left-2.5 flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-black/70 backdrop-blur-xs text-xs font-semibold text-white shadow-sm pointer-events-none z-10">
+          <Camera className="w-3.5 h-3.5 text-sky-400" />
+          <span>ภาพถ่ายหลักฐานล่าสุด</span>
+        </div>
+
+        {/* Zoom In Cue on Hover */}
+        <div className="absolute inset-0 bg-black/25 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none z-10">
+          <span className="px-3 py-1.5 rounded-xl bg-black/80 backdrop-blur-xs text-white text-xs font-semibold flex items-center gap-1.5 shadow-lg">
+            <ZoomIn className="w-4 h-4 text-amber-300" />
+            <span>แตะเพื่อขยายรูป</span>
+          </span>
+        </div>
+
+        {/* Arrows for multi-photo navigation directly on photo (No text labels) */}
+        {photos.length > 1 && (
+          <>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onSelectIdx((activeIdx - 1 + photos.length) % photos.length);
+              }}
+              className="absolute left-2 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/60 hover:bg-black/80 text-white transition-all shadow-md cursor-pointer z-20 hover:scale-110 active:scale-95"
+              title="ภาพก่อนหน้า"
+            >
+              <ChevronLeft className="w-5 h-5" />
+            </button>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onSelectIdx((activeIdx + 1) % photos.length);
+              }}
+              className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/60 hover:bg-black/80 text-white transition-all shadow-md cursor-pointer z-20 hover:scale-110 active:scale-95"
+              title="ภาพถัดไป"
+            >
+              <ChevronRight className="w-5 h-5" />
+            </button>
+
+            {/* Pagination dots & counter (No text 'ภาพทั้งหมด' or 'ภาพที่ 1') */}
+            <div className="absolute bottom-2.5 left-1/2 -translate-x-1/2 flex items-center gap-1.5 bg-black/60 backdrop-blur-xs px-2.5 py-1 rounded-full z-20 pointer-events-none">
+              {photos.map((_, i) => (
+                <span
+                  key={i}
+                  className={`h-2 rounded-full transition-all ${
+                    activeIdx === i ? 'bg-amber-400 w-4' : 'bg-white/60 w-2'
+                  }`}
+                />
+              ))}
+              <span className="text-[11px] text-white/90 font-mono ml-1 font-bold">
+                {activeIdx + 1}/{photos.length}
+              </span>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
 
 export default function WaterWatchMap({
   submissions = [],
-  stations = WATER_WATCH_STATIONS,
   selectedSample = null,
   onSelectSample = null,
-  selectedStation = null,
-  onSelectStation = null,
-  onEditStation = null,
+  selectedHotspot = null,
+  onSelectHotspot = null,
   focusCoords = null,
-  onPopupChange = null,
-  isPickingCoordinates = false,
-  onPickCoordinates = null,
-  pickedCoords = null,
-  onCancelPick = null,
-  onConfirmPick = null
+  onPopupChange = null
 }) {
   const mapContainer = useRef(null);
   const mapRef = useRef(null);
   const markersRef = useRef([]);
-  const boundaryMarkersRef = useRef([]);
-  const pickedMarkerRef = useRef(null);
 
-  // โหมดแสดงผลแผนที่: 'street' (ถนนและการปกครอง) | 'satellite' (ภาพถ่ายดาวเทียมไฮบริด)
-  const [mapType, setMapType] = useState('street');
-  // สถานะเปิด/ปิดเส้นเขตแดนประเทศ เขตจังหวัด และเขตอำเภอ
-  const [showBoundaries, setShowBoundaries] = useState(true);
-
-  const isPickingCoordinatesRef = useRef(isPickingCoordinates);
-  const onPickCoordinatesRef = useRef(onPickCoordinates);
+  // โหมดแสดงผลแผนที่: ค่าเริ่มต้นเป็น 'satellite' (พื้นที่ดาวเทียม) และ ซ่อนตัวอักษร (showLabels = false)
+  const [mapType, setMapType] = useState(() => {
+    try {
+      return localStorage.getItem('kok_water_watch_map_type') || 'satellite';
+    } catch {
+      return 'satellite';
+    }
+  });
+  const [showLabels, setShowLabels] = useState(() => {
+    try {
+      const saved = localStorage.getItem('kok_water_watch_show_labels');
+      return saved !== null ? saved === 'true' : false;
+    } catch {
+      return false;
+    }
+  });
 
   useEffect(() => {
-    isPickingCoordinatesRef.current = isPickingCoordinates;
-  }, [isPickingCoordinates]);
+    try {
+      localStorage.setItem('kok_water_watch_map_type', mapType);
+    } catch {}
+  }, [mapType]);
 
   useEffect(() => {
-    onPickCoordinatesRef.current = onPickCoordinates;
-  }, [onPickCoordinates]);
+    try {
+      localStorage.setItem('kok_water_watch_show_labels', String(showLabels));
+    } catch {}
+  }, [showLabels]);
 
-  // State สำหรับ Hover / Click Station Popup Card แบบ waterroom.pro พร้อม Trend
-  const [popupStation, setPopupStation] = useState(null);
+  // State สำหรับ Hover / Click Hotspot Popup Card
+  const [popupHotspot, setPopupHotspot] = useState(null);
   const [popupPos, setPopupPos] = useState({ x: 0, y: 0 });
+  const [isPinned, setIsPinned] = useState(false);
+  const [activePhotoIdx, setActivePhotoIdx] = useState(0);
+  const [previewImage, setPreviewImage] = useState(null);
   const hoverTimeoutRef = useRef(null);
   const isHoveringPopupRef = useRef(false);
+  const isPinnedRef = useRef(false);
+  const previewImageRef = useRef(null);
+  const popupHotspotRef = useRef(null);
   const onPopupChangeRef = useRef(onPopupChange);
+
+  useEffect(() => {
+    isPinnedRef.current = isPinned;
+  }, [isPinned]);
+
+  useEffect(() => {
+    previewImageRef.current = previewImage;
+  }, [previewImage]);
+
+  useEffect(() => {
+    popupHotspotRef.current = popupHotspot;
+    setActivePhotoIdx(0);
+  }, [popupHotspot]);
 
   useEffect(() => {
     onPopupChangeRef.current = onPopupChange;
   }, [onPopupChange]);
 
-  const updatePopupStation = (st) => {
-    setPopupStation(st);
-    onPopupChangeRef.current?.(st);
+  const updatePopupHotspot = (hs) => {
+    setPopupHotspot(hs);
+    popupHotspotRef.current = hs;
+    onPopupChangeRef.current?.(hs);
   };
 
-  // Initialize Map with Google Street & Google Satellite Hybrid tiles + Administrative Boundary Layers
+  // ปิด Lightbox หรือ Popup Card เมื่อกดปุ่ม Esc
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        if (previewImage) {
+          setPreviewImage(null);
+        } else if (popupHotspot) {
+          setIsPinned(false);
+          updatePopupHotspot(null);
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [previewImage, popupHotspot]);
+
+  // Initialize Map with Google Street & Google Satellite Hybrid tiles
   useEffect(() => {
     if (mapRef.current) return;
 
     const styleDefinition = {
       version: 8,
       sources: {
-        // 1. Google Maps ถนน & เขตการปกครอง (ภาษาไทย & เปิดเส้นเขตแดน/เขตอำเภอครบถ้วน)
         googleStreet: {
           type: 'raster',
           tiles: [
@@ -252,7 +255,6 @@ export default function WaterWatchMap({
           ],
           tileSize: 256
         },
-        // 2. Google Maps ภาพถ่ายดาวเทียมแบบไฮบริด (Satellite + Roads + Borders + Thai labels)
         googleSatellite: {
           type: 'raster',
           tiles: [
@@ -260,6 +262,26 @@ export default function WaterWatchMap({
             'https://mt1.google.com/vt/lyrs=y&hl=th&x={x}&y={y}&z={z}',
             'https://mt2.google.com/vt/lyrs=y&hl=th&x={x}&y={y}&z={z}',
             'https://mt3.google.com/vt/lyrs=y&hl=th&x={x}&y={y}&z={z}'
+          ],
+          tileSize: 256
+        },
+        googleStreetNoLabels: {
+          type: 'raster',
+          tiles: [
+            'https://mt0.google.com/vt/lyrs=m&hl=th&apistyle=s.t%3A0%7Cs.e%3Al%7Cp.v%3Aoff%2Cs.t%3A2%7Cp.v%3Aoff&x={x}&y={y}&z={z}',
+            'https://mt1.google.com/vt/lyrs=m&hl=th&apistyle=s.t%3A0%7Cs.e%3Al%7Cp.v%3Aoff%2Cs.t%3A2%7Cp.v%3Aoff&x={x}&y={y}&z={z}',
+            'https://mt2.google.com/vt/lyrs=m&hl=th&apistyle=s.t%3A0%7Cs.e%3Al%7Cp.v%3Aoff%2Cs.t%3A2%7Cp.v%3Aoff&x={x}&y={y}&z={z}',
+            'https://mt3.google.com/vt/lyrs=m&hl=th&apistyle=s.t%3A0%7Cs.e%3Al%7Cp.v%3Aoff%2Cs.t%3A2%7Cp.v%3Aoff&x={x}&y={y}&z={z}'
+          ],
+          tileSize: 256
+        },
+        googleSatelliteNoLabels: {
+          type: 'raster',
+          tiles: [
+            'https://mt0.google.com/vt/lyrs=s&hl=th&x={x}&y={y}&z={z}',
+            'https://mt1.google.com/vt/lyrs=s&hl=th&x={x}&y={y}&z={z}',
+            'https://mt2.google.com/vt/lyrs=s&hl=th&x={x}&y={y}&z={z}',
+            'https://mt3.google.com/vt/lyrs=s&hl=th&x={x}&y={y}&z={z}'
           ],
           tileSize: 256
         }
@@ -276,7 +298,7 @@ export default function WaterWatchMap({
           source: 'googleStreet',
           minzoom: 0,
           maxzoom: 21,
-          layout: { visibility: 'visible' }
+          layout: { visibility: 'none' }
         },
         {
           id: 'google-satellite-layer',
@@ -285,6 +307,22 @@ export default function WaterWatchMap({
           minzoom: 0,
           maxzoom: 21,
           layout: { visibility: 'none' }
+        },
+        {
+          id: 'google-street-no-labels-layer',
+          type: 'raster',
+          source: 'googleStreetNoLabels',
+          minzoom: 0,
+          maxzoom: 21,
+          layout: { visibility: 'none' }
+        },
+        {
+          id: 'google-satellite-no-labels-layer',
+          type: 'raster',
+          source: 'googleSatelliteNoLabels',
+          minzoom: 0,
+          maxzoom: 21,
+          layout: { visibility: 'visible' }
         }
       ]
     };
@@ -292,115 +330,16 @@ export default function WaterWatchMap({
     const map = new maplibregl.Map({
       container: mapContainer.current,
       style: styleDefinition,
-      center: [99.3800, 20.0550], // Center between Tha Ton and Mok Cham
+      center: [99.3800, 20.0550], // แม่น้ำกก ท่าตอน - หมอกจ๋าม
       zoom: 13.2,
       pitch: 0,
       bearing: 0,
       attributionControl: false
     });
 
-    map.on('load', () => {
-      // 1. เพิ่ม Layer เส้นพรมแดนไทย - เมียนมา (เน้นสีแดงสะท้อนแสง + เส้นประคู่)
-      map.addSource('thailand-myanmar-border-src', {
-        type: 'geojson',
-        data: THAILAND_MYANMAR_BORDER_GEOJSON
-      });
-      map.addLayer({
-        id: 'border-line-glow',
-        type: 'line',
-        source: 'thailand-myanmar-border-src',
-        layout: {
-          'line-join': 'round',
-          'line-cap': 'round',
-          visibility: 'visible'
-        },
-        paint: {
-          'line-color': '#EF4444',
-          'line-width': 7,
-          'line-opacity': 0.4
-        }
-      });
-      map.addLayer({
-        id: 'border-line',
-        type: 'line',
-        source: 'thailand-myanmar-border-src',
-        layout: {
-          'line-join': 'round',
-          'line-cap': 'round',
-          visibility: 'visible'
-        },
-        paint: {
-          'line-color': '#DC2626',
-          'line-width': 3.5,
-          'line-dasharray': [3, 2]
-        }
-      });
-
-      // 2. เพิ่ม Layer เส้นแบ่งเขตจังหวัด เชียงใหม่ - เชียงราย (สีม่วง)
-      map.addSource('province-border-src', {
-        type: 'geojson',
-        data: PROVINCE_BORDER_GEOJSON
-      });
-      map.addLayer({
-        id: 'province-line-glow',
-        type: 'line',
-        source: 'province-border-src',
-        layout: {
-          'line-join': 'round',
-          'line-cap': 'round',
-          visibility: 'visible'
-        },
-        paint: {
-          'line-color': '#A855F7',
-          'line-width': 6,
-          'line-opacity': 0.35
-        }
-      });
-      map.addLayer({
-        id: 'province-line',
-        type: 'line',
-        source: 'province-border-src',
-        layout: {
-          'line-join': 'round',
-          'line-cap': 'round',
-          visibility: 'visible'
-        },
-        paint: {
-          'line-color': '#7C3AED',
-          'line-width': 2.5,
-          'line-dasharray': [4, 2]
-        }
-      });
-
-      // 3. เพิ่ม Layer เส้นแบ่งเขตอำเภอ (สีส้มทอง)
-      map.addSource('district-border-src', {
-        type: 'geojson',
-        data: DISTRICT_BORDER_GEOJSON
-      });
-      map.addLayer({
-        id: 'district-line',
-        type: 'line',
-        source: 'district-border-src',
-        layout: {
-          'line-join': 'round',
-          'line-cap': 'round',
-          visibility: 'visible'
-        },
-        paint: {
-          'line-color': '#F59E0B',
-          'line-width': 2,
-          'line-dasharray': [2, 3]
-        }
-      });
-    });
-
-    map.on('click', (e) => {
-      if (isPickingCoordinatesRef.current) {
-        onPickCoordinatesRef.current?.([e.lngLat.lng, e.lngLat.lat]);
-        return;
-      }
-      setPopupStation(null);
-      onPopupChangeRef.current?.(null);
+    map.on('click', () => {
+      setIsPinned(false);
+      updatePopupHotspot(null);
     });
 
     mapRef.current = map;
@@ -411,136 +350,25 @@ export default function WaterWatchMap({
     };
   }, []);
 
-  // สลับการแสดงผลระหว่าง แผนที่ถนน & ภาพถ่ายดาวเทียม
+  // สลับการแสดงผลระหว่าง แผนที่สถานที่ & พื้นที่ดาวเทียม
   useEffect(() => {
     if (!mapRef.current) return;
     const map = mapRef.current;
     if (map.getLayer('google-street-layer')) {
-      map.setLayoutProperty('google-street-layer', 'visibility', mapType === 'street' ? 'visible' : 'none');
+      map.setLayoutProperty('google-street-layer', 'visibility', (mapType === 'street' && showLabels) ? 'visible' : 'none');
+    }
+    if (map.getLayer('google-street-no-labels-layer')) {
+      map.setLayoutProperty('google-street-no-labels-layer', 'visibility', (mapType === 'street' && !showLabels) ? 'visible' : 'none');
     }
     if (map.getLayer('google-satellite-layer')) {
-      map.setLayoutProperty('google-satellite-layer', 'visibility', mapType === 'satellite' ? 'visible' : 'none');
+      map.setLayoutProperty('google-satellite-layer', 'visibility', (mapType === 'satellite' && showLabels) ? 'visible' : 'none');
     }
-  }, [mapType]);
-
-  // สลับการเปิด/ปิดการแสดงผลเส้นขอบเขตการปกครอง
-  useEffect(() => {
-    if (!mapRef.current) return;
-    const map = mapRef.current;
-    const boundaryLayers = [
-      'border-line-glow',
-      'border-line',
-      'province-line-glow',
-      'province-line',
-      'district-line'
-    ];
-    boundaryLayers.forEach(id => {
-      if (map.getLayer(id)) {
-        map.setLayoutProperty(id, 'visibility', showBoundaries ? 'visible' : 'none');
-      }
-    });
-
-    // อัปเดตการแสดงผลของหมุดป้ายเขตแดน
-    boundaryMarkersRef.current.forEach(m => {
-      const el = m.getElement();
-      if (el) el.style.display = showBoundaries ? 'block' : 'none';
-    });
-  }, [showBoundaries]);
-
-  // สร้างหมุดป้ายชื่อระบุประเทศ จังหวัด และอำเภอ
-  useEffect(() => {
-    if (!mapRef.current) return;
-    const map = mapRef.current;
-
-    // เคลียร์หมุดเก่า
-    boundaryMarkersRef.current.forEach(m => m.remove());
-    boundaryMarkersRef.current = [];
-
-    ADMINISTRATIVE_BADGES.forEach(badge => {
-      const el = document.createElement('div');
-      el.className = 'territory-boundary-badge cursor-pointer select-none transition-all duration-200 hover:scale-105';
-      el.style.display = showBoundaries ? 'block' : 'none';
-      
-      el.innerHTML = `
-        <div class="px-2 py-1 rounded-xl text-[10px] sm:text-[11px] font-bold shadow-lg border backdrop-blur-md flex flex-col items-center whitespace-nowrap ${badge.bgClass}">
-          <div class="flex items-center gap-1">
-            <span>${badge.title}</span>
-          </div>
-          ${badge.subtitle ? `<span class="text-[9px] font-normal opacity-90">${badge.subtitle}</span>` : ''}
-        </div>
-      `;
-
-      el.addEventListener('click', (e) => {
-        e.stopPropagation();
-        map.flyTo({
-          center: badge.coords,
-          zoom: badge.type === 'country' ? 11.5 : (badge.type === 'province' ? 12.5 : 13.5),
-          duration: 1200,
-          essential: true
-        });
-      });
-
-      const marker = new maplibregl.Marker({ element: el, anchor: 'center' })
-        .setLngLat(badge.coords)
-        .addTo(map);
-
-      boundaryMarkersRef.current.push(marker);
-    });
-
-    return () => {
-      boundaryMarkersRef.current.forEach(m => m.remove());
-      boundaryMarkersRef.current = [];
-    };
-  }, []);
-
-  // เปลี่ยนเคอร์เซอร์เป็นเป้าเล็งเมื่ออยู่ในโหมดเลือกพิกัด
-  useEffect(() => {
-    if (!mapRef.current) return;
-    const canvas = mapRef.current.getCanvas();
-    if (canvas) {
-      canvas.style.cursor = isPickingCoordinates ? 'crosshair' : '';
+    if (map.getLayer('google-satellite-no-labels-layer')) {
+      map.setLayoutProperty('google-satellite-no-labels-layer', 'visibility', (mapType === 'satellite' && !showLabels) ? 'visible' : 'none');
     }
-  }, [isPickingCoordinates]);
+  }, [mapType, showLabels]);
 
-  // ปักหมุดชั่วคราวแสดงพิกัดที่คลิกเลือกบนแผนที่
-  useEffect(() => {
-    if (!mapRef.current) return;
-    if (pickedMarkerRef.current) {
-      pickedMarkerRef.current.remove();
-      pickedMarkerRef.current = null;
-    }
-
-    if (isPickingCoordinates && pickedCoords && Array.isArray(pickedCoords) && pickedCoords.length === 2) {
-      const el = document.createElement('div');
-      el.className = 'picked-coords-marker select-none pointer-events-none';
-      el.innerHTML = `
-        <div class="flex flex-col items-center">
-          <div class="px-2.5 py-1 rounded-lg bg-amber-400 text-slate-900 font-black text-[11px] shadow-xl border-2 border-white whitespace-nowrap mb-1 animate-pulse">
-            📍 จุดที่เลือก: ${Number(pickedCoords[1]).toFixed(5)}, ${Number(pickedCoords[0]).toFixed(5)}
-          </div>
-          <div class="relative flex items-center justify-center">
-            <span class="absolute w-8 h-8 rounded-full bg-amber-400/50 animate-ping"></span>
-            <div class="w-5 h-5 rounded-full bg-[#A6192E] border-2 border-amber-300 shadow-lg flex items-center justify-center">
-              <div class="w-2 h-2 rounded-full bg-white"></div>
-            </div>
-          </div>
-        </div>
-      `;
-      const marker = new maplibregl.Marker({ element: el })
-        .setLngLat(pickedCoords)
-        .addTo(mapRef.current);
-      pickedMarkerRef.current = marker;
-    }
-
-    return () => {
-      if (pickedMarkerRef.current) {
-        pickedMarkerRef.current.remove();
-        pickedMarkerRef.current = null;
-      }
-    };
-  }, [isPickingCoordinates, pickedCoords]);
-
-  // Update Markers for Stations and Submissions
+  // Update Dynamic Hotspot Clusters and Single Point Markers
   useEffect(() => {
     if (!mapRef.current) return;
     const map = mapRef.current;
@@ -549,182 +377,185 @@ export default function WaterWatchMap({
     markersRef.current.forEach(m => m.remove());
     markersRef.current = [];
 
-    // 1. Render River Station & Water Pump Waypoints
-    const stationList = stations && stations.length > 0 ? stations : WATER_WATCH_STATIONS;
-    stationList.forEach(st => {
-      const isSelected = selectedStation?.id === st.id;
-      const isPump = st.stationType === 'pump' || st.name?.includes('ดูด') || st.name?.includes('สูบ');
-      
-      // Calculate telemetry & submissions for this station
-      const telemetry = getStationTelemetry(st, submissions);
-      const hasLogs = telemetry.logCount > 0 || telemetry.arsenic !== null;
-      const logCount = telemetry.logCount;
-      const latestAs = telemetry.arsenic;
-      const isDanger = telemetry.isDanger;
-      const isWatch = telemetry.isWatch;
+    // Run spatial clustering engine (radius 250m)
+    const { clusters, singlePoints } = clusterSubmissions(submissions, 250);
 
-      const riskBorder = isDanger
-        ? 'border-rose-500 ring-2 ring-rose-400'
-        : isWatch
-        ? 'border-amber-400 ring-2 ring-amber-400'
-        : hasLogs
-        ? 'border-emerald-400 ring-2 ring-emerald-400'
-        : (isPump ? 'border-sky-400 ring-1 ring-sky-300' : 'border-cyan-500/50');
+    // 1. Render Dynamic Hotspot Clusters (สำหรับบริเวณที่มีผลตรวจตั้งแต่ 2 รายการขึ้นไป)
+    clusters.forEach((cluster) => {
+      const isSelected = selectedHotspot?.id === cluster.id;
+      const isDanger = cluster.isDanger;
+      const isWatch = cluster.isWatch;
 
-      const beaconColor = isDanger
-        ? 'bg-rose-500'
+      const riskGlow = isDanger
+        ? 'ring-4 ring-rose-500/60 shadow-xl shadow-rose-500/40 border-rose-400 bg-rose-600'
         : isWatch
-        ? 'bg-amber-500'
-        : hasLogs
-        ? 'bg-emerald-500'
-        : (isPump ? 'bg-sky-500' : 'bg-cyan-600');
+        ? 'ring-4 ring-amber-400/60 shadow-xl shadow-amber-500/40 border-amber-300 bg-amber-500'
+        : 'ring-4 ring-emerald-400/60 shadow-xl shadow-emerald-500/40 border-emerald-300 bg-emerald-600';
 
       const pingColor = isDanger
-        ? 'bg-rose-500/40'
+        ? 'bg-rose-500/50'
         : isWatch
-        ? 'bg-amber-500/40'
-        : hasLogs
-        ? 'bg-emerald-500/40'
-        : (isPump ? 'bg-sky-400/40' : 'bg-cyan-500/30');
+        ? 'bg-amber-500/50'
+        : 'bg-emerald-500/50';
+
+      const nodeBg = isDanger
+        ? 'bg-rose-600'
+        : isWatch
+        ? 'bg-amber-500'
+        : 'bg-emerald-600';
+
+      const hasPhotos = (cluster.latestPhotos && cluster.latestPhotos.length > 0) || !!cluster.latestPhoto;
 
       const el = document.createElement('div');
-      el.className = 'station-waypoint-marker group cursor-pointer select-none';
-      el.style.zIndex = isSelected ? '55' : '45';
+      el.className = 'hotspot-marker group cursor-pointer select-none';
+      el.style.zIndex = isSelected ? '60' : '45';
 
       el.innerHTML = `
         <div class="flex flex-col items-center transform transition-all duration-200 ${
-          isSelected ? 'scale-110' : 'hover:scale-105'
+          isSelected ? 'scale-115' : 'hover:scale-110'
         }">
-          <!-- Compact River Waypoint Badge -->
-          <div class="px-2 py-0.5 rounded-lg text-[10px] font-bold shadow-md border flex items-center gap-1.5 whitespace-nowrap mb-0.5 ${
-            isSelected
-              ? 'bg-[#A6192E] text-white border-amber-300 ring-2 ring-amber-400'
-              : `bg-slate-900/90 text-white backdrop-blur-xs ${riskBorder}`
-          }">
-            <span class="w-1.5 h-1.5 rounded-full ${hasLogs ? (isDanger ? 'bg-rose-400' : isWatch ? 'bg-amber-400' : 'bg-emerald-400') : (isPump ? 'bg-sky-400' : 'bg-cyan-400')} animate-pulse shrink-0"></span>
-            <span class="font-mono ${isPump ? 'text-amber-300' : 'text-cyan-300'} font-extrabold">${st.code}</span>
-            <span class="text-slate-200 font-medium">${isPump ? '💧 ' : ''}${st.name.replace('สถานี', '')}</span>
-
-            ${hasLogs ? `
-              <!-- Compact New Data Tag -->
-              <span class="px-1 py-0.2 rounded text-[9px] font-mono font-bold flex items-center gap-0.5 ${
-                isDanger ? 'bg-rose-500 text-white' : isWatch ? 'bg-amber-500 text-white' : 'bg-emerald-600 text-white'
-              }">
-                ${latestAs !== null ? `${latestAs}µg` : `${logCount}ชุด`}
-              </span>
-            ` : ''}
+          <!-- Glowing Hotspot Badge -->
+          <div class="px-2.5 py-1 rounded-xl text-[11px] font-bold text-white shadow-xl flex items-center gap-1.5 whitespace-nowrap mb-1 ${riskGlow}">
+            <span class="text-xs">🔥</span>
+            <span>${cluster.title}</span>
+            <span class="px-1.5 py-0.2 rounded-md bg-black/30 font-mono font-black text-[10px] text-amber-200">
+              ${cluster.count} จุด
+            </span>
+            <span class="font-mono text-white font-black ml-0.5">
+              ${cluster.latestAs !== undefined ? cluster.latestAs : cluster.maxAs} ppb
+            </span>
+            ${hasPhotos ? '<span>📷</span>' : ''}
           </div>
 
-          <!-- Compact Waypoint Node -->
+          <!-- Pulsing Node Center -->
           <div class="relative flex items-center justify-center">
-            <span class="absolute w-5 h-5 rounded-full ${pingColor} animate-ping"></span>
-            <div class="w-3.5 h-3.5 rounded-full ${beaconColor} border-2 border-white shadow-sm flex items-center justify-center group-hover:bg-[#A6192E] transition-colors">
-              <div class="w-1 h-1 rounded-full bg-white"></div>
+            <span class="absolute w-8 h-8 rounded-full ${pingColor} animate-ping"></span>
+            <div class="w-6 h-6 rounded-full ${nodeBg} border-2 border-white shadow-2xl flex items-center justify-center font-bold text-white text-[11px] font-mono">
+              ${cluster.count}
             </div>
-            ${hasLogs ? `
-              <span class="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-400 border border-white"></span>
-            ` : ''}
           </div>
         </div>
       `;
 
-      // Mouse Hover -> แสดง Popup Card พร้อม Trend ทันทีแบบ waterroom.pro
+      // Hover -> แสดง Popup Card เมื่อไม่ได้ตรึงหน้าต่างไว้
       el.addEventListener('mouseenter', () => {
         if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
-        const point = map.project(st.coordinates);
-        setPopupPos({ x: point.x, y: point.y });
-        updatePopupStation(st);
+        if (!isPinnedRef.current) {
+          const point = map.project(cluster.coordinates);
+          setPopupPos({ x: point.x, y: point.y });
+          updatePopupHotspot(cluster);
+        }
       });
 
-      // Mouse Leave -> หน่วงเวลาเล็กน้อยให้เลื่อนเมาส์เข้าไปในการ์ดได้
       el.addEventListener('mouseleave', () => {
-        hoverTimeoutRef.current = setTimeout(() => {
-          if (!isHoveringPopupRef.current) {
-            updatePopupStation(null);
-          }
-        }, 250);
+        if (!isPinnedRef.current && !previewImageRef.current) {
+          hoverTimeoutRef.current = setTimeout(() => {
+            if (!isHoveringPopupRef.current && !isPinnedRef.current && !previewImageRef.current) {
+              updatePopupHotspot(null);
+            }
+          }, 250);
+        }
       });
 
-      // Click -> ปักหมุดแสดง Popup Card และจัดตำแหน่งให้เห็นการ์ดครบถ้วน
+      // Click -> ตรึง Popup Card และเลื่อนแผนที่เข้าหากึ่งกลาง
       el.addEventListener('click', (e) => {
         e.stopPropagation();
         if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
         isHoveringPopupRef.current = true;
-        const point = map.project(st.coordinates);
+        setIsPinned(true);
+        const point = map.project(cluster.coordinates);
         setPopupPos({ x: point.x, y: point.y });
-        updatePopupStation(st);
-        map.flyTo({ center: st.coordinates, offset: [0, -100], zoom: 15.2, duration: 750 });
+        updatePopupHotspot(cluster);
+        map.flyTo({ center: cluster.coordinates, offset: [0, -90], zoom: 15.5, duration: 700 });
       });
 
       const marker = new maplibregl.Marker({ element: el })
-        .setLngLat(st.coordinates)
+        .setLngLat(cluster.coordinates)
         .addTo(map);
 
       markersRef.current.push(marker);
     });
 
-    // 2. Render Submitted Samples (เฉพาะตัวอย่างนอกสถานีหลัก เพื่อไม่ให้มีจุดซ้ำซ้อนทับสถานี)
-    const offStationSubmissions = submissions.filter(sub => {
-      if (sub.is_off_station || sub.station_id === 'OFF-STATION') return true;
-      const isKnownStation = stationList.some(
-        st => st.id === sub.station_id || st.code === sub.station_id || (sub.station_name && sub.station_name.includes(st.name))
-      );
-      return !isKnownStation;
-    });
-
-    offStationSubmissions.forEach(sub => {
-      const isSelected = selectedSample?.record_id === sub.record_id;
-      const arsenicVal = sub.measurements?.arsenic?.value;
-      const isDanger = arsenicVal !== null && arsenicVal > 20;
-      const isWatch = arsenicVal !== null && arsenicVal > 10 && arsenicVal <= 20;
+    // 2. Render Single Points (จุดตรวจเดี่ยวที่มี 1 รายงาน)
+    singlePoints.forEach((point) => {
+      const isSelected = selectedSample?.record_id === point.sample?.record_id || selectedHotspot?.id === point.id;
+      const arsenicVal = point.latestAs;
+      const isDanger = point.isDanger;
+      const isWatch = point.isWatch;
 
       const badgeColor = isDanger
         ? 'bg-rose-600 text-white'
-        : (isWatch ? 'bg-amber-500 text-white' : 'bg-emerald-600 text-white');
+        : isWatch
+        ? 'bg-amber-500 text-white'
+        : 'bg-emerald-600 text-white';
 
-      const pinColor = isDanger ? '#e11d48' : (isWatch ? '#f59e0b' : '#059669');
+      const pinColor = isDanger ? '#e11d48' : isWatch ? '#f59e0b' : '#059669';
 
       const el = document.createElement('div');
-      el.className = 'group cursor-pointer select-none';
-      el.style.zIndex = isSelected ? '60' : '40';
+      el.className = 'single-point-marker group cursor-pointer select-none';
+      el.style.zIndex = isSelected ? '55' : '35';
 
-      const hasPhotos = sub.images && sub.images.length > 0;
+      const hasPhotos = (point.latestPhotos && point.latestPhotos.length > 0) || (point.photos && point.photos.length > 0);
 
       el.innerHTML = `
         <div class="flex flex-col items-center transform transition-all duration-200 ${
-          isSelected ? 'scale-125 ring-4 ring-[#B4975A] rounded-full' : 'hover:scale-115'
+          isSelected ? 'scale-120 ring-4 ring-[#B4975A] rounded-full' : 'hover:scale-110'
         }">
-          <!-- Info Badge with Custom Location Name & Telemetry -->
-          <div class="px-2 py-0.5 rounded-lg text-[10px] font-bold shadow-md border border-white flex items-center gap-1.5 ${badgeColor} whitespace-nowrap mb-1">
-            <span class="max-w-[110px] truncate text-[9px] font-sans font-medium text-white/95">${sub.station_name || 'Mark Point'}</span>
-            <span class="font-mono text-[9px] font-bold">As:${arsenicVal !== null ? `${arsenicVal}µg` : '-'}</span>
+          <div class="px-2 py-0.5 rounded-lg text-[10px] font-bold shadow-md border border-white flex items-center gap-1.5 ${badgeColor} whitespace-nowrap mb-0.5">
+            <span class="max-w-[110px] truncate text-[9px] font-sans font-medium text-white/95">
+              ${point.locationName}
+            </span>
+            <span class="font-mono text-[9px] font-bold">
+              ${arsenicVal !== null && arsenicVal !== undefined ? `${arsenicVal} ppb` : '-'}
+            </span>
             ${hasPhotos ? '<span>📷</span>' : ''}
           </div>
 
-          <!-- Pin Icon -->
-          <div class="relative w-6 h-6 rounded-full border-2 border-white shadow-lg flex items-center justify-center" style="background-color: ${pinColor}">
-            <div class="w-2 h-2 rounded-full bg-white"></div>
+          <div class="relative w-5 h-5 rounded-full border-2 border-white shadow-lg flex items-center justify-center" style="background-color: ${pinColor}">
+            <div class="w-1.5 h-1.5 rounded-full bg-white"></div>
           </div>
         </div>
       `;
 
+      // Hover -> แสดง Popup Card
+      el.addEventListener('mouseenter', () => {
+        if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
+        if (!isPinnedRef.current) {
+          const pt = map.project(point.coordinates);
+          setPopupPos({ x: pt.x, y: pt.y });
+          updatePopupHotspot(point);
+        }
+      });
+
+      el.addEventListener('mouseleave', () => {
+        if (!isPinnedRef.current && !previewImageRef.current) {
+          hoverTimeoutRef.current = setTimeout(() => {
+            if (!isHoveringPopupRef.current && !isPinnedRef.current && !previewImageRef.current) {
+              updatePopupHotspot(null);
+            }
+          }, 250);
+        }
+      });
+
+      // Click -> ตรึง Popup Card และเลื่อนแผนที่เข้าหาจุดตรวจ
       el.addEventListener('click', (e) => {
         e.stopPropagation();
-        if (onSelectSample) onSelectSample(sub);
-        map.flyTo({
-          center: sub.coordinates,
-          zoom: 15.5,
-          duration: 700
-        });
+        if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
+        isHoveringPopupRef.current = true;
+        setIsPinned(true);
+        const pt = map.project(point.coordinates);
+        setPopupPos({ x: pt.x, y: pt.y });
+        updatePopupHotspot(point);
+        map.flyTo({ center: point.coordinates, offset: [0, -90], zoom: 15.5, duration: 700 });
       });
 
       const marker = new maplibregl.Marker({ element: el })
-        .setLngLat(sub.coordinates)
+        .setLngLat(point.coordinates)
         .addTo(map);
 
       markersRef.current.push(marker);
     });
-  }, [submissions, stations, selectedSample, onSelectSample, selectedStation, onSelectStation]);
+  }, [submissions, selectedSample, onSelectSample, selectedHotspot, onSelectHotspot]);
 
   // Handle focus coordinates trigger
   useEffect(() => {
@@ -742,8 +573,8 @@ export default function WaterWatchMap({
     const map = mapRef.current;
 
     const handleUpdatePos = () => {
-      if (popupStation) {
-        const point = map.project(popupStation.coordinates);
+      if (popupHotspotRef.current) {
+        const point = map.project(popupHotspotRef.current.coordinates);
         setPopupPos({ x: point.x, y: point.y });
       }
     };
@@ -757,104 +588,34 @@ export default function WaterWatchMap({
       map.off('zoom', handleUpdatePos);
       map.off('resize', handleUpdatePos);
     };
-  }, [popupStation]);
+  }, []);
 
-  // คำนวณข้อมูลคุณภาพน้ำ รูปภาพ และ Trend สำหรับสถานีที่กำลัง Hover / เลือก
-  const popupTelemetry = popupStation ? getStationTelemetry(popupStation, submissions) : null;
-  const latestLog = popupTelemetry?.latestLog;
-  const latestAs = popupTelemetry?.arsenic ?? null;
-  const latestPh = popupTelemetry?.ph ?? null;
-  const latestTurbidity = popupTelemetry?.turbidity ?? null;
-  const latestTemp = popupTelemetry?.temperature ?? null;
-
-  // รูปถ่ายสถานี: ใช้รูปล่าสุดจากภาคสนาม หรือรูปแลนด์มาร์กประจำสถานี
-  const stationPhoto = latestLog?.images?.[0]?.url || popupStation?.image || 'https://images.unsplash.com/photo-1544644181-1484b3fdfc62?w=800&auto=format&fit=crop&q=80';
-
-  // ข้อมูล Trend และการแสดงผล
-  const trendData = popupTelemetry?.trend || [8.4, 7.8, 6.2];
-  const trendText = popupTelemetry?.trendText || '→ ระดับคงที่';
-  const trendColorClass = popupTelemetry?.trendColorClass || 'text-slate-700 bg-slate-50 border-slate-200';
-
-  // สีตามเกณฑ์สารหนู (As)
-  const asColorClass = latestAs !== null
-    ? (latestAs > 20 ? 'text-rose-600' : latestAs > 10 ? 'text-amber-600' : 'text-emerald-600')
-    : 'text-slate-700';
-
-  const asBadgeText = latestAs !== null
-    ? (latestAs > 20 ? 'เกินเกณฑ์ WHO' : latestAs > 10 ? 'เฝ้าระวัง' : 'ปกติ ปลอดภัย')
-    : 'ปกติ';
-
-  // SVG Sparkline Renderer
-  const renderSparkline = (data) => {
-    if (!data || data.length === 0) return null;
-    const min = Math.min(...data);
-    const max = Math.max(...data);
-    const range = (max - min) === 0 ? 1 : (max - min);
-    const width = 200;
-    const height = 30;
-    const padding = 6;
-    const usableW = width - padding * 2;
-    const usableH = height - padding * 2;
-
-    const points = data.map((val, idx) => {
-      const x = padding + (idx / Math.max(data.length - 1, 1)) * usableW;
-      const y = height - padding - ((val - min) / range) * usableH;
-      return { x, y, val };
-    });
-
-    const polylinePoints = points.map(p => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
-    const firstP = points[0];
-    const lastP = points[points.length - 1];
-    const areaPoints = `${firstP.x},${height} ${polylinePoints} ${lastP.x},${height}`;
-
-    return (
-      <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-8 overflow-visible">
-        <defs>
-          <linearGradient id="trendGradient" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#A6192E" stopOpacity="0.2" />
-            <stop offset="100%" stopColor="#A6192E" stopOpacity="0.0" />
-          </linearGradient>
-        </defs>
-        {/* Shaded Area */}
-        <polygon points={areaPoints} fill="url(#trendGradient)" />
-        {/* Trend Line */}
-        <polyline
-          points={polylinePoints}
-          fill="none"
-          stroke="#A6192E"
-          strokeWidth="2.2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-        {/* Dot Markers */}
-        {points.map((p, idx) => (
-          <circle
-            key={idx}
-            cx={p.x}
-            cy={p.y}
-            r={idx === points.length - 1 ? 3.5 : 2.5}
-            fill={idx === points.length - 1 ? '#A6192E' : '#B4975A'}
-            stroke="#FFFFFF"
-            strokeWidth="1.5"
-          />
-        ))}
-      </svg>
-    );
-  };
-
-  // ป้องกันไม่ให้การ์ดล้นขอบจอซ้าย-ขวา หรือชน Header ด้านบน
-  const isFlippedBelow = popupPos.y < 460;
-  const cardHalfWidth = 145;
+  // ป้องกันไม่ให้การ์ดล้นขอบจอซ้าย-ขวา หรือชนขอบบน
+  const isFlippedBelow = popupPos.y < 490;
+  const cardHalfWidth = 195;
   const screenWidth = typeof window !== 'undefined' ? window.innerWidth : 1000;
   const clampedX = Math.max(cardHalfWidth + 12, Math.min(screenWidth - cardHalfWidth - 12, popupPos.x));
-  const pointerOffset = Math.max(-110, Math.min(110, popupPos.x - clampedX));
+  const pointerOffset = Math.max(-130, Math.min(130, popupPos.x - clampedX));
+
+  const formatThaiDateTime = (isoStr) => {
+    if (!isoStr) return '-';
+    try {
+      const d = new Date(isoStr);
+      if (isNaN(d.getTime())) return '-';
+      const datePart = d.toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: '2-digit' });
+      const timePart = d.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+      return `${datePart} เวลา ${timePart} น.`;
+    } catch {
+      return isoStr;
+    }
+  };
 
   return (
     <div className="relative w-full h-full bg-[#F8F7F5]">
       <div ref={mapContainer} className="w-full h-full" />
 
-      {/* Hover / Click Popup Card แบบ waterroom.pro พร้อม Trend */}
-      {popupStation && (
+      {/* Hover / Click Hotspot Popup Card */}
+      {popupHotspot && (
         <div
           className="absolute z-50 pointer-events-auto transition-all duration-200"
           style={{
@@ -862,159 +623,209 @@ export default function WaterWatchMap({
             top: isFlippedBelow ? `${popupPos.y + 16}px` : `${popupPos.y - 14}px`,
             transform: isFlippedBelow ? 'translate(-50%, 0)' : 'translate(-50%, -100%)'
           }}
+          onClick={(e) => {
+            e.stopPropagation();
+            setIsPinned(true);
+          }}
           onMouseEnter={() => {
             isHoveringPopupRef.current = true;
             if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
           }}
           onMouseLeave={() => {
             isHoveringPopupRef.current = false;
-            hoverTimeoutRef.current = setTimeout(() => {
-              updatePopupStation(null);
-            }, 250);
+            if (!isPinned && !previewImage) {
+              hoverTimeoutRef.current = setTimeout(() => {
+                if (!isHoveringPopupRef.current && !isPinned && !previewImage) {
+                  updatePopupHotspot(null);
+                }
+              }, 250);
+            }
           }}
         >
-          <div className="w-[270px] sm:w-[310px] bg-white rounded-2xl shadow-2xl border border-slate-200/90 overflow-hidden text-slate-800 relative max-h-[62vh] flex flex-col">
+          <div className="w-[330px] sm:w-[385px] max-h-[88vh] bg-white rounded-2xl sm:rounded-3xl shadow-2xl border border-slate-200/90 overflow-hidden text-slate-800 relative flex flex-col">
             {/* Header */}
-            <div className="px-3 py-2 bg-white border-b border-slate-100 flex items-start justify-between shrink-0">
-              <div>
-                <div className="flex items-center gap-1.5">
-                  <span className="px-1.5 py-0.2 rounded text-[10px] font-mono font-bold bg-[#A6192E] text-white">
-                    {popupStation.code}
-                  </span>
-                  <h3 className="font-bold text-xs sm:text-sm text-slate-900 leading-tight truncate max-w-[190px]">
-                    {popupStation.name}
+            <div className={`px-4 py-3 text-white flex items-start justify-between shrink-0 ${
+              popupHotspot.latestIsDanger
+                ? 'bg-gradient-to-r from-rose-700 to-rose-900'
+                : popupHotspot.latestIsWatch
+                ? 'bg-gradient-to-r from-amber-600 to-amber-800'
+                : 'bg-gradient-to-r from-[#A6192E] to-[#8c1527]'
+            }`}>
+              <div className="flex items-center gap-2.5 min-w-0 pr-1">
+                <span className="text-xl shrink-0">{popupHotspot.isHotspot ? '🔥' : '📍'}</span>
+                <div className="min-w-0">
+                  <h3 className="font-bold text-sm sm:text-base text-white leading-tight truncate">
+                    {popupHotspot.locationName || popupHotspot.title}
                   </h3>
-                </div>
-                <div className="flex items-center gap-1.5 mt-0.5 text-[10px] text-emerald-700 font-semibold">
-                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                  <span>ออนไลน์ · ล่าสุดวันนี้</span>
+                  <div className="flex items-center gap-2 mt-1">
+                    {popupHotspot.isHotspot && (
+                      <span className="px-2 py-0.5 rounded-md bg-black/35 font-mono text-[11px] font-bold text-amber-200">
+                        {popupHotspot.count} รายการ
+                      </span>
+                    )}
+                    <span className="text-xs text-white/90 font-mono truncate">
+                      {popupHotspot.latestSampleCode ? `รหัส ${popupHotspot.latestSampleCode}` : (popupHotspot.isHotspot ? 'ก้อน Hotspot' : 'จุดตรวจวัดเดี่ยว')}
+                    </span>
+                  </div>
                 </div>
               </div>
               <button
                 type="button"
-                onClick={() => updatePopupStation(null)}
-                className="p-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsPinned(false);
+                  updatePopupHotspot(null);
+                }}
+                className="p-1.5 rounded-xl text-white/80 hover:text-white hover:bg-white/15 transition-colors cursor-pointer shrink-0 ml-1"
                 title="ปิด"
               >
-                <X className="w-4 h-4" />
+                <X className="w-5 h-5" />
               </button>
             </div>
 
-            {/* Station Image */}
-            <div className="relative h-20 sm:h-28 w-full bg-slate-100 overflow-hidden shrink-0">
-              <img
-                src={stationPhoto}
-                alt={popupStation.name}
-                className="w-full h-full object-cover"
-              />
-              <div className="absolute bottom-1 left-2 px-1.5 py-0.2 rounded bg-black/60 backdrop-blur-xs text-[9px] font-mono text-white flex items-center gap-1">
-                <span>เครื่อง: {popupStation.device?.code || 'Node'}</span>
-              </div>
-            </div>
+            {/* 1. Photo Section: ภาพถ่ายหลักฐานของการตรวจวัดล่าสุดเท่านั้น */}
+            <EvidencePhotoBox
+              photos={popupHotspot.latestPhotos && popupHotspot.latestPhotos.length > 0 ? popupHotspot.latestPhotos : (popupHotspot.latestPhoto ? [popupHotspot.latestPhoto] : [])}
+              activeIdx={activePhotoIdx}
+              onSelectIdx={(idx) => setActivePhotoIdx(idx)}
+              onExpand={(idx) => {
+                const photos = popupHotspot.latestPhotos && popupHotspot.latestPhotos.length > 0 ? popupHotspot.latestPhotos : (popupHotspot.latestPhoto ? [popupHotspot.latestPhoto] : []);
+                setPreviewImage({
+                  index: idx,
+                  photos,
+                  url: photos[idx]?.url,
+                  title: photos[idx]?.title || 'ภาพถ่ายหลักฐานการตรวจวัดล่าสุด'
+                });
+              }}
+            />
 
-            {/* Parameters Table (แบบ waterroom.pro) */}
-            <div className="p-2.5 sm:p-3 space-y-2 overflow-y-auto">
-              <div className="space-y-1 text-[11px]">
-                <div className="flex justify-between items-center py-1 px-2 rounded-lg bg-slate-50 border border-slate-100/80">
-                  <span className="text-slate-600 font-medium">สารหนู (As):</span>
-                  <div className="flex items-center gap-1.5">
-                    <span className={`font-mono font-bold ${asColorClass}`}>
-                      {latestAs !== null ? `${latestAs} µg/L` : '-'}
+            {/* Popup Body: แสดงเฉพาะข้อมูลการตรวจวัดล่าสุด (Latest Only) - ขนาดตัวหนังสือใหญ่ อ่านง่ายสำหรับผู้สูงอายุ */}
+            <div className="p-3.5 sm:p-4 space-y-2.5 overflow-y-auto">
+              {/* Highlight Card: ค่าตรวจวัดสารหนูล่าสุด (Latest Record) */}
+              <div className={`p-3 rounded-2xl border ${
+                popupHotspot.latestIsDanger
+                  ? 'bg-rose-50/95 border-rose-200 text-rose-950'
+                  : popupHotspot.latestIsWatch
+                  ? 'bg-amber-50/95 border-amber-200 text-amber-950'
+                  : 'bg-emerald-50/95 border-emerald-200 text-emerald-950'
+              }`}>
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-xs sm:text-sm font-bold tracking-wide flex items-center gap-1.5">
+                    <span
+                      className="inline-block w-3 h-3 rounded-full ring-2 ring-white shadow-xs shrink-0"
+                      style={{ backgroundColor: popupHotspot.latestLevelCfg?.color || (popupHotspot.latestIsDanger ? '#e11d48' : popupHotspot.latestIsWatch ? '#f59e0b' : '#059669') }}
+                    />
+                    ผลตรวจวัดล่าสุด
+                  </span>
+                  <span className={`text-xs font-bold px-2.5 py-0.5 rounded-full ${
+                    popupHotspot.latestIsDanger
+                      ? 'bg-rose-600 text-white'
+                      : popupHotspot.latestIsWatch
+                      ? 'bg-amber-500 text-white'
+                      : 'bg-emerald-600 text-white'
+                  }`}>
+                    {popupHotspot.latestIsDanger ? 'เกินเกณฑ์อันตราย' : popupHotspot.latestIsWatch ? 'เฝ้าระวัง' : 'เกณฑ์ปลอดภัย (WHO)'}
+                  </span>
+                </div>
+
+                <div className="flex items-baseline justify-between mt-1">
+                  <div className="flex items-baseline gap-1.5">
+                    <span className="text-3xl sm:text-4xl font-black font-mono leading-none tracking-tight">
+                      {popupHotspot.latestAs}
                     </span>
-                    <span className="text-[9px] px-1 py-0.2 rounded bg-white border border-slate-200 text-slate-500">
-                      {asBadgeText}
-                    </span>
+                    <span className="text-sm font-bold font-mono opacity-80">ppb</span>
+                  </div>
+                  <div className="text-xs sm:text-sm font-bold text-right opacity-90">
+                    <span>ระดับที่ {popupHotspot.latestLevelCfg?.level || '-'}: {popupHotspot.latestLevelCfg?.desc || ''}</span>
                   </div>
                 </div>
-
-                <div className="flex justify-between items-center py-1 px-2 rounded-lg bg-slate-50 border border-slate-100/80">
-                  <span className="text-slate-600 font-medium">ค่า pH:</span>
-                  <span className="font-mono font-bold text-slate-800">
-                    {latestPh !== null ? `${latestPh} pH` : '-'}
-                  </span>
-                </div>
-
-                <div className="flex justify-between items-center py-1 px-2 rounded-lg bg-slate-50 border border-slate-100/80">
-                  <span className="text-slate-600 font-medium">ความขุ่น:</span>
-                  <span className="font-mono font-bold text-slate-800">
-                    {latestTurbidity !== null ? `${latestTurbidity} NTU` : '-'}
-                  </span>
-                </div>
-
-                <div className="flex justify-between items-center py-1 px-2 rounded-lg bg-slate-50 border border-slate-100/80">
-                  <span className="text-slate-600 font-medium">อุณหภูมิน้ำ:</span>
-                  <span className="font-mono font-bold text-slate-800">
-                    {latestTemp !== null ? `${latestTemp} °C` : '-'}
-                  </span>
-                </div>
-
-                <div className="flex justify-between items-center py-1 px-2 rounded-lg bg-amber-50/50 border border-amber-200/60">
-                  <span className="text-slate-600 font-medium">พิกัดเครื่อง:</span>
-                  <span className="font-mono font-bold text-slate-700 text-[10px]">
-                    {popupStation.coordinates ? `${popupStation.coordinates[1].toFixed(5)}, ${popupStation.coordinates[0].toFixed(5)}` : '-'}
-                  </span>
-                </div>
               </div>
 
-              {/* Trend Section (แสดงแนวโน้มสารหนูพร้อม Sparkline) */}
-              <div className="bg-[#F8F7F5] rounded-xl p-2.5 border border-slate-200/80">
-                <div className="flex items-center justify-between text-[10px] font-bold mb-1">
-                  <span className="flex items-center gap-1 text-slate-700">
-                    <TrendingUp className="w-3.5 h-3.5 text-[#A6192E]" />
-                    <span>แนวโน้มสารหนู (Trend)</span>
-                  </span>
-                  <span className={`px-1.5 py-0.5 rounded text-[9px] border font-bold ${trendColorClass}`}>
-                    {trendText}
-                  </span>
-                </div>
-                <div className="pt-0.5">
-                  {renderSparkline(trendData)}
-                </div>
-              </div>
+              {/* กราฟแนวโน้มการขึ้น-ลงของค่าสารหนู (PPB Trend Chart) ตามช่วงเวลา */}
+              <PPBTrendChart
+                items={popupHotspot.items && popupHotspot.items.length > 0 ? popupHotspot.items : (popupHotspot.sample ? [popupHotspot.sample] : [])}
+                title="แนวโน้มการขึ้น-ลงของค่าสารหนู (PPB)"
+                isCompact={true}
+              />
 
-              {/* Action Buttons: แก้ไขพิกัด และ เปิดดูรายละเอียด */}
-              <div className="flex items-center gap-1.5">
-                {onEditStation && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const target = popupStation;
-                      updatePopupStation(null);
-                      onEditStation(target);
-                    }}
-                    className="py-2 px-2.5 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 font-bold text-xs transition-all flex items-center justify-center gap-1 cursor-pointer shrink-0 shadow-2xs"
-                    title="แก้ไขพิกัดและข้อมูลของเครื่องนี้"
-                  >
-                    <Edit3 className="w-3.5 h-3.5 text-amber-700" />
-                    <span>แก้ไขพิกัด</span>
-                  </button>
+              {/* Time & Collector Information (ข้อมูลเฉพาะของการตรวจวัดล่าสุด) - ตัวหนังสือใหญ่ อ่านชัดเจน */}
+              <div className="space-y-1.5 text-xs sm:text-sm">
+                {/* เวลาที่ตรวจวัดล่าสุด */}
+                <div className="flex items-center justify-between py-2 px-3 rounded-xl bg-slate-50 border border-slate-100">
+                  <span className="text-slate-500 flex items-center gap-1.5 shrink-0 font-medium">
+                    <Clock className="w-4 h-4 text-[#A6192E] shrink-0" />
+                    <span>เวลาตรวจล่าสุด:</span>
+                  </span>
+                  <span className="font-mono text-slate-800 font-bold text-xs sm:text-sm text-right truncate ml-2">
+                    {formatThaiDateTime(popupHotspot.latestCollectionTime)}
+                  </span>
+                </div>
+
+                {/* ผู้ตรวจวัดล่าสุด */}
+                {(popupHotspot.latestCollector?.name || popupHotspot.sample?.collector?.name) && (
+                  <div className="flex items-center justify-between py-2 px-3 rounded-xl bg-slate-50 border border-slate-100">
+                    <span className="text-slate-500 flex items-center gap-1.5 shrink-0 font-medium">
+                      <Users className="w-4 h-4 text-slate-600 shrink-0" />
+                      <span>ผู้ตรวจล่าสุด:</span>
+                    </span>
+                    <span className="font-bold text-slate-800 text-xs sm:text-sm text-right truncate ml-2 max-w-[200px]" title={popupHotspot.latestCollector?.name || popupHotspot.sample?.collector?.name}>
+                      {popupHotspot.latestCollector?.name || popupHotspot.sample?.collector?.name}
+                      {popupHotspot.latestCollector?.organization ? ` (${popupHotspot.latestCollector.organization})` : ''}
+                    </span>
+                  </div>
                 )}
-                <button
-                  type="button"
-                  onClick={() => {
-                    const target = popupStation;
-                    updatePopupStation(null);
-                    if (onSelectStation) {
-                      onSelectStation(target);
-                    }
-                  }}
-                  className="flex-1 py-2 px-3 rounded-xl bg-[#A6192E] hover:bg-[#851424] text-white font-bold text-xs shadow-md transition-all flex items-center justify-center gap-1 cursor-pointer"
-                >
-                  <span>เปิดดูรายละเอียด</span>
-                  <ChevronRight className="w-4 h-4" />
-                </button>
+
+                {/* แหล่งน้ำ / ตำแหน่งเก็บ */}
+                {popupHotspot.latestWaterSource && (
+                  <div className="flex items-start justify-between py-1.5 px-3 text-xs sm:text-sm text-slate-600">
+                    <span className="shrink-0 text-slate-400 font-medium">แหล่งน้ำ:</span>
+                    <span className="text-right truncate ml-2 text-slate-800 font-bold">
+                      {popupHotspot.latestWaterSource}
+                    </span>
+                  </div>
+                )}
+
+                {/* บันทึกเฉพาะข้อมูลล่าสุด ไม่เอาข้อมูลเก่ามาโชว์ */}
+                {popupHotspot.isHotspot && popupHotspot.count > 1 && (
+                  <div className="flex items-center justify-between px-3 pt-0.5 text-xs text-slate-500 font-mono font-medium">
+                    <span>ประวัติตรวจวัดสะสม:</span>
+                    <span>{popupHotspot.count} รายการ (แสดงผลตรวจล่าสุด)</span>
+                  </div>
+                )}
               </div>
+
+              {/* Action Button: เปิดดูรายละเอียด */}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const target = popupHotspot;
+                  setIsPinned(false);
+                  updatePopupHotspot(null);
+                  if (target.isHotspot && onSelectHotspot) {
+                    onSelectHotspot(target);
+                  } else if (onSelectSample && target.sample) {
+                    onSelectSample(target.sample);
+                  } else if (onSelectHotspot) {
+                    onSelectHotspot(target);
+                  }
+                }}
+                className="w-full py-3 px-4 rounded-xl bg-[#A6192E] hover:bg-[#851424] text-white font-bold text-sm sm:text-base shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer mt-1 active:scale-[0.98]"
+              >
+                <span>{popupHotspot.isHotspot ? `เปิดดูประวัติในก้อนนี้ (${popupHotspot.count} รายการ)` : 'เปิดดูผลตรวจวัดฉบับเต็ม'}</span>
+                <ChevronRight className="w-5 h-5" />
+              </button>
             </div>
 
             {/* Speech Bubble Pointer */}
             {isFlippedBelow ? (
               <div 
-                className="absolute -top-2 w-0 h-0 border-x-8 border-x-transparent border-b-8 border-b-white drop-shadow-xs -translate-x-1/2"
+                className="absolute -top-2 w-0 h-0 border-x-8 border-x-transparent border-b-8 border-b-white drop-shadow-xs -translate-x-1/2 pointer-events-none"
                 style={{ left: `calc(50% + ${pointerOffset}px)` }}
               />
             ) : (
               <div 
-                className="absolute -bottom-2 w-0 h-0 border-x-8 border-x-transparent border-t-8 border-t-white drop-shadow-xs -translate-x-1/2"
+                className="absolute -bottom-2 w-0 h-0 border-x-8 border-x-transparent border-t-8 border-t-white drop-shadow-xs -translate-x-1/2 pointer-events-none"
                 style={{ left: `calc(50% + ${pointerOffset}px)` }}
               />
             )}
@@ -1022,9 +833,104 @@ export default function WaterWatchMap({
         </div>
       )}
 
-      {/* Floating Map Controls: สลับแผนที่ถนน / ดาวเทียม & เปิด/ปิดเส้นเขตแดน */}
-      <div className="absolute top-16 right-3 sm:top-18 sm:right-6 z-20 pointer-events-auto flex flex-col items-end gap-1.5 select-none">
-        {/* Layer Mode Switcher: ถนน vs ภาพถ่ายดาวเทียม */}
+      {/* Lightbox Modal สำหรับขยายดูรูปภาพถ่ายหลักฐาน พร้อมระบบสลับรูปถัดไป/ก่อนหน้า */}
+      {previewImage && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-6 bg-black/85 backdrop-blur-md animate-in fade-in duration-200"
+          onClick={() => setPreviewImage(null)}
+        >
+          <div
+            className="relative max-w-3xl w-full bg-slate-900 rounded-3xl overflow-hidden shadow-2xl border border-white/20 flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="px-4 py-3 bg-black/60 backdrop-blur-md flex items-center justify-between text-white border-b border-white/10 shrink-0">
+              <div className="flex items-center gap-2 min-w-0 pr-2">
+                <Camera className="w-4 h-4 text-sky-400 shrink-0" />
+                <h4 className="font-bold text-xs sm:text-sm text-white truncate">
+                  {previewImage.photos?.[previewImage.index]?.title || previewImage.title || 'ภาพถ่ายหลักฐานการตรวจวัดล่าสุด'}
+                </h4>
+                {previewImage.photos && previewImage.photos.length > 1 && (
+                  <span className="px-2 py-0.5 rounded-full bg-white/20 font-mono text-[10px] shrink-0">
+                    {previewImage.index + 1} / {previewImage.photos.length}
+                  </span>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={() => setPreviewImage(null)}
+                className="p-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white transition-colors cursor-pointer shrink-0"
+                title="ปิด (Esc)"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Main Image with Navigation Arrows */}
+            <div className="relative w-full max-h-[72vh] flex items-center justify-center bg-black/90 p-2 sm:p-4 overflow-hidden">
+              <img
+                src={previewImage.photos?.[previewImage.index]?.url || previewImage.url}
+                alt="ภาพถ่ายหลักฐาน"
+                className="max-h-[68vh] w-auto max-w-full object-contain rounded-xl shadow-2xl"
+              />
+
+              {previewImage.photos && previewImage.photos.length > 1 && (
+                <>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setPreviewImage(prev => ({
+                        ...prev,
+                        index: (prev.index - 1 + prev.photos.length) % prev.photos.length
+                      }));
+                    }}
+                    className="absolute left-3 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/60 hover:bg-black/80 text-white border border-white/20 transition-all cursor-pointer shadow-lg"
+                    title="ภาพก่อนหน้า"
+                  >
+                    <ChevronLeft className="w-5 h-5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setPreviewImage(prev => ({
+                        ...prev,
+                        index: (prev.index + 1) % prev.photos.length
+                      }));
+                    }}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/60 hover:bg-black/80 text-white border border-white/20 transition-all cursor-pointer shadow-lg"
+                    title="ภาพถัดไป"
+                  >
+                    <ChevronRight className="w-5 h-5" />
+                  </button>
+                </>
+              )}
+            </div>
+
+            {/* Thumbnails Strip if multiple photos */}
+            {previewImage.photos && previewImage.photos.length > 1 && (
+              <div className="p-2.5 bg-black/70 flex items-center justify-center gap-2 border-t border-white/10 shrink-0">
+                {previewImage.photos.map((p, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => setPreviewImage(prev => ({ ...prev, index: idx }))}
+                    className={`w-14 h-10 rounded-lg overflow-hidden border-2 transition-all cursor-pointer ${
+                      previewImage.index === idx ? 'border-sky-400 scale-105 shadow-md' : 'border-transparent opacity-60 hover:opacity-90'
+                    }`}
+                  >
+                    <img src={p.url} alt="" className="w-full h-full object-cover" />
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Floating Map Controls: สลับแผนที่สถานที่ / ดาวเทียม & เปิด/ปิดตัวอักษร (ชิดขวาบน ใต้แถบบาร์) */}
+      <div className="absolute top-2 right-2 sm:top-3 sm:right-4 z-20 pointer-events-auto flex flex-col items-end gap-1.5 select-none">
         <div className="p-1 sm:p-1.5 rounded-2xl bg-white/95 backdrop-blur-md shadow-xl border border-[#B4975A]/40 flex items-center gap-1">
           <button
             type="button"
@@ -1034,11 +940,11 @@ export default function WaterWatchMap({
                 ? 'bg-[#A6192E] text-white shadow-md'
                 : 'text-slate-700 hover:text-slate-900 hover:bg-slate-100'
             }`}
-            title="แผนที่ถนนและชื่อสถานที่ภาษาไทย"
+            title="แผนที่สถานที่และชื่อสถานที่ภาษาไทย"
           >
             <Map className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">แผนที่ถนน</span>
-            <span className="sm:hidden">ถนน</span>
+            <span className="hidden sm:inline">แผนที่สถานที่</span>
+            <span className="sm:hidden">สถานที่</span>
           </button>
           <button
             type="button"
@@ -1048,64 +954,28 @@ export default function WaterWatchMap({
                 ? 'bg-sky-600 text-white shadow-md'
                 : 'text-slate-700 hover:text-slate-900 hover:bg-slate-100'
             }`}
-            title="ภาพถ่ายดาวเทียมความละเอียดสูง (Satellite Hybrid)"
+            title="พื้นที่ดาวเทียมความละเอียดสูง (Satellite Hybrid)"
           >
             <Globe className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">ภาพถ่ายดาวเทียม</span>
+            <span className="hidden sm:inline">พื้นที่ดาวเทียม</span>
             <span className="sm:hidden">ดาวเทียม</span>
           </button>
         </div>
 
-        {/* Boundary & District Toggle Button */}
         <button
           type="button"
-          onClick={() => setShowBoundaries(prev => !prev)}
+          onClick={() => setShowLabels(prev => !prev)}
           className={`px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-xl backdrop-blur-md shadow-lg border text-[11px] sm:text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
-            showBoundaries
+            showLabels
               ? 'bg-amber-50/95 text-amber-950 border-amber-300 ring-1 ring-amber-400/40'
               : 'bg-white/90 text-slate-500 border-slate-200 hover:bg-slate-50'
           }`}
-          title="เปิด/ปิดการแสดงเส้นพรมแดนประเทศ เขตจังหวัด และเขตอำเภอ"
+          title="เปิด/ปิด การแสดงตัวอักษรและชื่อสถานที่บนแผนที่"
         >
-          <Layers className={`w-3.5 h-3.5 ${showBoundaries ? 'text-amber-600' : 'text-slate-400'}`} />
-          <span>{showBoundaries ? '🏷️ เขตแดน & อำเภอ (เปิด)' : '🏷️ เขตแดน & อำเภอ (ปิด)'}</span>
+          <Layers className={`w-3.5 h-3.5 ${showLabels ? 'text-amber-600' : 'text-slate-400'}`} />
+          <span>{showLabels ? 'แสดงตัวอักษร' : 'ซ่อนตัวอักษร'}</span>
         </button>
       </div>
-
-      {/* Floating Banner สำหรับโหมดจิ้มเลือกพิกัดบนแผนที่ */}
-      {isPickingCoordinates && (
-        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50 bg-slate-900/95 backdrop-blur-md text-white px-4 py-2.5 rounded-2xl shadow-2xl border-2 border-amber-400 flex items-center gap-3 max-w-[92vw] animate-in fade-in slide-in-from-top-4 duration-200">
-          <div className="w-3 h-3 rounded-full bg-amber-400 animate-ping shrink-0" />
-          <div className="text-xs">
-            <span className="font-bold text-amber-300 block">📍 คลิกบนแผนที่เพื่อเลือกพิกัดจุดตั้งเครื่อง</span>
-            <span className="text-[11px] text-slate-300 font-mono">
-              {pickedCoords 
-                ? `พิกัดที่เลือก: ${Number(pickedCoords[1]).toFixed(5)}, ${Number(pickedCoords[0]).toFixed(5)}`
-                : 'คลิกบริเวณแนวลำน้ำกกหรือตลิ่งที่ต้องการวางเครื่องดูดน้ำหรือเครื่องตรวจวัด'}
-            </span>
-          </div>
-          <div className="flex items-center gap-1.5 ml-2 shrink-0">
-            {pickedCoords && onConfirmPick && (
-              <button
-                type="button"
-                onClick={onConfirmPick}
-                className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold transition-all cursor-pointer shadow-md"
-              >
-                ยืนยันพิกัดนี้
-              </button>
-            )}
-            {onCancelPick && (
-              <button
-                type="button"
-                onClick={onCancelPick}
-                className="px-2.5 py-1.5 bg-slate-700 hover:bg-slate-600 text-slate-200 rounded-xl text-xs font-medium transition-all cursor-pointer"
-              >
-                ยกเลิก
-              </button>
-            )}
-          </div>
-        </div>
-      )}
     </div>
   );
 }

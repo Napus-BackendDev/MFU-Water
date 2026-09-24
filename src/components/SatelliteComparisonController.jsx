@@ -118,18 +118,32 @@ export default function SatelliteComparisonController({
 
         <div className="flex items-center gap-1.5">
           {/* 3D Perspective Toggle Button */}
-          <button
-            onClick={() => setIs3DMode(!is3DMode)}
-            className={`px-2.5 py-1 rounded-xl text-xs font-bold transition-all flex items-center gap-1 shadow-sm ${
-              is3DMode
-                ? 'bg-sky-600 text-white shadow-sky-500/20'
-                : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-            }`}
-            title="สลับมุมมอง 3 มิติ / 2 มิติ"
-          >
-            <Compass className="w-3.5 h-3.5" />
-            <span>{is3DMode ? '3D' : '2D'}</span>
-          </button>
+          {/* 2D / 3D Perspective Toggle */}
+          <div className="flex items-center bg-slate-100 p-0.5 rounded-xl border border-slate-200 text-xs font-bold">
+            <button
+              onClick={() => setIs3DMode(false)}
+              className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
+                !is3DMode
+                  ? 'bg-white text-sky-700 shadow-xs'
+                  : 'text-slate-500 hover:text-slate-800'
+              }`}
+              title="มุมมอง 2 มิติ (แบนราบ Top-down)"
+            >
+              2D
+            </button>
+            <button
+              onClick={() => setIs3DMode(true)}
+              className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer flex items-center gap-1 ${
+                is3DMode
+                  ? 'bg-sky-600 text-white shadow-xs'
+                  : 'text-slate-500 hover:text-slate-800'
+              }`}
+              title="มุมมอง 3 มิติ (ภูมิประเทศ 3D Terrain)"
+            >
+              <Compass className="w-3 h-3" />
+              <span>3D</span>
+            </button>
+          </div>
 
           {/* ปุ่มย่อ/หดแผงควบคุม (Collapse Button) */}
           <button

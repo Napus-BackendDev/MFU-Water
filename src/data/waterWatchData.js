@@ -1,6 +1,34 @@
 // ข้อมูลและระบบจัดการข้อมูล KOK Water Watch (POC-1)
 // รองรับโครงสร้าง Google Sheets, Google Drive, และ Supabase Index
 
+// 9 ระดับสีสารหนูตามชุดทดสอบภาคสนาม (Arsenic Field Test Kit: 0-500 ppb)
+export const ARSENIC_LEVELS = [
+  { level: 1, ppb: 0, label: '0 ppb', color: '#FBF9F2', borderColor: '#D1D5DB', desc: 'สีขาวครีม' },
+  { level: 2, ppb: 5, label: '5 ppb', color: '#FEF3A9', borderColor: '#E5D66E', desc: 'สีเหลืองอ่อน' },
+  { level: 3, ppb: 10, label: '10 ppb', color: '#F7E752', borderColor: '#DAC82A', desc: 'สีเหลืองมะนาว' },
+  { level: 4, ppb: 30, label: '30 ppb', color: '#E8BE36', borderColor: '#C89F19', desc: 'สีเหลืองทอง' },
+  { level: 5, ppb: 50, label: '50 ppb', color: '#DE9922', borderColor: '#B87A11', desc: 'สีเหลืองสด' },
+  { level: 6, ppb: 100, label: '100 ppb', color: '#C07128', borderColor: '#9A5214', desc: 'สีน้ำตาลอ่อน/ส้ม' },
+  { level: 7, ppb: 200, label: '200 ppb', color: '#974E22', borderColor: '#753713', desc: 'สีน้ำตาล' },
+  { level: 8, ppb: 300, label: '300 ppb', color: '#683115', borderColor: '#4F210A', desc: 'สีน้ำตาลเข้ม' },
+  { level: 9, ppb: 500, label: '500 ppb', color: '#3A1807', borderColor: '#240D04', desc: 'สีน้ำตาลไหม้/ดำ' },
+];
+
+export function getArsenicLevelConfig(ppbVal) {
+  if (ppbVal === null || ppbVal === undefined || isNaN(Number(ppbVal))) return ARSENIC_LEVELS[0];
+  const num = Number(ppbVal);
+  let closest = ARSENIC_LEVELS[0];
+  let minDiff = Infinity;
+  for (const lvl of ARSENIC_LEVELS) {
+    const diff = Math.abs(lvl.ppb - num);
+    if (diff < minDiff) {
+      minDiff = diff;
+      closest = lvl;
+    }
+  }
+  return closest;
+}
+
 export const WATER_WATCH_STATIONS = [
   {
     id: 'ST-01',
@@ -238,6 +266,228 @@ export function findNearestStation(lat, lng, stationsList = null) {
   return nearest;
 }
 
+// ระบบรวมกลุ่มพิกัดตรวจวัด (Spatial Clustering & Hotspot Engine)
+// จุดที่อยู่ใกล้กันภายในระยะ ~250 เมตร หากมีตั้งแต่ 2 รายการขึ้นไปจะรวมเป็นหนึ่งก้อน (Hotspot)
+export function clusterSubmissions(submissions = [], radiusMeters = 250) {
+  const validSubmissions = (submissions || []).filter(
+    s => s && s.coordinates && Array.isArray(s.coordinates) && s.coordinates.length === 2 &&
+         !isNaN(s.coordinates[0]) && !isNaN(s.coordinates[1])
+  );
+
+  const visited = new Set();
+  const rawClusters = [];
+
+  for (let i = 0; i < validSubmissions.length; i++) {
+    if (visited.has(i)) continue;
+    const current = validSubmissions[i];
+    const cluster = [current];
+    visited.add(i);
+
+    const [cLng, cLat] = current.coordinates;
+
+    for (let j = i + 1; j < validSubmissions.length; j++) {
+      if (visited.has(j)) continue;
+      const other = validSubmissions[j];
+      const [oLng, oLat] = other.coordinates;
+      const dist = getDistanceMeters(cLat, cLng, oLat, oLng);
+      if (dist <= radiusMeters) {
+        cluster.push(other);
+        visited.add(j);
+      }
+    }
+
+    rawClusters.push(cluster);
+  }
+
+  const clusterGroups = rawClusters.filter(g => g.length >= 2);
+  const singleGroups = rawClusters.filter(g => g.length < 2);
+
+  const processGroup = (group, isCluster, index) => {
+    // ฟังก์ชันดึงค่าเวลา timestamp ของแต่ละรายงานเพื่อเรียงลำดับใหม่อย่างแม่นยำ
+    const getTimeVal = (it) => {
+      if (!it) return 0;
+      const t = it.collection_time || it.created_at || it.timestamp || it.date;
+      if (t) {
+        if (typeof t === 'number' && !isNaN(t) && t > 0) return t;
+        const d = new Date(t).getTime();
+        if (!isNaN(d) && d > 0) return d;
+      }
+      // Fallback: ดึงตัวเลขอ้างอิงจาก record_id เช่น rec-1727... หรือ id
+      const idStr = String(it.record_id || it.id || '');
+      const numMatch = idStr.match(/\d{10,}/);
+      if (numMatch) {
+        const num = Number(numMatch[0]);
+        if (!isNaN(num) && num > 0) return num;
+      }
+      return 0;
+    };
+
+    // เรียงลำดับประวัติตามเวลาบันทึกใหม่สุดขึ้นก่อน (Latest First)
+    const items = [...group].sort((a, b) => getTimeVal(b) - getTimeVal(a));
+    const latestSample = items[0] || {};
+
+    // คำนวณจุดกึ่งกลางพิกัด (Centroid)
+    const avgLng = items.reduce((sum, it) => sum + Number(it.coordinates[0]), 0) / items.length;
+    const avgLat = items.reduce((sum, it) => sum + Number(it.coordinates[1]), 0) / items.length;
+
+    // คำนวณค่าสารหนู (As) รวมของทุกรายงานในก้อน
+    const arsenicValues = items
+      .map(it => {
+        const asObj = it.measurements?.arsenic;
+        if (asObj?.value !== undefined && asObj?.value !== null && !isNaN(Number(asObj.value))) {
+          return Number(asObj.value);
+        }
+        if (asObj?.level !== undefined && asObj?.level !== null) {
+          const cfg = ARSENIC_LEVELS.find(l => l.level === Number(asObj.level));
+          if (cfg) return cfg.ppb;
+        }
+        return null;
+      })
+      .filter(v => v !== null && !isNaN(v));
+
+    const maxAs = arsenicValues.length > 0 ? Math.max(...arsenicValues) : 0;
+    const minAs = arsenicValues.length > 0 ? Math.min(...arsenicValues) : 0;
+    const avgAs = arsenicValues.length > 0 ? Number((arsenicValues.reduce((a, b) => a + b, 0) / arsenicValues.length).toFixed(1)) : 0;
+
+    // ข้อมูลของ "การตรวจวัดล่าสุด" (Latest Record Only) - สารหนูและระดับสี
+    let latestAsVal = latestSample.measurements?.arsenic?.value;
+    if (latestAsVal === null || latestAsVal === undefined || isNaN(Number(latestAsVal))) {
+      const lvl = latestSample.measurements?.arsenic?.level;
+      if (lvl !== null && lvl !== undefined && !isNaN(Number(lvl))) {
+        const cfg = ARSENIC_LEVELS.find(l => l.level === Number(lvl));
+        latestAsVal = cfg ? cfg.ppb : (Number(lvl) === 1 ? 0 : Number(lvl) === 2 ? 5 : Number(lvl) === 3 ? 10 : Number(lvl) === 4 ? 30 : 50);
+      } else if (latestSample.arsenic !== undefined && !isNaN(Number(latestSample.arsenic))) {
+        latestAsVal = Number(latestSample.arsenic);
+      } else if (latestSample.as !== undefined && !isNaN(Number(latestSample.as))) {
+        latestAsVal = Number(latestSample.as);
+      } else if (latestSample.arsenic_ppb !== undefined && !isNaN(Number(latestSample.arsenic_ppb))) {
+        latestAsVal = Number(latestSample.arsenic_ppb);
+      } else {
+        latestAsVal = arsenicValues.length > 0 ? arsenicValues[0] : 0;
+      }
+    }
+    const latestAs = Number(latestAsVal);
+
+    const latestLevelCfg = (latestSample.measurements?.arsenic?.level && ARSENIC_LEVELS.find(l => l.level === Number(latestSample.measurements.arsenic.level)))
+      || getArsenicLevelConfig(latestAs);
+
+    // ระดับเตือนภัยตามผลตรวจวัดล่าสุด
+    const latestIsDanger = latestAs > 50;
+    const latestIsWatch = latestAs > 10 && !latestIsDanger;
+    const latestIsSafe = !latestIsDanger && !latestIsWatch;
+
+    // รูปภาพของการตรวจวัดล่าสุดเท่านั้น (Strictly Latest Record - ไม่นำรูปรายงานเก่ามาปนเด็ดขาด)
+    const rawLatestImgs = Array.isArray(latestSample.images) && latestSample.images.length > 0
+      ? latestSample.images
+      : Array.isArray(latestSample.photos) && latestSample.photos.length > 0
+      ? latestSample.photos
+      : latestSample.image
+      ? [latestSample.image]
+      : latestSample.photo
+      ? [latestSample.photo]
+      : [];
+
+    const latestPhotos = rawLatestImgs.map((img, idx) => {
+      if (!img) return null;
+      if (typeof img === 'string') {
+        const trimmed = img.trim();
+        if (!trimmed) return null;
+        return {
+          id: `latest-photo-${idx + 1}`,
+          title: `ภาพถ่ายหลักฐานการตรวจล่าสุด (${idx + 1})`,
+          url: trimmed
+        };
+      }
+      if (typeof img === 'object') {
+        const url = img.url || img.src || img.preview || img.dataUrl || img.photo_url || img.image_url || '';
+        if (!url || typeof url !== 'string' || !url.trim()) return null;
+        return {
+          ...img,
+          id: img.id || `latest-photo-${idx + 1}`,
+          title: img.title || img.name || `ภาพถ่ายหลักฐานการตรวจล่าสุด (${idx + 1})`,
+          url: url.trim()
+        };
+      }
+      return null;
+    }).filter(Boolean);
+
+    const latestPhoto = latestPhotos.length > 0 ? latestPhotos[0] : null;
+
+    // ข้อมูลผู้ตรวจวัดล่าสุด (รองรับทั้ง object และ string)
+    let latestCollector = null;
+    if (latestSample.collector) {
+      if (typeof latestSample.collector === 'string') {
+        latestCollector = {
+          name: latestSample.collector.trim(),
+          organization: '',
+          phone: '',
+          id: ''
+        };
+      } else if (typeof latestSample.collector === 'object') {
+        latestCollector = {
+          id: latestSample.collector.id || '',
+          name: latestSample.collector.name || latestSample.collector.collector_name || latestSample.collector.fullname || '',
+          phone: latestSample.collector.phone || '',
+          organization: latestSample.collector.organization || latestSample.collector.org || ''
+        };
+      }
+    }
+
+    // เวลาที่ตรวจวัดล่าสุด
+    const latestCollectionTime = latestSample.collection_time || latestSample.created_at || latestSample.timestamp || latestSample.date || null;
+
+    // ช่วงเวลาที่ทำการตรวจวัดในก้อนนี้ (Time Range)
+    const times = items.map(it => getTimeVal(it)).filter(t => t > 0);
+    const minTime = times.length > 0 ? new Date(Math.min(...times)) : new Date();
+    const maxTime = times.length > 0 ? new Date(Math.max(...times)) : new Date();
+
+    return {
+      id: isCluster ? `hotspot-${index + 1}` : `single-${index + 1}`,
+      title: isCluster ? `ก้อน Hotspot ที่ ${index + 1}` : (latestSample.station_name || 'จุดสำรวจตรวจวัด'),
+      locationName: latestSample.station_name || latestSample.sample_nature?.water_source || 'จุดตรวจวัดริมแม่น้ำกก',
+      coordinates: [avgLng, avgLat],
+      count: items.length,
+      items,
+      isHotspot: isCluster,
+      // ค่าสารหนู
+      latestAs,
+      maxAs,
+      minAs,
+      avgAs,
+      // ระดับเตือนภัยอิงตามผลตรวจล่าสุด
+      isDanger: latestIsDanger,
+      isWatch: latestIsWatch,
+      isSafe: latestIsSafe,
+      latestIsDanger,
+      latestIsWatch,
+      latestIsSafe,
+      latestLevelCfg,
+      // ข้อมูลเฉพาะของการตรวจวัดล่าสุด
+      latestCollectionTime,
+      latestCollector,
+      latestSampleCode: latestSample.sample_code || latestSample.record_id || latestSample.id || null,
+      latestPhoto,
+      latestPhotos,
+      latestWaterSource: latestSample.sample_nature?.water_source || '',
+      latestNotes: latestSample.sample_nature?.notes || '',
+      timeRange: {
+        start: minTime.toISOString(),
+        end: maxTime.toISOString()
+      },
+      photos: items.flatMap(it => {
+        const raw = it.images || it.photos || (it.image ? [it.image] : []);
+        return Array.isArray(raw) ? raw : [];
+      }),
+      sample: latestSample
+    };
+  };
+
+  const clusters = clusterGroups.map((g, idx) => processGroup(g, true, idx));
+  const singlePoints = singleGroups.map((g, idx) => processGroup(g, false, idx));
+
+  return { clusters, singlePoints, totalPoints: validSubmissions.length };
+}
+
 // ฟังก์ชันคำนวณข้อมูลคุณภาพน้ำแบบครบถ้วน (As, pH, Turbidity, Temp) และชุด Trend หลายจุด (Sparkline)
 // แก้ปัญหาข้อมูลว่าง/ขึ้นขีด (-) โดยค้นหาค่าล่าสุดจากประวัติ หรือใช้ค่าฐานประจำเครื่อง
 export function getStationTelemetry(station, submissions = []) {
@@ -357,137 +607,53 @@ export function getStationTelemetry(station, submissions = []) {
   };
 }
 
-// ข้อมูลตัวอย่างเริ่มต้น (Initial Sample Submissions)
+// ข้อมูลตัวอย่างเริ่มต้นชุดใหม่ (Initial Sample Submissions - อิงชุดตรวจสารหนู 9 ระดับและพิกัด GPS)
 export const INITIAL_SUBMISSIONS = [
   {
     record_id: 'rec-001-init',
-    sample_code: 'KOK-20260923-0001',
-    schema_version: '1.0',
-    station_id: 'ST-01',
-    station_name: 'สถานีต้นน้ำกกเหนือสะพานท่าตอน',
+    sample_code: 'KOK-20260924-0001',
+    schema_version: '2.0',
+    station_name: 'จุดริมน้ำเหนือสะพานท่าตอน',
     coordinates: [99.3585, 20.0655],
-    collection_time: '2026-09-23T09:30:00+07:00',
-    gps_accuracy_meters: 8.5,
-    entry_type: 'realtime', // 'realtime' | 'retrospective'
+    collection_time: '2026-09-24T08:30:00+07:00',
+    gps_accuracy_meters: 4.8,
+    entry_type: 'realtime',
     collector: {
       id: 'VOL-0001',
       name: 'นายกิตติศักดิ์ เจริญสุข',
-      phone: '081-992-XXXX',
+      phone: '081-992-4521',
       organization: 'ทีมอาสาสมัครลุ่มน้ำกก มฟล.'
     },
     sample_nature: {
-      water_source: 'แม่น้ำกก (สายหลัก)',
-      water_appearance: 'ขุ่นปานกลาง มีตะกอนแขวนลอยสีน้ำตาลอ่อน',
-      odor: 'ไม่พบกลิ่นผิดปกติ',
-      rain_last_24h: 'มีฝนตกเล็กน้อย (15 มม.)',
-      notes: 'กระแสน้ำไหลปานกลาง ระดับน้ำตลิ่งปกติ'
+      water_source: 'แม่น้ำกก (บริเวณเหนือสะพานท่าตอน)',
+      notes: 'น้ำใสไหลปานกลาง ตรวจเทียบแถบสีได้ระดับ 2 (5 ppb) ปลอดภัย'
     },
     measurements: {
       arsenic: {
-        value: 8.4,
-        unit: 'µg/L',
+        value: 5,
+        unit: 'ppb',
         status: 'normal',
         method: 'ชุดทดสอบภาคสนาม (Arsenic Field Test Kit)',
-        instrument: 'Merck MQuant Arsenic Test'
-      },
-      ph: {
-        value: 7.2,
-        status: 'normal',
-        method: 'เครื่องวัดดิจิทัลพกพา',
-        instrument: 'Hanna HI98107 pHep'
-      },
-      turbidity: {
-        value: 28.5,
-        unit: 'NTU',
-        status: 'normal',
-        method: 'เครื่องวัดความขุ่นภาคสนาม',
-        instrument: 'Turbidimeter 2100Q'
-      },
-      temperature: {
-        value: 24.8,
-        unit: '°C',
-        status: 'normal',
-        method: 'หัววัดดิจิทัล',
-        instrument: 'Thermometer Probe'
+        instrument: 'แถบเทียบสีระดับ 2 (5 ppb)',
+        level: 2,
+        label: '5 ppb',
+        desc: 'สีเหลืองอ่อน',
+        color: '#FEF3A9'
       }
     },
     images: [
       {
         id: 'img-001',
-        title: 'จุดเก็บตัวอย่างสะพานท่าตอน',
-        url: 'https://images.unsplash.com/photo-1544644181-1484b3fdfc62?w=800&auto=format&fit=crop&q=80',
-        drive_file_id: 'DRV_FILE_ST01_01',
-        size_kb: 450
+        title: 'ภาพที่ 1: แถบเทียบสี 5 ppb',
+        url: 'https://images.unsplash.com/photo-1579154204601-01588f351e67?w=800&auto=format&fit=crop&q=80',
+        drive_file_id: 'TEST_STRIP_01',
+        size_kb: 420
       },
       {
         id: 'img-002',
-        title: 'ผลการเทียบแถบสีชุดทดสอบสารหนู',
-        url: 'https://images.unsplash.com/photo-1579154204601-01588f351e67?w=800&auto=format&fit=crop&q=80',
-        drive_file_id: 'DRV_FILE_ST01_02',
-        size_kb: 320
-      }
-    ],
-    status: 'COMPLETED',
-    sync_stage: 'INDEXED'
-  },
-  {
-    record_id: 'rec-002-init',
-    sample_code: 'KOK-20260923-0002',
-    schema_version: '1.0',
-    station_id: 'ST-02',
-    station_name: 'สถานีสะพานท่าตอน (สะพานข้ามแม่น้ำกก)',
-    coordinates: [99.3615, 20.0610],
-    collection_time: '2026-09-23T10:45:00+07:00',
-    gps_accuracy_meters: 6.2,
-    entry_type: 'realtime',
-    collector: {
-      id: 'VOL-0003',
-      name: 'นางสาวพิมลดา สุริยันต์',
-      phone: '089-773-XXXX',
-      organization: 'ศูนย์สิ่งแวดล้อมชุมชนท่าตอน'
-    },
-    sample_nature: {
-      water_source: 'แม่น้ำกก (บริเวณสะพานข้าม)',
-      water_appearance: 'ใส ไม่มีตะกอน',
-      odor: 'ไม่พบกลิ่นผิดปกติ',
-      rain_last_24h: 'ไม่มีฝนตก',
-      notes: 'จุดศูนย์กลางชุมชนท่าตอน'
-    },
-    measurements: {
-      arsenic: {
-        value: 12.8, // สูงกว่าเกณฑ์เฝ้าระวัง 10 µg/L
-        unit: 'µg/L',
-        status: 'watch',
-        method: 'ชุดทดสอบภาคสนาม (Arsenic Field Test Kit)',
-        instrument: 'Merck MQuant Arsenic Test'
-      },
-      ph: {
-        value: 6.8,
-        status: 'normal',
-        method: 'เครื่องวัดดิจิทัลพกพา',
-        instrument: 'Hanna HI98107'
-      },
-      turbidity: {
-        value: 12.0,
-        unit: 'NTU',
-        status: 'normal',
-        method: 'เครื่องวัดความขุ่นภาคสนาม',
-        instrument: 'Turbidimeter 2100Q'
-      },
-      temperature: {
-        value: 23.5,
-        unit: '°C',
-        status: 'normal',
-        method: 'หัววัดดิจิทัล',
-        instrument: 'Thermometer Probe'
-      }
-    },
-    images: [
-      {
-        id: 'img-003',
-        title: 'สะพานท่าตอน',
-        url: 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=800&auto=format&fit=crop&q=80',
-        drive_file_id: 'DRV_FILE_ST02_01',
+        title: 'ภาพที่ 2: ริมตลิ่งเหนือสะพานท่าตอน',
+        url: 'https://images.unsplash.com/photo-1544644181-1484b3fdfc62?w=800&auto=format&fit=crop&q=80',
+        drive_file_id: 'RIVER_BANK_01',
         size_kb: 510
       }
     ],
@@ -495,72 +661,359 @@ export const INITIAL_SUBMISSIONS = [
     sync_stage: 'INDEXED'
   },
   {
+    record_id: 'rec-002-init',
+    sample_code: 'KOK-20260924-0002',
+    schema_version: '2.0',
+    station_name: 'จุดสะพานท่าตอน (จุดกลางชุมชน)',
+    coordinates: [99.3615, 20.0610],
+    collection_time: '2026-09-24T09:15:00+07:00',
+    gps_accuracy_meters: 3.5,
+    entry_type: 'realtime',
+    collector: {
+      id: 'VOL-0003',
+      name: 'นางสาวพิมลดา สุริยันต์',
+      phone: '089-773-1890',
+      organization: 'ศูนย์สิ่งแวดล้อมชุมชนท่าตอน'
+    },
+    sample_nature: {
+      water_source: 'แม่น้ำกก (บริเวณใต้สะพานข้าม)',
+      notes: 'จุดศูนย์กลางชุมชนท่าตอน เทียบสีได้ระดับ 3 (10 ppb) อยู่ในเกณฑ์ปลอดภัย WHO'
+    },
+    measurements: {
+      arsenic: {
+        value: 10,
+        unit: 'ppb',
+        status: 'normal',
+        method: 'ชุดทดสอบภาคสนาม (Arsenic Field Test Kit)',
+        instrument: 'แถบเทียบสีระดับ 3 (10 ppb)',
+        level: 3,
+        label: '10 ppb',
+        desc: 'สีเหลืองมะนาว',
+        color: '#F7E752'
+      }
+    },
+    images: [
+      {
+        id: 'img-003',
+        title: 'ภาพที่ 1: แถบเทียบสี 10 ppb',
+        url: 'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=800&auto=format&fit=crop&q=80',
+        drive_file_id: 'TEST_STRIP_02',
+        size_kb: 460
+      },
+      {
+        id: 'img-004',
+        title: 'ภาพที่ 2: สะพานข้ามแม่น้ำกกท่าตอน',
+        url: 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=800&auto=format&fit=crop&q=80',
+        drive_file_id: 'BRIDGE_THATO_01',
+        size_kb: 490
+      }
+    ],
+    status: 'COMPLETED',
+    sync_stage: 'INDEXED'
+  },
+  {
     record_id: 'rec-003-init',
-    sample_code: 'KOK-20260923-0003',
-    station_id: 'ST-03',
-    station_name: 'สถานีโค้งน้ำท่าตอนตะวันออก',
+    sample_code: 'KOK-20260924-0003',
+    schema_version: '2.0',
+    station_name: 'จุดโค้งน้ำท่าตอนตะวันออก',
     coordinates: [99.3850, 20.0535],
-    collection_time: '2026-09-23T11:30:00+07:00',
-    gps_accuracy_meters: 10.1,
+    collection_time: '2026-09-24T10:00:00+07:00',
+    gps_accuracy_meters: 6.2,
     entry_type: 'realtime',
     collector: {
       id: 'VOL-0001',
       name: 'นายกิตติศักดิ์ เจริญสุข',
-      phone: '081-992-XXXX',
+      phone: '081-992-4521',
       organization: 'ทีมอาสาสมัครลุ่มน้ำกก มฟล.'
     },
     sample_nature: {
-      water_source: 'แม่น้ำกก (สายหลัก)',
-      water_appearance: 'ขุ่นเล็กน้อย',
-      odor: 'ไม่พบกลิ่นผิดปกติ',
-      rain_last_24h: 'ไม่มีฝนตก',
-      notes: 'จุดเชื่อมต่อก่อนไหลเข้าพื้นที่ อ.เมืองเชียงราย'
+      water_source: 'แม่น้ำกก (ช่วงโค้งน้ำตะวันออก)',
+      notes: 'กระแสน้ำไหลเอื่อย พบแถบเทียบสีเหลืองอ่อนระดับ 2 (5 ppb)'
     },
     measurements: {
       arsenic: {
-        value: 6.2,
-        unit: 'µg/L',
+        value: 5,
+        unit: 'ppb',
         status: 'normal',
         method: 'ชุดทดสอบภาคสนาม (Arsenic Field Test Kit)',
-        instrument: 'Merck MQuant Arsenic Test'
-      },
-      ph: {
-        value: 7.4,
-        status: 'normal',
-        method: 'เครื่องวัดดิจิทัลพกพา',
-        instrument: 'Hanna HI98107'
-      },
-      turbidity: {
-        value: 22.0,
-        unit: 'NTU',
-        status: 'normal',
-        method: 'เครื่องวัดความขุ่นภาคสนาม',
-        instrument: 'Turbidimeter 2100Q'
-      },
-      temperature: {
-        value: 25.1,
-        unit: '°C',
-        status: 'normal',
-        method: 'หัววัดดิจิทัล',
-        instrument: 'Thermometer Probe'
+        instrument: 'แถบเทียบสีระดับ 2 (5 ppb)',
+        level: 2,
+        label: '5 ppb',
+        desc: 'สีเหลืองอ่อน',
+        color: '#FEF3A9'
       }
     },
-    images: [],
+    images: [
+      {
+        id: 'img-005',
+        title: 'ภาพที่ 1: แถบเทียบสี 5 ppb',
+        url: 'https://images.unsplash.com/photo-1579154204601-01588f351e67?w=800&auto=format&fit=crop&q=80',
+        drive_file_id: 'TEST_STRIP_03',
+        size_kb: 380
+      },
+      {
+        id: 'img-005b',
+        title: 'ภาพที่ 2: โค้งน้ำท่าตอนตะวันออก',
+        url: 'https://images.unsplash.com/photo-1544644181-1484b3fdfc62?w=800&auto=format&fit=crop&q=80',
+        drive_file_id: 'BEND_LOCATION_01',
+        size_kb: 480
+      }
+    ],
+    status: 'COMPLETED',
+    sync_stage: 'INDEXED'
+  },
+  {
+    record_id: 'rec-004-init',
+    sample_code: 'KOK-20260924-0004',
+    schema_version: '2.0',
+    station_name: 'จุดสะพานท่าตอน (ฝั่งทิศเหนือ)',
+    coordinates: [99.3619, 20.0613],
+    collection_time: '2026-09-24T10:15:00+07:00',
+    gps_accuracy_meters: 4.0,
+    entry_type: 'realtime',
+    collector: {
+      id: 'VOL-0004',
+      name: 'นายสมชาย ใจดี',
+      phone: '082-111-9876',
+      organization: 'ประชาชนท่าตอน'
+    },
+    sample_nature: {
+      water_source: 'ริมตลิ่งสะพานท่าตอน ฝั่งเหนือ',
+      notes: 'ตรวจวัดซ้ำช่วงสาย เทียบสีได้ระดับ 4 (30 ppb) สีเหลืองทอง เฝ้าระวัง'
+    },
+    measurements: {
+      arsenic: {
+        value: 30,
+        unit: 'ppb',
+        status: 'watch',
+        method: 'ชุดทดสอบภาคสนาม (Arsenic Field Test Kit)',
+        instrument: 'แถบเทียบสีระดับ 4 (30 ppb)',
+        level: 4,
+        label: '30 ppb',
+        desc: 'สีเหลืองทอง',
+        color: '#E8BE36'
+      }
+    },
+    images: [
+      {
+        id: 'img-006',
+        title: 'ภาพที่ 1: แถบเทียบสี 30 ppb',
+        url: 'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=800&auto=format&fit=crop&q=80',
+        drive_file_id: 'TEST_STRIP_04',
+        size_kb: 410
+      },
+      {
+        id: 'img-006b',
+        title: 'ภาพที่ 2: จุดตรวจริมตลิ่งฝั่งเหนือ',
+        url: 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=800&auto=format&fit=crop&q=80',
+        drive_file_id: 'NORTH_BANK_01',
+        size_kb: 470
+      }
+    ],
+    status: 'COMPLETED',
+    sync_stage: 'INDEXED'
+  },
+  {
+    record_id: 'rec-005-init',
+    sample_code: 'KOK-20260924-0005',
+    schema_version: '2.0',
+    station_name: 'จุดริมน้ำสะพานท่าตอน (ฝั่งตลาด)',
+    coordinates: [99.3612, 20.0607],
+    collection_time: '2026-09-24T11:00:00+07:00',
+    gps_accuracy_meters: 3.8,
+    entry_type: 'realtime',
+    collector: {
+      id: 'VOL-0005',
+      name: 'นายนิพนธ์ ริมกก',
+      phone: '084-222-7711',
+      organization: 'กลุ่มอนุรักษ์น้ำกก'
+    },
+    sample_nature: {
+      water_source: 'ใต้สะพานท่าตอน ฝั่งตลาดริมน้ำ',
+      notes: 'ตรวจเทียบสีได้ระดับ 3 (10 ppb) สีเหลืองมะนาว ปลอดภัย'
+    },
+    measurements: {
+      arsenic: {
+        value: 10,
+        unit: 'ppb',
+        status: 'normal',
+        method: 'ชุดทดสอบภาคสนาม (Arsenic Field Test Kit)',
+        instrument: 'แถบเทียบสีระดับ 3 (10 ppb)',
+        level: 3,
+        label: '10 ppb',
+        desc: 'สีเหลืองมะนาว',
+        color: '#F7E752'
+      }
+    },
+    images: [
+      {
+        id: 'img-007',
+        title: 'ภาพที่ 1: แถบเทียบสี 10 ppb',
+        url: 'https://images.unsplash.com/photo-1579154204601-01588f351e67?w=800&auto=format&fit=crop&q=80',
+        drive_file_id: 'TEST_STRIP_05',
+        size_kb: 450
+      },
+      {
+        id: 'img-007b',
+        title: 'ภาพที่ 2: ตลาดริมน้ำสะพานท่าตอน',
+        url: 'https://images.unsplash.com/photo-1544644181-1484b3fdfc62?w=800&auto=format&fit=crop&q=80',
+        drive_file_id: 'MARKET_RIVER_01',
+        size_kb: 505
+      }
+    ],
+    status: 'COMPLETED',
+    sync_stage: 'INDEXED'
+  },
+  {
+    record_id: 'rec-006-init',
+    sample_code: 'KOK-20260924-0006',
+    schema_version: '2.0',
+    station_name: 'จุดตรวจบ้านใหม่หมอกจ๋าม',
+    coordinates: [99.4350, 20.0320],
+    collection_time: '2026-09-24T11:30:00+07:00',
+    gps_accuracy_meters: 5.5,
+    entry_type: 'realtime',
+    collector: {
+      id: 'VOL-0006',
+      name: 'นายชาญชัย มิ่งขวัญ',
+      phone: '086-333-5544',
+      organization: 'อาสาสมัครหมอกจ๋าม'
+    },
+    sample_nature: {
+      water_source: 'แม่น้ำกกตอนล่าง จุดตรวจบ้านใหม่หมอกจ๋าม',
+      notes: 'จุดเดี่ยวปลายน้ำ ตรวจพบระดับ 2 (5 ppb) ปลอดภัย'
+    },
+    measurements: {
+      arsenic: {
+        value: 5,
+        unit: 'ppb',
+        status: 'normal',
+        method: 'ชุดทดสอบภาคสนาม (Arsenic Field Test Kit)',
+        instrument: 'แถบเทียบสีระดับ 2 (5 ppb)',
+        level: 2,
+        label: '5 ppb',
+        desc: 'สีเหลืองอ่อน',
+        color: '#FEF3A9'
+      }
+    },
+    images: [
+      {
+        id: 'img-008',
+        title: 'ภาพที่ 1: แถบเทียบสี 5 ppb',
+        url: 'https://images.unsplash.com/photo-1579154204601-01588f351e67?w=800&auto=format&fit=crop&q=80',
+        drive_file_id: 'TEST_STRIP_06',
+        size_kb: 390
+      },
+      {
+        id: 'img-008b',
+        title: 'ภาพที่ 2: แม่น้ำกกตอนล่างหมอกจ๋าม',
+        url: 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=800&auto=format&fit=crop&q=80',
+        drive_file_id: 'MOKCHAM_RIVER_01',
+        size_kb: 460
+      }
+    ],
     status: 'COMPLETED',
     sync_stage: 'INDEXED'
   }
 ];
 
+// Helper: Normalize / migrate any submission item to the clean new schema
+export function normalizeSubmission(item) {
+  if (!item) return null;
+  const asMeasurement = item.measurements?.arsenic || {};
+  let rawVal = asMeasurement.value;
+  if (rawVal === null || rawVal === undefined || isNaN(Number(rawVal))) {
+    rawVal = asMeasurement.level 
+      ? (asMeasurement.level === 1 ? 0 : asMeasurement.level === 2 ? 5 : asMeasurement.level === 3 ? 10 : asMeasurement.level === 4 ? 30 : 50) 
+      : 10;
+  }
+  const asVal = Number(rawVal);
+  const cfg = getArsenicLevelConfig(asVal);
+  const isDanger = asVal > 50;
+  const isWatch = asVal > 10 && !isDanger;
+  const isSafe = !isDanger && !isWatch;
+
+  return {
+    ...item,
+    schema_version: '2.0',
+    station_name: item.station_name || `พิกัด [${Number(item.coordinates?.[1] || 20.06).toFixed(4)}, ${Number(item.coordinates?.[0] || 99.36).toFixed(4)}]`,
+    coordinates: Array.isArray(item.coordinates) && item.coordinates.length === 2 
+      ? [Number(item.coordinates[0]), Number(item.coordinates[1])] 
+      : [99.3615, 20.0610],
+    collection_time: item.collection_time || new Date().toISOString(),
+    gps_accuracy_meters: item.gps_accuracy_meters || 5.0,
+    entry_type: item.entry_type || 'realtime',
+    collector: {
+      id: item.collector?.id || 'VOL-001',
+      name: item.collector?.name || 'ผู้ตรวจวัดภาคสนาม',
+      phone: item.collector?.phone || '081-992-4521',
+      organization: item.collector?.organization || 'ประชาชนทั่วไป'
+    },
+    sample_nature: {
+      water_source: item.sample_nature?.water_source || 'แม่น้ำกก',
+      notes: item.sample_nature?.notes || `บันทึกผ่านชุดตรวจภาคสนาม (${cfg.label} - ${cfg.desc})`
+    },
+    measurements: {
+      arsenic: {
+        value: asVal,
+        unit: 'ppb',
+        status: isDanger ? 'danger' : isWatch ? 'watch' : 'normal',
+        method: 'ชุดทดสอบภาคสนาม (Arsenic Field Test Kit)',
+        instrument: `แถบเทียบสีระดับ ${cfg.level} (${cfg.label})`,
+        level: cfg.level,
+        label: cfg.label,
+        desc: cfg.desc,
+        color: cfg.color
+      }
+    },
+    images: Array.isArray(item.images) && item.images.length > 0 
+      ? item.images 
+      : [
+          {
+            id: `img-strip-${item.sample_code || 'mock'}`,
+            title: `ภาพที่ 1: แถบเทียบสี ${cfg.label}`,
+            url: 'https://images.unsplash.com/photo-1579154204601-01588f351e67?w=800&auto=format&fit=crop&q=80',
+            drive_file_id: 'TEST_STRIP',
+            size_kb: 380
+          },
+          {
+            id: `img-river-${item.sample_code || 'mock'}`,
+            title: 'ภาพที่ 2: บริเวณริมแม่น้ำกก',
+            url: 'https://images.unsplash.com/photo-1544644181-1484b3fdfc62?w=800&auto=format&fit=crop&q=80',
+            drive_file_id: 'RIVER_LOCATION',
+            size_kb: 490
+          }
+        ],
+    status: 'COMPLETED',
+    sync_stage: item.sync_stage || 'INDEXED'
+  };
+}
+
 // Helper functions สำหรับการดึงและบันทึกข้อมูลตัวอย่าง
-const LOCAL_STORAGE_KEY = 'kok_water_watch_submissions';
+const LOCAL_STORAGE_KEY_V2 = 'kok_water_watch_submissions_v2';
+const LEGACY_STORAGE_KEY = 'kok_water_watch_submissions';
 
 export function getStoredSubmissions() {
   try {
-    const raw = localStorage.getItem(LOCAL_STORAGE_KEY);
+    let raw = localStorage.getItem(LOCAL_STORAGE_KEY_V2);
+    if (!raw) {
+      // ตรวจสอบข้อมูลเก่าใน LocalStorage และ Migrate ให้เป็น Schema 2.0
+      const legacyRaw = localStorage.getItem(LEGACY_STORAGE_KEY);
+      if (legacyRaw) {
+        try {
+          const legacyItems = JSON.parse(legacyRaw);
+          if (Array.isArray(legacyItems) && legacyItems.length > 0) {
+            const migrated = legacyItems.map(it => normalizeSubmission(it)).filter(Boolean);
+            localStorage.setItem(LOCAL_STORAGE_KEY_V2, JSON.stringify(migrated));
+            return migrated;
+          }
+        } catch (e) {}
+      }
+    }
     if (raw) {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed) && parsed.length > 0) {
-        return parsed;
+        return parsed.map(it => normalizeSubmission(it)).filter(Boolean);
       }
     }
   } catch (e) {
@@ -572,11 +1025,21 @@ export function getStoredSubmissions() {
 export function saveNewSubmission(submission) {
   try {
     const current = getStoredSubmissions();
-    const updated = [submission, ...current];
-    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updated));
+    const normalized = normalizeSubmission(submission);
+    const updated = [normalized, ...current];
+    localStorage.setItem(LOCAL_STORAGE_KEY_V2, JSON.stringify(updated));
     return updated;
   } catch (e) {
     console.error('Failed to save to localStorage:', e);
     return [submission, ...INITIAL_SUBMISSIONS];
   }
 }
+
+export function resetStoredSubmissions() {
+  try {
+    localStorage.setItem(LOCAL_STORAGE_KEY_V2, JSON.stringify(INITIAL_SUBMISSIONS));
+    localStorage.removeItem(LEGACY_STORAGE_KEY);
+  } catch (e) {}
+  return INITIAL_SUBMISSIONS;
+}
+
