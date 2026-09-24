@@ -227,7 +227,11 @@ export default function WaterWatchForm({ onCancel, onSubmitSuccess, lockedStatio
     // Stage 2: บันทึกข้อมูลลงฐานข้อมูล Supabase Database ('kok_water_samples')
     setSubmitStage('supabase');
 
-    const selectedStation = WATER_WATCH_STATIONS.find(s => s.id === formData.stationId);
+    // ค้นหาสถานีและเครื่องตรวจวัดคุณภาพน้ำ (เครื่องดูน้ำ) ที่สอดคล้องกับข้อมูล
+    let selectedStation = WATER_WATCH_STATIONS.find(s => s.id === formData.stationId);
+    if (!selectedStation) {
+      selectedStation = findNearestStation(formData.latitude, formData.longitude) || WATER_WATCH_STATIONS[0];
+    }
 
     // Calculate standardized arsenic
     let arsenicUgL = null;
@@ -240,9 +244,10 @@ export default function WaterWatchForm({ onCancel, onSubmitSuccess, lockedStatio
       record_id: recordId,
       sample_code: sampleCode,
       schema_version: '1.0',
-      station_id: formData.stationMode === 'station' ? formData.stationId : 'OFF-STATION',
-      station_name: formData.stationMode === 'station' ? selectedStation?.name : (formData.customLocationName || 'จุดเก็บนอกสถานี'),
-      coordinates: [formData.longitude, formData.latitude],
+      station_id: selectedStation.id,
+      station_name: selectedStation.name,
+      coordinates: selectedStation.coordinates,
+      gps_coordinates: [formData.longitude, formData.latitude],
       collection_time: `${formData.collectionDate}T${formData.collectionTime}:00+07:00`,
       gps_accuracy_meters: formData.gpsAccuracy,
       entry_type: formData.entryType,
@@ -451,7 +456,17 @@ export default function WaterWatchForm({ onCancel, onSubmitSuccess, lockedStatio
               type="number"
               step="0.000001"
               value={formData.latitude}
-              onChange={(e) => setFormData({ ...formData, latitude: parseFloat(e.target.value) || 0 })}
+              onChange={(e) => {
+                const lat = parseFloat(e.target.value) || 0;
+                setFormData(prev => {
+                  const nearest = findNearestStation(lat, prev.longitude);
+                  return {
+                    ...prev,
+                    latitude: lat,
+                    stationId: (!lockedStation && nearest && prev.stationMode === 'station') ? nearest.id : prev.stationId
+                  };
+                });
+              }}
               className="w-full font-mono text-xs font-bold text-slate-800 focus:outline-hidden"
             />
           </div>
@@ -461,7 +476,17 @@ export default function WaterWatchForm({ onCancel, onSubmitSuccess, lockedStatio
               type="number"
               step="0.000001"
               value={formData.longitude}
-              onChange={(e) => setFormData({ ...formData, longitude: parseFloat(e.target.value) || 0 })}
+              onChange={(e) => {
+                const lng = parseFloat(e.target.value) || 0;
+                setFormData(prev => {
+                  const nearest = findNearestStation(prev.latitude, lng);
+                  return {
+                    ...prev,
+                    longitude: lng,
+                    stationId: (!lockedStation && nearest && prev.stationMode === 'station') ? nearest.id : prev.stationId
+                  };
+                });
+              }}
               className="w-full font-mono text-xs font-bold text-slate-800 focus:outline-hidden"
             />
           </div>

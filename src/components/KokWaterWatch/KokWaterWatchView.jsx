@@ -28,7 +28,7 @@ import WaterWatchMap from './WaterWatchMap';
 import WaterWatchForm from './WaterWatchForm';
 import WaterWatchSampleDetail from './WaterWatchSampleDetail';
 import StationDetailModal from './StationDetailModal';
-import { getStoredSubmissions, saveNewSubmission, INITIAL_SUBMISSIONS, WATER_WATCH_STATIONS } from '../../data/waterWatchData';
+import { getStoredSubmissions, saveNewSubmission, INITIAL_SUBMISSIONS, WATER_WATCH_STATIONS, findNearestStation } from '../../data/waterWatchData';
 import { 
   fetchSamplesFromSupabase, 
   deleteSampleFromSupabase,
@@ -191,8 +191,31 @@ export default function KokWaterWatchView({ onBackToFloodSim }) {
     const updated = saveNewSubmission(newSample);
     setSubmissions(updated);
     setIsFormOpen(false);
-    setSelectedSample(newSample);
-    setFocusCoords(newSample.coordinates);
+
+    // ค้นหาสถานีและเครื่องตรวจวัดคุณภาพน้ำ (เครื่องดูน้ำ) ที่สอดคล้องกับข้อมูลที่บันทึก
+    let targetStation = null;
+    if (newSample.station_id && newSample.station_id !== 'OFF-STATION') {
+      targetStation = WATER_WATCH_STATIONS.find(
+        s => s.id === newSample.station_id || s.code === newSample.station_id
+      );
+    }
+    if (!targetStation && newSample.station_name) {
+      targetStation = WATER_WATCH_STATIONS.find(
+        s => s.name.includes(newSample.station_name) || newSample.station_name.includes(s.name)
+      );
+    }
+    if (!targetStation && newSample.coordinates) {
+      const [lng, lat] = newSample.coordinates;
+      targetStation = findNearestStation(lat, lng);
+    }
+    if (!targetStation) {
+      targetStation = WATER_WATCH_STATIONS[0];
+    }
+
+    // มุ่งตรงไปที่เครื่องตรวจวัดน้ำ (Station) ทันที โดยไม่เปิดบล็อกย่อยและไม่ต้องเลื่อนหน้าจอหา
+    setSelectedSample(null);
+    setSelectedStation(targetStation);
+    setFocusCoords(targetStation.coordinates);
   };
 
   // Stats calculation
