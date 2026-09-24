@@ -24,10 +24,11 @@ import {
   RefreshCw,
   Cpu
 } from 'lucide-react';
-import { WATER_WATCH_STATIONS, findNearestStation } from '../../data/waterWatchData';
+import { WATER_WATCH_STATIONS, getStoredStations, findNearestStation } from '../../data/waterWatchData';
 import { uploadSampleImage, saveSampleToSupabase } from '../../lib/supabase';
 
-export default function WaterWatchForm({ onCancel, onSubmitSuccess, lockedStation = null }) {
+export default function WaterWatchForm({ onCancel, onSubmitSuccess, lockedStation = null, stations = WATER_WATCH_STATIONS }) {
+  const activeStations = stations && stations.length > 0 ? stations : WATER_WATCH_STATIONS;
   const [currentStep, setCurrentStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitStage, setSubmitStage] = useState(''); // 'local' | 'sheets' | 'drive' | 'supabase' | 'done'
@@ -43,7 +44,7 @@ export default function WaterWatchForm({ onCancel, onSubmitSuccess, lockedStatio
         if (raw) savedCollector = JSON.parse(raw);
       } catch(e) {}
     }
-    const targetStation = lockedStation || WATER_WATCH_STATIONS[0];
+    const targetStation = lockedStation || (activeStations && activeStations.length > 0 ? activeStations[0] : WATER_WATCH_STATIONS[0]);
     return {
       // Step 1: Location & Time
       stationMode: 'station',
@@ -111,28 +112,29 @@ export default function WaterWatchForm({ onCancel, onSubmitSuccess, lockedStatio
         setIsGettingGps(false);
         const lat = Number(pos.coords.latitude.toFixed(6));
         const lng = Number(pos.coords.longitude.toFixed(6));
-        const nearest = findNearestStation(lat, lng);
+        const nearest = findNearestStation(lat, lng, activeStations);
 
-        if (nearest) {
-          setGpsLockedStation(nearest);
-          setFormData(prev => ({
+        setFormData(prev => {
+          const isOff = prev.stationMode === 'off-station';
+          if (!isOff && nearest) {
+            setGpsLockedStation(nearest);
+            return {
+              ...prev,
+              stationId: nearest.id,
+              latitude: lat,
+              longitude: lng,
+              gpsAccuracy: Math.round(pos.coords.accuracy || 10),
+              gpsTimestamp: new Date().toLocaleTimeString('th-TH')
+            };
+          }
+          return {
             ...prev,
-            stationMode: 'station',
-            stationId: nearest.id,
             latitude: lat,
             longitude: lng,
             gpsAccuracy: Math.round(pos.coords.accuracy || 10),
             gpsTimestamp: new Date().toLocaleTimeString('th-TH')
-          }));
-        } else {
-          setFormData(prev => ({
-            ...prev,
-            latitude: lat,
-            longitude: lng,
-            gpsAccuracy: Math.round(pos.coords.accuracy || 10),
-            gpsTimestamp: new Date().toLocaleTimeString('th-TH')
-          }));
-        }
+          };
+        });
       },
       (err) => {
         setIsGettingGps(false);
@@ -227,10 +229,28 @@ export default function WaterWatchForm({ onCancel, onSubmitSuccess, lockedStatio
     // Stage 2: บันทึกข้อมูลลงฐานข้อมูล Supabase Database ('kok_water_samples')
     setSubmitStage('supabase');
 
-    // ค้นหาสถานีและเครื่องตรวจวัดคุณภาพน้ำ (เครื่องดูน้ำ) ที่สอดคล้องกับข้อมูล
-    let selectedStation = WATER_WATCH_STATIONS.find(s => s.id === formData.stationId);
-    if (!selectedStation) {
-      selectedStation = findNearestStation(formData.latitude, formData.longitude) || WATER_WATCH_STATIONS[0];
+    const isOffStation = formData.stationMode === 'off-station';
+    const lat = parseFloat(formData.latitude) || 20.0610;
+    const lng = parseFloat(formData.longitude) || 99.3615;
+
+    let targetStationId;
+    let targetStationName;
+    let targetCoordinates;
+
+    if (isOffStation) {
+      // โหมดปักหมุด Mark Point นอกสถานี (ไม่ใช่ตรงเครื่อง 100%)
+      targetStationId = 'OFF-STATION';
+      targetStationName = formData.customLocationName.trim() || 'จุดสำรวจภาคสนาม (Mark Point)';
+      targetCoordinates = [lng, lat];
+    } else {
+      // โหมดตรงเครื่องตรวจวัดประจำสถานี (ตรงเครื่อง 100%)
+      let matchedStation = activeStations.find(s => s.id === formData.stationId || s.code === formData.stationId);
+      if (!matchedStation) {
+        matchedStation = findNearestStation(lat, lng, activeStations) || activeStations[0] || WATER_WATCH_STATIONS[0];
+      }
+      targetStationId = matchedStation.id;
+      targetStationName = matchedStation.name;
+      targetCoordinates = matchedStation.coordinates;
     }
 
     // Calculate standardized arsenic
@@ -244,10 +264,11 @@ export default function WaterWatchForm({ onCancel, onSubmitSuccess, lockedStatio
       record_id: recordId,
       sample_code: sampleCode,
       schema_version: '1.0',
-      station_id: selectedStation.id,
-      station_name: selectedStation.name,
-      coordinates: selectedStation.coordinates,
-      gps_coordinates: [formData.longitude, formData.latitude],
+      station_id: targetStationId,
+      station_name: targetStationName,
+      coordinates: targetCoordinates,
+      gps_coordinates: [lng, lat],
+      is_off_station: isOffStation,
       collection_time: `${formData.collectionDate}T${formData.collectionTime}:00+07:00`,
       gps_accuracy_meters: formData.gpsAccuracy,
       entry_type: formData.entryType,
@@ -259,7 +280,7 @@ export default function WaterWatchForm({ onCancel, onSubmitSuccess, lockedStatio
         notes: formData.collectorNotes
       },
       sample_nature: {
-        water_source: formData.waterSource,
+        water_source: isOffStation ? (formData.customLocationName ? `จุดสำรวจ: ${formData.customLocationName}` : 'จุดสำรวจนอกสถานี') : formData.waterSource,
         water_appearance: formData.waterAppearance,
         odor: formData.odor,
         rain_last_24h: formData.rain24h,
@@ -321,25 +342,53 @@ export default function WaterWatchForm({ onCancel, onSubmitSuccess, lockedStatio
         <div className="grid grid-cols-2 gap-2">
           <button
             type="button"
-            onClick={() => setFormData({ ...formData, stationMode: 'station' })}
-            className={`py-2 px-3 rounded-lg text-xs font-bold border transition-all ${
+            disabled={!!lockedStation}
+            onClick={() => {
+              const target = lockedStation || WATER_WATCH_STATIONS[0];
+              setFormData(prev => ({
+                ...prev,
+                stationMode: 'station',
+                stationId: target.id,
+                latitude: target.coordinates[1],
+                longitude: target.coordinates[0]
+              }));
+            }}
+            className={`p-2.5 rounded-xl text-left border transition-all cursor-pointer ${
               formData.stationMode === 'station'
-                ? 'bg-[#A6192E] text-white border-[#A6192E] shadow-sm'
+                ? 'bg-[#A6192E] text-white border-[#A6192E] shadow-md ring-2 ring-[#A6192E]/20'
                 : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
             }`}
           >
-            สถานีหลักแม่น้ำกก ({WATER_WATCH_STATIONS.length} จุด)
+            <div className="flex items-center gap-1.5 font-bold text-xs">
+              <Cpu className="w-3.5 h-3.5 shrink-0" />
+              <span>ตรงเครื่องตรวจวัด/เครื่องดูดน้ำ ({activeStations.length} จุด)</span>
+            </div>
+            <p className={`text-[10px] mt-0.5 ${formData.stationMode === 'station' ? 'text-amber-200' : 'text-slate-500'}`}>
+              ล็อกพิกัดเข้าเครื่องดูดน้ำ/ตรวจวัด 100%
+            </p>
           </button>
+
           <button
             type="button"
-            onClick={() => setFormData({ ...formData, stationMode: 'off-station' })}
-            className={`py-2 px-3 rounded-lg text-xs font-bold border transition-all ${
+            disabled={!!lockedStation}
+            onClick={() => setFormData(prev => ({
+              ...prev,
+              stationMode: 'off-station',
+              customLocationName: prev.customLocationName || 'จุดตรวจตลิ่งแม่น้ำกก'
+            }))}
+            className={`p-2.5 rounded-xl text-left border transition-all cursor-pointer ${
               formData.stationMode === 'off-station'
-                ? 'bg-[#A6192E] text-white border-[#A6192E] shadow-sm'
+                ? 'bg-[#A6192E] text-white border-[#A6192E] shadow-md ring-2 ring-[#A6192E]/20'
                 : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
             }`}
           >
-            เก็บนอกสถานี (สำรวจพิเศษ)
+            <div className="flex items-center gap-1.5 font-bold text-xs">
+              <MapPin className="w-3.5 h-3.5 shrink-0" />
+              <span>นอกเหนือจากเครื่อง (Mark Point)</span>
+            </div>
+            <p className={`text-[10px] mt-0.5 ${formData.stationMode === 'off-station' ? 'text-amber-200' : 'text-slate-500'}`}>
+              เลื่อนพิกัดอิสระ ปักหมุดบนแผนที่
+            </p>
           </button>
         </div>
       </div>
@@ -391,13 +440,13 @@ export default function WaterWatchForm({ onCancel, onSubmitSuccess, lockedStatio
           )}
 
           <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-            เลือกสถานีและเครื่องตรวจวัดคุณภาพน้ำ <span className="text-[#A6192E]">*</span>
+            เลือกสถานีและเครื่องตรวจวัด/เครื่องดูดน้ำ <span className="text-[#A6192E]">*</span>
           </label>
           <select
             value={formData.stationId}
             disabled={!!lockedStation}
             onChange={(e) => {
-              const st = WATER_WATCH_STATIONS.find(s => s.id === e.target.value);
+              const st = activeStations.find(s => s.id === e.target.value);
               setFormData({
                 ...formData,
                 stationId: e.target.value,
@@ -409,25 +458,64 @@ export default function WaterWatchForm({ onCancel, onSubmitSuccess, lockedStatio
               lockedStation ? 'bg-slate-100 text-slate-500 cursor-not-allowed' : ''
             }`}
           >
-            {WATER_WATCH_STATIONS.map(s => (
+            {activeStations.map(s => (
               <option key={s.id} value={s.id}>
-                [{s.code}] {s.name} — เครื่อง: {s.device?.code || 'Node'}
+                [{s.code}] {s.name} — เครื่อง: {s.device?.code || 'Node'} ({s.coordinates ? `${s.coordinates[1].toFixed(4)}, ${s.coordinates[0].toFixed(4)}` : ''})
               </option>
             ))}
           </select>
         </div>
       ) : (
-        <div>
-          <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-            ระบุชื่อสถานที่ / จุดเก็บนอกสถานี <span className="text-[#A6192E]">*</span>
-          </label>
-          <input
-            type="text"
-            value={formData.customLocationName}
-            onChange={(e) => setFormData({ ...formData, customLocationName: e.target.value })}
-            placeholder="เช่น ฝั่งตรงข้ามวัดท่าตอน, ริมตลิ่งบ้านร่มเย็น"
-            className="w-full text-sm p-2.5 rounded-xl border border-slate-300 focus:border-[#A6192E] focus:ring-1 focus:ring-[#A6192E] bg-white text-slate-800"
-          />
+        <div className="space-y-3">
+          {/* Informational banner for Mark Point mode */}
+          <div className="p-3 bg-amber-50 border border-amber-300/80 rounded-xl text-xs text-amber-900 flex items-start gap-2 shadow-2xs">
+            <MapPin className="w-4 h-4 text-[#A6192E] shrink-0 mt-0.5" />
+            <div>
+              <span className="font-bold text-amber-950 block">โหมดนอกเหนือจากเครื่อง (ปักหมุด Mark Point อิสระ)</span>
+              <p className="text-[11px] text-amber-800 mt-0.5 leading-relaxed">
+                เมื่อกดยืนยันบันทึก ระบบจะ<strong>เลื่อนหน้าจอไปยังพิกัดนี้โดยเฉพาะ</strong> และสร้างเป็นหมุด Mark Point บนแผนที่ให้ทันที
+              </p>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+              ระบุชื่อสถานที่ / จุดเก็บนอกสถานี <span className="text-[#A6192E]">*</span>
+            </label>
+            <input
+              type="text"
+              value={formData.customLocationName}
+              onChange={(e) => setFormData({ ...formData, customLocationName: e.target.value })}
+              placeholder="เช่น ฝั่งตรงข้ามวัดท่าตอน, ท่าน้ำบ้านร่มเย็น, สะพานข้ามลำน้ำสาขา"
+              className="w-full text-sm p-2.5 rounded-xl border border-slate-300 focus:border-[#A6192E] focus:ring-1 focus:ring-[#A6192E] bg-white text-slate-800"
+            />
+          </div>
+
+          {/* Quick preset locations along Kok River */}
+          <div>
+            <span className="text-[11px] font-semibold text-slate-500 block mb-1.5">ตัวเลือกตำแหน่งแนะนำริมแม่น้ำกก:</span>
+            <div className="flex flex-wrap gap-1.5">
+              {[
+                { name: 'ท่าน้ำวัดท่าตอน', lat: 20.0635, lng: 99.3660 },
+                { name: 'สะพานข้ามลำน้ำสาขา', lat: 20.0580, lng: 99.3780 },
+                { name: 'แนวตลิ่งบ้านร่มเย็น', lat: 20.0450, lng: 99.4050 }
+              ].map(preset => (
+                <button
+                  key={preset.name}
+                  type="button"
+                  onClick={() => setFormData(prev => ({
+                    ...prev,
+                    customLocationName: preset.name,
+                    latitude: preset.lat,
+                    longitude: preset.lng
+                  }))}
+                  className="px-2.5 py-1 rounded-lg text-[10px] font-semibold bg-white hover:bg-[#A6192E] hover:text-white border border-slate-200 hover:border-[#A6192E] text-slate-700 transition-all cursor-pointer shadow-2xs"
+                >
+                  📍 {preset.name}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
       )}
 

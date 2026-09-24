@@ -17,15 +17,18 @@ import {
   FileText,
   Search,
   Filter,
-  RotateCcw
+  RotateCcw,
+  Edit3
 } from 'lucide-react';
+import { getStationTelemetry } from '../../data/waterWatchData';
 
 export default function StationDetailModal({
   station,
   submissions = [],
   onClose,
   onRecordForStation,
-  onSelectSample
+  onSelectSample,
+  onEditStation = null
 }) {
   const [selectedPhoto, setSelectedPhoto] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -80,11 +83,15 @@ export default function StationDetailModal({
     return sortOrder === 'newest' ? timeB - timeA : timeA - timeB;
   });
 
-  const latestLog = stationLogs[0] || null;
-  const latestAs = latestLog?.measurements?.arsenic?.value ?? null;
-  const isDanger = latestAs !== null && latestAs > 20;
-  const isWatch = latestAs !== null && latestAs > 10 && latestAs <= 20;
-  const isSafe = latestAs !== null && latestAs <= 10;
+  const telemetry = getStationTelemetry(station, submissions);
+  const latestLog = telemetry.latestLog || stationLogs[0] || null;
+  const latestAs = telemetry.arsenic;
+  const latestPh = telemetry.ph;
+  const latestTurbidity = telemetry.turbidity;
+  const latestTemp = telemetry.temperature;
+  const isDanger = telemetry.isDanger;
+  const isWatch = telemetry.isWatch;
+  const isSafe = telemetry.isSafe;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
@@ -113,13 +120,31 @@ export default function StationDetailModal({
             </div>
           </div>
 
-          <button
-            onClick={onClose}
-            className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white transition-all cursor-pointer"
-            title="ปิดหน้าต่าง"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-2">
+            {onEditStation && (
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  onEditStation(station);
+                }}
+                className="px-3 py-1.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-900 font-bold text-xs flex items-center gap-1.5 shadow-sm cursor-pointer transition-all active:scale-95"
+                title="แก้ไขพิกัดและข้อมูลของเครื่องนี้"
+              >
+                <Edit3 className="w-3.5 h-3.5 text-slate-900" />
+                <span className="hidden sm:inline">แก้ไขพิกัด/ข้อมูลเครื่อง</span>
+                <span className="sm:hidden">แก้ไข</span>
+              </button>
+            )}
+
+            <button
+              onClick={onClose}
+              className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white transition-all cursor-pointer"
+              title="ปิดหน้าต่าง"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
         {/* 2. Scrollable Body */}
@@ -151,9 +176,23 @@ export default function StationDetailModal({
                 </span>
               </div>
               <div className="bg-white p-2.5 rounded-xl border border-slate-200/60 shadow-2xs">
-                <span className="text-[10px] text-slate-400 block font-medium">พิกัดสถานีแม่น้ำ</span>
-                <span className="font-mono text-slate-700 text-[10px] truncate block">
-                  {station.coordinates ? `${station.coordinates[1].toFixed(4)}, ${station.coordinates[0].toFixed(4)}` : '-'}
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] text-slate-400 block font-medium">พิกัดสถานีแม่น้ำ</span>
+                  {onEditStation && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onClose();
+                        onEditStation(station);
+                      }}
+                      className="text-[9px] text-[#A6192E] hover:underline font-bold cursor-pointer"
+                    >
+                      แก้ไข
+                    </button>
+                  )}
+                </div>
+                <span className="font-mono text-slate-800 text-[10px] font-bold truncate block">
+                  {station.coordinates ? `${station.coordinates[1].toFixed(5)}, ${station.coordinates[0].toFixed(5)}` : '-'}
                 </span>
               </div>
               <div className="bg-white p-2.5 rounded-xl border border-slate-200/60 shadow-2xs">
@@ -200,21 +239,21 @@ export default function StationDetailModal({
                 <div className="p-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-700">
                   <span className="text-[10px] text-slate-400 block font-medium">ค่า pH</span>
                   <span className="text-sm font-bold font-mono">
-                    {latestLog.measurements?.ph?.value ?? '-'}
+                    {latestPh !== null ? `${latestPh} pH` : '-'}
                   </span>
                 </div>
 
                 <div className="p-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-700">
                   <span className="text-[10px] text-slate-400 block font-medium">ความขุ่น</span>
                   <span className="text-sm font-bold font-mono">
-                    {latestLog.measurements?.turbidity?.value ? `${latestLog.measurements.turbidity.value} NTU` : '-'}
+                    {latestTurbidity !== null ? `${latestTurbidity} NTU` : '-'}
                   </span>
                 </div>
 
                 <div className="p-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-700">
                   <span className="text-[10px] text-slate-400 block font-medium">อุณหภูมิน้ำ</span>
                   <span className="text-sm font-bold font-mono">
-                    {latestLog.measurements?.temperature?.value ? `${latestLog.measurements.temperature.value} °C` : '-'}
+                    {latestTemp !== null ? `${latestTemp} °C` : '-'}
                   </span>
                 </div>
               </div>
@@ -492,13 +531,28 @@ export default function StationDetailModal({
 
         {/* 3. Footer Actions */}
         <div className="p-4 bg-slate-50 border-t border-slate-200 flex items-center justify-between shrink-0 gap-3">
-          <button
-            type="button"
-            onClick={onClose}
-            className="px-4 py-2.5 rounded-xl border border-slate-300 text-xs font-bold text-slate-600 hover:bg-slate-100 transition-all cursor-pointer"
-          >
-            ปิด
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2.5 rounded-xl border border-slate-300 text-xs font-bold text-slate-600 hover:bg-slate-100 transition-all cursor-pointer"
+            >
+              ปิด
+            </button>
+            {onEditStation && (
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  onEditStation(station);
+                }}
+                className="px-3.5 py-2.5 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5"
+              >
+                <Edit3 className="w-3.5 h-3.5 text-amber-700" />
+                <span>แก้ไขพิกัดเครื่อง</span>
+              </button>
+            )}
+          </div>
 
           <button
             type="button"

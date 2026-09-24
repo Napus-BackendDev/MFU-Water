@@ -1,21 +1,40 @@
 import React, { useState, useEffect, useRef } from 'react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
-import { X, ChevronRight, TrendingUp, TrendingDown, Minus, Droplets, Camera } from 'lucide-react';
-import { WATER_WATCH_STATIONS } from '../../data/waterWatchData';
+import { X, ChevronRight, TrendingUp, TrendingDown, Minus, Droplets, Camera, Edit3 } from 'lucide-react';
+import { WATER_WATCH_STATIONS, getStationTelemetry } from '../../data/waterWatchData';
 
 export default function WaterWatchMap({
   submissions = [],
+  stations = WATER_WATCH_STATIONS,
   selectedSample = null,
   onSelectSample = null,
   selectedStation = null,
   onSelectStation = null,
+  onEditStation = null,
   focusCoords = null,
-  onPopupChange = null
+  onPopupChange = null,
+  isPickingCoordinates = false,
+  onPickCoordinates = null,
+  pickedCoords = null,
+  onCancelPick = null,
+  onConfirmPick = null
 }) {
   const mapContainer = useRef(null);
   const mapRef = useRef(null);
   const markersRef = useRef([]);
+  const pickedMarkerRef = useRef(null);
+
+  const isPickingCoordinatesRef = useRef(isPickingCoordinates);
+  const onPickCoordinatesRef = useRef(onPickCoordinates);
+
+  useEffect(() => {
+    isPickingCoordinatesRef.current = isPickingCoordinates;
+  }, [isPickingCoordinates]);
+
+  useEffect(() => {
+    onPickCoordinatesRef.current = onPickCoordinates;
+  }, [onPickCoordinates]);
 
   // State สำหรับ Hover / Click Station Popup Card แบบ waterroom.pro พร้อม Trend
   const [popupStation, setPopupStation] = useState(null);
@@ -81,7 +100,11 @@ export default function WaterWatchMap({
       // ใช้แนวลำน้ำธรรมชาติของแผนที่ Google Maps โดยไม่ต้องวาดเส้นสีฟ้าทับ
     });
 
-    map.on('click', () => {
+    map.on('click', (e) => {
+      if (isPickingCoordinatesRef.current) {
+        onPickCoordinatesRef.current?.([e.lngLat.lng, e.lngLat.lat]);
+        return;
+      }
       setPopupStation(null);
       onPopupChangeRef.current?.(null);
     });
@@ -94,6 +117,53 @@ export default function WaterWatchMap({
     };
   }, []);
 
+  // เปลี่ยนเคอร์เซอร์เป็นเป้าเล็งเมื่ออยู่ในโหมดเลือกพิกัด
+  useEffect(() => {
+    if (!mapRef.current) return;
+    const canvas = mapRef.current.getCanvas();
+    if (canvas) {
+      canvas.style.cursor = isPickingCoordinates ? 'crosshair' : '';
+    }
+  }, [isPickingCoordinates]);
+
+  // ปักหมุดชั่วคราวแสดงพิกัดที่คลิกเลือกบนแผนที่
+  useEffect(() => {
+    if (!mapRef.current) return;
+    if (pickedMarkerRef.current) {
+      pickedMarkerRef.current.remove();
+      pickedMarkerRef.current = null;
+    }
+
+    if (isPickingCoordinates && pickedCoords && Array.isArray(pickedCoords) && pickedCoords.length === 2) {
+      const el = document.createElement('div');
+      el.className = 'picked-coords-marker select-none pointer-events-none';
+      el.innerHTML = `
+        <div class="flex flex-col items-center">
+          <div class="px-2.5 py-1 rounded-lg bg-amber-400 text-slate-900 font-black text-[11px] shadow-xl border-2 border-white whitespace-nowrap mb-1 animate-pulse">
+            📍 จุดที่เลือก: ${Number(pickedCoords[1]).toFixed(5)}, ${Number(pickedCoords[0]).toFixed(5)}
+          </div>
+          <div class="relative flex items-center justify-center">
+            <span class="absolute w-8 h-8 rounded-full bg-amber-400/50 animate-ping"></span>
+            <div class="w-5 h-5 rounded-full bg-[#A6192E] border-2 border-amber-300 shadow-lg flex items-center justify-center">
+              <div class="w-2 h-2 rounded-full bg-white"></div>
+            </div>
+          </div>
+        </div>
+      `;
+      const marker = new maplibregl.Marker({ element: el })
+        .setLngLat(pickedCoords)
+        .addTo(mapRef.current);
+      pickedMarkerRef.current = marker;
+    }
+
+    return () => {
+      if (pickedMarkerRef.current) {
+        pickedMarkerRef.current.remove();
+        pickedMarkerRef.current = null;
+      }
+    };
+  }, [isPickingCoordinates, pickedCoords]);
+
   // Update Markers for Stations and Submissions
   useEffect(() => {
     if (!mapRef.current) return;
@@ -103,29 +173,19 @@ export default function WaterWatchMap({
     markersRef.current.forEach(m => m.remove());
     markersRef.current = [];
 
-    // 1. Render Fixed 4 River Station Waypoints
-    WATER_WATCH_STATIONS.forEach(st => {
+    // 1. Render River Station & Water Pump Waypoints
+    const stationList = stations && stations.length > 0 ? stations : WATER_WATCH_STATIONS;
+    stationList.forEach(st => {
       const isSelected = selectedStation?.id === st.id;
+      const isPump = st.stationType === 'pump' || st.name?.includes('ดูด') || st.name?.includes('สูบ');
       
-      // Calculate submissions for this station
-      const stLogs = submissions.filter(sub => {
-        if (sub.station_id === st.id || sub.station_id === st.code) return true;
-        if (sub.station_name && (sub.station_name.includes(st.name) || st.name.includes(sub.station_name))) return true;
-        if (sub.coordinates && st.coordinates) {
-          const [lng, lat] = sub.coordinates;
-          const [sLng, sLat] = st.coordinates;
-          const diff = Math.abs(lng - sLng) + Math.abs(lat - sLat);
-          return diff < 0.005;
-        }
-        return false;
-      }).sort((a, b) => new Date(b.collection_time || 0) - new Date(a.collection_time || 0));
-
-      const hasLogs = stLogs.length > 0;
-      const logCount = stLogs.length;
-      const latestLog = stLogs[0];
-      const latestAs = latestLog?.measurements?.arsenic?.value ?? null;
-      const isDanger = latestAs !== null && latestAs > 20;
-      const isWatch = latestAs !== null && latestAs > 10 && latestAs <= 20;
+      // Calculate telemetry & submissions for this station
+      const telemetry = getStationTelemetry(st, submissions);
+      const hasLogs = telemetry.logCount > 0 || telemetry.arsenic !== null;
+      const logCount = telemetry.logCount;
+      const latestAs = telemetry.arsenic;
+      const isDanger = telemetry.isDanger;
+      const isWatch = telemetry.isWatch;
 
       const riskBorder = isDanger
         ? 'border-rose-500 ring-2 ring-rose-400'
@@ -133,7 +193,7 @@ export default function WaterWatchMap({
         ? 'border-amber-400 ring-2 ring-amber-400'
         : hasLogs
         ? 'border-emerald-400 ring-2 ring-emerald-400'
-        : 'border-cyan-500/50';
+        : (isPump ? 'border-sky-400 ring-1 ring-sky-300' : 'border-cyan-500/50');
 
       const beaconColor = isDanger
         ? 'bg-rose-500'
@@ -141,7 +201,7 @@ export default function WaterWatchMap({
         ? 'bg-amber-500'
         : hasLogs
         ? 'bg-emerald-500'
-        : 'bg-cyan-600';
+        : (isPump ? 'bg-sky-500' : 'bg-cyan-600');
 
       const pingColor = isDanger
         ? 'bg-rose-500/40'
@@ -149,7 +209,7 @@ export default function WaterWatchMap({
         ? 'bg-amber-500/40'
         : hasLogs
         ? 'bg-emerald-500/40'
-        : 'bg-cyan-500/30';
+        : (isPump ? 'bg-sky-400/40' : 'bg-cyan-500/30');
 
       const el = document.createElement('div');
       el.className = 'station-waypoint-marker group cursor-pointer select-none';
@@ -165,9 +225,9 @@ export default function WaterWatchMap({
               ? 'bg-[#A6192E] text-white border-amber-300 ring-2 ring-amber-400'
               : `bg-slate-900/90 text-white backdrop-blur-xs ${riskBorder}`
           }">
-            <span class="w-1.5 h-1.5 rounded-full ${hasLogs ? (isDanger ? 'bg-rose-400' : isWatch ? 'bg-amber-400' : 'bg-emerald-400') : 'bg-cyan-400'} animate-pulse shrink-0"></span>
-            <span class="font-mono text-cyan-300 font-extrabold">${st.code}</span>
-            <span class="text-slate-200 font-medium">${st.name.replace('สถานี', '')}</span>
+            <span class="w-1.5 h-1.5 rounded-full ${hasLogs ? (isDanger ? 'bg-rose-400' : isWatch ? 'bg-amber-400' : 'bg-emerald-400') : (isPump ? 'bg-sky-400' : 'bg-cyan-400')} animate-pulse shrink-0"></span>
+            <span class="font-mono ${isPump ? 'text-amber-300' : 'text-cyan-300'} font-extrabold">${st.code}</span>
+            <span class="text-slate-200 font-medium">${isPump ? '💧 ' : ''}${st.name.replace('สถานี', '')}</span>
 
             ${hasLogs ? `
               <!-- Compact New Data Tag -->
@@ -229,7 +289,8 @@ export default function WaterWatchMap({
 
     // 2. Render Submitted Samples (เฉพาะตัวอย่างนอกสถานีหลัก เพื่อไม่ให้มีจุดซ้ำซ้อนทับสถานี)
     const offStationSubmissions = submissions.filter(sub => {
-      const isKnownStation = WATER_WATCH_STATIONS.some(
+      if (sub.is_off_station || sub.station_id === 'OFF-STATION') return true;
+      const isKnownStation = stationList.some(
         st => st.id === sub.station_id || st.code === sub.station_id || (sub.station_name && sub.station_name.includes(st.name))
       );
       return !isKnownStation;
@@ -257,9 +318,10 @@ export default function WaterWatchMap({
         <div class="flex flex-col items-center transform transition-all duration-200 ${
           isSelected ? 'scale-125 ring-4 ring-[#B4975A] rounded-full' : 'hover:scale-115'
         }">
-          <!-- Info Badge -->
-          <div class="px-2 py-0.5 rounded-lg text-[10px] font-mono font-bold shadow-md border border-white flex items-center gap-1 ${badgeColor} whitespace-nowrap mb-1">
-            <span>As: ${arsenicVal !== null ? `${arsenicVal}µg` : '-'}</span>
+          <!-- Info Badge with Custom Location Name & Telemetry -->
+          <div class="px-2 py-0.5 rounded-lg text-[10px] font-bold shadow-md border border-white flex items-center gap-1.5 ${badgeColor} whitespace-nowrap mb-1">
+            <span class="max-w-[110px] truncate text-[9px] font-sans font-medium text-white/95">${sub.station_name || 'Mark Point'}</span>
+            <span class="font-mono text-[9px] font-bold">As:${arsenicVal !== null ? `${arsenicVal}µg` : '-'}</span>
             ${hasPhotos ? '<span>📷</span>' : ''}
           </div>
 
@@ -286,7 +348,7 @@ export default function WaterWatchMap({
 
       markersRef.current.push(marker);
     });
-  }, [submissions, selectedSample, onSelectSample, selectedStation, onSelectStation]);
+  }, [submissions, stations, selectedSample, onSelectSample, selectedStation, onSelectStation]);
 
   // Handle focus coordinates trigger
   useEffect(() => {
@@ -322,37 +384,20 @@ export default function WaterWatchMap({
   }, [popupStation]);
 
   // คำนวณข้อมูลคุณภาพน้ำ รูปภาพ และ Trend สำหรับสถานีที่กำลัง Hover / เลือก
-  const popupStationLogs = popupStation ? submissions.filter(sub => {
-    if (sub.station_id === popupStation.id || sub.station_id === popupStation.code) return true;
-    if (sub.station_name && (sub.station_name.includes(popupStation.name) || popupStation.name.includes(sub.station_name))) return true;
-    return false;
-  }).sort((a, b) => new Date(b.collection_time || 0) - new Date(a.collection_time || 0)) : [];
-
-  const latestLog = popupStationLogs[0];
-  const latestAs = latestLog?.measurements?.arsenic?.value ?? null;
-  const latestPh = latestLog?.measurements?.ph?.value ?? null;
-  const latestTurbidity = latestLog?.measurements?.turbidity?.value ?? null;
-  const latestTemp = latestLog?.measurements?.temperature?.value ?? null;
+  const popupTelemetry = popupStation ? getStationTelemetry(popupStation, submissions) : null;
+  const latestLog = popupTelemetry?.latestLog;
+  const latestAs = popupTelemetry?.arsenic ?? null;
+  const latestPh = popupTelemetry?.ph ?? null;
+  const latestTurbidity = popupTelemetry?.turbidity ?? null;
+  const latestTemp = popupTelemetry?.temperature ?? null;
 
   // รูปถ่ายสถานี: ใช้รูปล่าสุดจากภาคสนาม หรือรูปแลนด์มาร์กประจำสถานี
   const stationPhoto = latestLog?.images?.[0]?.url || popupStation?.image || 'https://images.unsplash.com/photo-1544644181-1484b3fdfc62?w=800&auto=format&fit=crop&q=80';
 
-  // ข้อมูล Trend (เรียงจากเก่าไปใหม่ เพื่อวาดเส้นกราฟแนวโน้ม)
-  const chronologicalLogs = [...popupStationLogs].reverse();
-  const rawTrend = chronologicalLogs
-    .map(l => l.measurements?.arsenic?.value)
-    .filter(v => v !== null && v !== undefined && !isNaN(v));
-
-  // หากมีจุดเดียว ให้สร้าง baseline เพื่อแสดงผลกราฟและแนวโน้มที่ดูง่าย
-  const trendData = rawTrend.length > 0 ? rawTrend : [8.4, 7.8, 6.2];
-  const isUp = trendData.length >= 2 && trendData[trendData.length - 1] > trendData[0];
-  const isDown = trendData.length >= 2 && trendData[trendData.length - 1] < trendData[0];
-  const trendText = isDown 
-    ? '↘ แนวโน้มลดลง (ดีขึ้น)' 
-    : (isUp ? '↗ แนวโน้มสูงขึ้น' : '→ ระดับคงที่');
-  const trendColorClass = isDown 
-    ? 'text-emerald-700 bg-emerald-50 border-emerald-200' 
-    : (isUp ? 'text-amber-700 bg-amber-50 border-amber-200' : 'text-slate-700 bg-slate-50 border-slate-200');
+  // ข้อมูล Trend และการแสดงผล
+  const trendData = popupTelemetry?.trend || [8.4, 7.8, 6.2];
+  const trendText = popupTelemetry?.trendText || '→ ระดับคงที่';
+  const trendColorClass = popupTelemetry?.trendColorClass || 'text-slate-700 bg-slate-50 border-slate-200';
 
   // สีตามเกณฑ์สารหนู (As)
   const asColorClass = latestAs !== null
@@ -526,6 +571,13 @@ export default function WaterWatchMap({
                     {latestTemp !== null ? `${latestTemp} °C` : '-'}
                   </span>
                 </div>
+
+                <div className="flex justify-between items-center py-1 px-2 rounded-lg bg-amber-50/50 border border-amber-200/60">
+                  <span className="text-slate-600 font-medium">พิกัดเครื่อง:</span>
+                  <span className="font-mono font-bold text-slate-700 text-[10px]">
+                    {popupStation.coordinates ? `${popupStation.coordinates[1].toFixed(5)}, ${popupStation.coordinates[0].toFixed(5)}` : '-'}
+                  </span>
+                </div>
               </div>
 
               {/* Trend Section (แสดงแนวโน้มสารหนูพร้อม Sparkline) */}
@@ -544,21 +596,38 @@ export default function WaterWatchMap({
                 </div>
               </div>
 
-              {/* Action Button: เปิดดูรายละเอียด › */}
-              <button
-                type="button"
-                onClick={() => {
-                  const target = popupStation;
-                  updatePopupStation(null);
-                  if (onSelectStation) {
-                    onSelectStation(target);
-                  }
-                }}
-                className="w-full py-2 px-3 rounded-xl bg-[#A6192E] hover:bg-[#851424] text-white font-bold text-xs shadow-md transition-all flex items-center justify-center gap-1 cursor-pointer"
-              >
-                <span>เปิดดูรายละเอียด</span>
-                <ChevronRight className="w-4 h-4" />
-              </button>
+              {/* Action Buttons: แก้ไขพิกัด และ เปิดดูรายละเอียด */}
+              <div className="flex items-center gap-1.5">
+                {onEditStation && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const target = popupStation;
+                      updatePopupStation(null);
+                      onEditStation(target);
+                    }}
+                    className="py-2 px-2.5 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 font-bold text-xs transition-all flex items-center justify-center gap-1 cursor-pointer shrink-0 shadow-2xs"
+                    title="แก้ไขพิกัดและข้อมูลของเครื่องนี้"
+                  >
+                    <Edit3 className="w-3.5 h-3.5 text-amber-700" />
+                    <span>แก้ไขพิกัด</span>
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => {
+                    const target = popupStation;
+                    updatePopupStation(null);
+                    if (onSelectStation) {
+                      onSelectStation(target);
+                    }
+                  }}
+                  className="flex-1 py-2 px-3 rounded-xl bg-[#A6192E] hover:bg-[#851424] text-white font-bold text-xs shadow-md transition-all flex items-center justify-center gap-1 cursor-pointer"
+                >
+                  <span>เปิดดูรายละเอียด</span>
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
             </div>
 
             {/* Speech Bubble Pointer */}
@@ -572,6 +641,41 @@ export default function WaterWatchMap({
                 className="absolute -bottom-2 w-0 h-0 border-x-8 border-x-transparent border-t-8 border-t-white drop-shadow-xs -translate-x-1/2"
                 style={{ left: `calc(50% + ${pointerOffset}px)` }}
               />
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Floating Banner สำหรับโหมดจิ้มเลือกพิกัดบนแผนที่ */}
+      {isPickingCoordinates && (
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50 bg-slate-900/95 backdrop-blur-md text-white px-4 py-2.5 rounded-2xl shadow-2xl border-2 border-amber-400 flex items-center gap-3 max-w-[92vw] animate-in fade-in slide-in-from-top-4 duration-200">
+          <div className="w-3 h-3 rounded-full bg-amber-400 animate-ping shrink-0" />
+          <div className="text-xs">
+            <span className="font-bold text-amber-300 block">📍 คลิกบนแผนที่เพื่อเลือกพิกัดจุดตั้งเครื่อง</span>
+            <span className="text-[11px] text-slate-300 font-mono">
+              {pickedCoords 
+                ? `พิกัดที่เลือก: ${Number(pickedCoords[1]).toFixed(5)}, ${Number(pickedCoords[0]).toFixed(5)}`
+                : 'คลิกบริเวณแนวลำน้ำกกหรือตลิ่งที่ต้องการวางเครื่องดูดน้ำหรือเครื่องตรวจวัด'}
+            </span>
+          </div>
+          <div className="flex items-center gap-1.5 ml-2 shrink-0">
+            {pickedCoords && onConfirmPick && (
+              <button
+                type="button"
+                onClick={onConfirmPick}
+                className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold transition-all cursor-pointer shadow-md"
+              >
+                ยืนยันพิกัดนี้
+              </button>
+            )}
+            {onCancelPick && (
+              <button
+                type="button"
+                onClick={onCancelPick}
+                className="px-2.5 py-1.5 bg-slate-700 hover:bg-slate-600 text-slate-200 rounded-xl text-xs font-medium transition-all cursor-pointer"
+              >
+                ยกเลิก
+              </button>
             )}
           </div>
         </div>

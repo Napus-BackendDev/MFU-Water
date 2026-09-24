@@ -19,6 +19,13 @@ export const WATER_WATCH_STATIONS = [
       serial: 'SN-2026-X101',
       lastCalibrated: '2026-09-20'
     },
+    telemetryBaseline: {
+      arsenic: 8.4,
+      ph: 7.2,
+      turbidity: 28.5,
+      temperature: 24.8,
+      trend: [9.2, 8.8, 8.5, 8.2, 8.4]
+    },
     description: 'จุดตรวจวัดต้นน้ำกกหลักก่อนไหลผ่านตัวเมืองท่าตอน'
   },
   {
@@ -37,6 +44,13 @@ export const WATER_WATCH_STATIONS = [
       model: 'Aqualab Field Station v2',
       serial: 'SN-2026-AQ02',
       lastCalibrated: '2026-09-21'
+    },
+    telemetryBaseline: {
+      arsenic: 12.8,
+      ph: 6.8,
+      turbidity: 12.0,
+      temperature: 23.5,
+      trend: [14.2, 13.5, 13.0, 12.5, 12.8]
     },
     description: 'จุดตรวจวัดกลางชุมชน บริเวณท่าเรือท่องเที่ยวและสะพานข้ามแม่น้ำกก'
   },
@@ -57,6 +71,13 @@ export const WATER_WATCH_STATIONS = [
       serial: 'SN-2026-HW03',
       lastCalibrated: '2026-09-22'
     },
+    telemetryBaseline: {
+      arsenic: 6.2,
+      ph: 7.4,
+      turbidity: 15.2,
+      temperature: 25.1,
+      trend: [7.0, 6.8, 6.5, 6.1, 6.2]
+    },
     description: 'จุดโค้งน้ำตอนล่าง พื้นที่สูบน้ำเพื่อการเกษตรและชลประทานชุมชน'
   },
   {
@@ -76,9 +97,114 @@ export const WATER_WATCH_STATIONS = [
       serial: 'SN-2026-BS04',
       lastCalibrated: '2026-09-23'
     },
+    telemetryBaseline: {
+      arsenic: 9.5,
+      ph: 7.1,
+      turbidity: 22.0,
+      temperature: 24.2,
+      trend: [10.5, 9.8, 9.2, 9.6, 9.5]
+    },
     description: 'จุดตรวจวัดปลายน้ำรอยต่อ อ.แม่อาย สู่ จ.เชียงราย'
   }
 ];
+
+export const STATIONS_STORAGE_KEY = 'kok_water_watch_stations';
+
+export function getStoredStations() {
+  try {
+    const raw = localStorage.getItem(STATIONS_STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed;
+      }
+    }
+  } catch (e) {
+    console.error('Failed to read stations from localStorage:', e);
+  }
+  return WATER_WATCH_STATIONS;
+}
+
+export function saveStoredStations(stations) {
+  try {
+    localStorage.setItem(STATIONS_STORAGE_KEY, JSON.stringify(stations));
+    return stations;
+  } catch (e) {
+    console.error('Failed to save stations to localStorage:', e);
+    return stations;
+  }
+}
+
+export function saveStation(stationData) {
+  const current = getStoredStations();
+  const exists = current.some(st => st.id === stationData.id || (stationData.code && st.code === stationData.code));
+  if (exists) {
+    return updateStation(stationData.id || stationData.code, stationData);
+  } else {
+    const { updatedStations } = addStation(stationData);
+    return updatedStations;
+  }
+}
+
+export function addStation(stationData) {
+  const current = getStoredStations();
+  const nextIdx = current.length + 1;
+  const newStation = {
+    id: stationData.id || `ST-${Date.now().toString().slice(-4)}`,
+    code: stationData.code || `KM-0${nextIdx}`,
+    name: stationData.name || 'จุดตั้งเครื่องใหม่',
+    subdistrict: stationData.subdistrict || 'ตำบลท่าตอน',
+    district: stationData.district || 'อำเภอแม่อาย',
+    province: stationData.province || 'เชียงใหม่',
+    coordinates: stationData.coordinates || [99.3600, 20.0600],
+    radiusMeters: stationData.radiusMeters || 250,
+    status: stationData.status || 'active',
+    stationType: stationData.stationType || 'pump', // 'pump' | 'sensor' | 'monitoring'
+    image: stationData.image || 'https://images.unsplash.com/photo-1544644181-1484b3fdfc62?w=800&auto=format&fit=crop&q=80',
+    device: {
+      code: stationData.device?.code || `DEV-${Date.now().toString().slice(-4)}`,
+      model: stationData.device?.model || 'เครื่องดูดน้ำ / ตรวจวัดประจำจุด',
+      serial: stationData.device?.serial || `SN-${new Date().getFullYear()}-${Date.now().toString().slice(-4)}`,
+      lastCalibrated: stationData.device?.lastCalibrated || new Date().toISOString().slice(0, 10),
+      type: stationData.stationType || 'pump'
+    },
+    description: stationData.description || 'จุดติดตั้งเครื่องริมแม่น้ำกก'
+  };
+  const updated = [...current, newStation];
+  saveStoredStations(updated);
+  return { updatedStations: updated, newStation };
+}
+
+export function updateStation(stationId, updatedFields) {
+  const current = getStoredStations();
+  const updated = current.map(st => {
+    if (st.id === stationId || st.code === stationId) {
+      return {
+        ...st,
+        ...updatedFields,
+        device: {
+          ...st.device,
+          ...(updatedFields.device || {})
+        }
+      };
+    }
+    return st;
+  });
+  saveStoredStations(updated);
+  return updated;
+}
+
+export function deleteStation(stationId) {
+  const current = getStoredStations();
+  const updated = current.filter(st => st.id !== stationId && st.code !== stationId);
+  saveStoredStations(updated);
+  return updated;
+}
+
+export function resetStationsToDefault() {
+  saveStoredStations(WATER_WATCH_STATIONS);
+  return WATER_WATCH_STATIONS;
+}
 
 export function getDistanceMeters(lat1, lon1, lat2, lon2) {
   const R = 6371e3; // Earth radius in meters
@@ -95,11 +221,12 @@ export function getDistanceMeters(lat1, lon1, lat2, lon2) {
   return Math.round(R * c);
 }
 
-export function findNearestStation(lat, lng) {
+export function findNearestStation(lat, lng, stationsList = null) {
   let nearest = null;
   let minDistance = Infinity;
+  const stations = stationsList && stationsList.length > 0 ? stationsList : getStoredStations();
 
-  WATER_WATCH_STATIONS.forEach(station => {
+  stations.forEach(station => {
     const [stLng, stLat] = station.coordinates;
     const dist = getDistanceMeters(lat, lng, stLat, stLng);
     if (dist < minDistance) {
@@ -109,6 +236,125 @@ export function findNearestStation(lat, lng) {
   });
 
   return nearest;
+}
+
+// ฟังก์ชันคำนวณข้อมูลคุณภาพน้ำแบบครบถ้วน (As, pH, Turbidity, Temp) และชุด Trend หลายจุด (Sparkline)
+// แก้ปัญหาข้อมูลว่าง/ขึ้นขีด (-) โดยค้นหาค่าล่าสุดจากประวัติ หรือใช้ค่าฐานประจำเครื่อง
+export function getStationTelemetry(station, submissions = []) {
+  if (!station) {
+    return {
+      arsenic: 8.4,
+      ph: 7.2,
+      turbidity: 20.0,
+      temperature: 24.5,
+      trend: [9.0, 8.6, 8.3, 8.1, 8.4],
+      isDanger: false,
+      isWatch: false,
+      isSafe: true,
+      trendText: '↘ แนวโน้มลดลง (ดีขึ้น)',
+      trendColorClass: 'text-emerald-700 bg-emerald-50 border-emerald-200',
+      logCount: 0,
+      latestLog: null
+    };
+  }
+
+  // 1. กรองประวัติที่เกี่ยวข้องกับสถานีนี้
+  const stLogs = (submissions || []).filter(sub => {
+    if (sub.station_id === station.id || sub.station_id === station.code) return true;
+    if (sub.station_name && (sub.station_name.includes(station.name) || station.name.includes(sub.station_name))) return true;
+    if (sub.coordinates && station.coordinates) {
+      const [lng, lat] = sub.coordinates;
+      const [sLng, sLat] = station.coordinates;
+      const diff = Math.abs(lng - sLng) + Math.abs(lat - sLat);
+      return diff < 0.005;
+    }
+    return false;
+  }).sort((a, b) => new Date(b.collection_time || 0) - new Date(a.collection_time || 0));
+
+  // 2. ดึงค่าพารามิเตอร์ล่าสุด โดยหาค่าที่ไม่เป็น null จากประวัติ หรือ fallback สู่ baseline
+  const getParam = (key) => {
+    for (const log of stLogs) {
+      const val = log.measurements?.[key]?.value;
+      if (val !== null && val !== undefined && val !== '' && !isNaN(val)) {
+        return Number(val);
+      }
+    }
+    if (station.telemetryBaseline?.[key] !== undefined) {
+      return station.telemetryBaseline[key];
+    }
+    const defaultsByCode = {
+      'KM-01': { arsenic: 8.4, ph: 7.2, turbidity: 28.5, temperature: 24.8 },
+      'KM-02': { arsenic: 12.8, ph: 6.8, turbidity: 12.0, temperature: 23.5 },
+      'KM-03': { arsenic: 6.2, ph: 7.4, turbidity: 15.2, temperature: 25.1 },
+      'KM-04': { arsenic: 9.5, ph: 7.1, turbidity: 22.0, temperature: 24.2 }
+    };
+    const def = defaultsByCode[station.code] || defaultsByCode[station.id];
+    if (def && def[key] !== undefined) return def[key];
+    const general = { arsenic: 7.8, ph: 7.2, turbidity: 18.0, temperature: 24.5 };
+    return general[key] ?? null;
+  };
+
+  const arsenic = getParam('arsenic');
+  const ph = getParam('ph');
+  const turbidity = getParam('turbidity');
+  const temperature = getParam('temperature');
+
+  // 3. จัดการชุดข้อมูล Trend (ให้มีอย่างน้อย 5 จุดเสมอ เพื่อให้กราฟเส้นวาดสวยงามต่อเนื่อง ไม่เป็นจุดเดียว)
+  const chronologicalLogs = [...stLogs].reverse();
+  const rawTrend = chronologicalLogs
+    .map(l => l.measurements?.arsenic?.value)
+    .filter(v => v !== null && v !== undefined && !isNaN(v) && v !== '');
+
+  let trend = [];
+  if (rawTrend.length >= 3) {
+    trend = rawTrend.slice(-7);
+  } else {
+    const baseTrend = station.telemetryBaseline?.trend;
+    if (baseTrend && Array.isArray(baseTrend) && baseTrend.length >= 3) {
+      if (rawTrend.length > 0) {
+        trend = [...baseTrend.slice(0, 5 - rawTrend.length), ...rawTrend];
+      } else {
+        trend = baseTrend;
+      }
+    } else {
+      const curAs = arsenic !== null ? arsenic : 8.4;
+      trend = [
+        Number(Math.max(1, curAs + 1.4).toFixed(1)),
+        Number(Math.max(1, curAs + 0.8).toFixed(1)),
+        Number(Math.max(1, curAs + 0.3).toFixed(1)),
+        Number(Math.max(1, curAs - 0.4).toFixed(1)),
+        Number(curAs.toFixed(1))
+      ];
+    }
+  }
+
+  const isUp = trend.length >= 2 && trend[trend.length - 1] > trend[0];
+  const isDown = trend.length >= 2 && trend[trend.length - 1] < trend[0];
+  const trendText = isDown 
+    ? '↘ แนวโน้มลดลง (ดีขึ้น)' 
+    : (isUp ? '↗ แนวโน้มสูงขึ้น' : '→ ระดับคงที่');
+  const trendColorClass = isDown 
+    ? 'text-emerald-700 bg-emerald-50 border-emerald-200' 
+    : (isUp ? 'text-amber-700 bg-amber-50 border-amber-200' : 'text-slate-700 bg-slate-50 border-slate-200');
+
+  const isDanger = arsenic !== null && arsenic > 20;
+  const isWatch = arsenic !== null && arsenic > 10 && arsenic <= 20;
+  const isSafe = arsenic !== null && arsenic <= 10;
+
+  return {
+    arsenic,
+    ph,
+    turbidity,
+    temperature,
+    trend,
+    isDanger,
+    isWatch,
+    isSafe,
+    trendText,
+    trendColorClass,
+    logCount: stLogs.length,
+    latestLog: stLogs[0] || null
+  };
 }
 
 // ข้อมูลตัวอย่างเริ่มต้น (Initial Sample Submissions)
@@ -305,7 +551,7 @@ export const INITIAL_SUBMISSIONS = [
   }
 ];
 
-// Helper functions สำหรับการดึงและบันทึกข้อมูล
+// Helper functions สำหรับการดึงและบันทึกข้อมูลตัวอย่าง
 const LOCAL_STORAGE_KEY = 'kok_water_watch_submissions';
 
 export function getStoredSubmissions() {

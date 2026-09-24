@@ -22,13 +22,27 @@ import {
   ChevronDown,
   ChevronUp,
   X,
-  Search
+  Search,
+  Cpu,
+  Edit3
 } from 'lucide-react';
 import WaterWatchMap from './WaterWatchMap';
 import WaterWatchForm from './WaterWatchForm';
 import WaterWatchSampleDetail from './WaterWatchSampleDetail';
 import StationDetailModal from './StationDetailModal';
-import { getStoredSubmissions, saveNewSubmission, INITIAL_SUBMISSIONS, WATER_WATCH_STATIONS, findNearestStation } from '../../data/waterWatchData';
+import StationFormModal from './StationFormModal';
+import { 
+  getStoredSubmissions, 
+  saveNewSubmission, 
+  INITIAL_SUBMISSIONS, 
+  WATER_WATCH_STATIONS, 
+  getStoredStations, 
+  saveStation,
+  addStation, 
+  updateStation, 
+  deleteStation, 
+  findNearestStation 
+} from '../../data/waterWatchData';
 import { 
   fetchSamplesFromSupabase, 
   deleteSampleFromSupabase,
@@ -39,6 +53,10 @@ import {
 
 export default function KokWaterWatchView({ onBackToFloodSim }) {
   const [submissions, setSubmissions] = useState(getStoredSubmissions);
+  const [stations, setStations] = useState(getStoredStations);
+  const [isStationFormOpen, setIsStationFormOpen] = useState(false);
+  const [editingStation, setEditingStation] = useState(null); // null = add, object = edit
+
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [selectedSample, setSelectedSample] = useState(null);
   const [selectedStation, setSelectedStation] = useState(null);
@@ -188,35 +206,93 @@ export default function KokWaterWatchView({ onBackToFloodSim }) {
     document.body.removeChild(link);
   };
 
+  const handleOpenAddStation = () => {
+    setEditingStation(null);
+    setIsStationFormOpen(true);
+  };
+
+  const handleOpenEditStation = (st) => {
+    setEditingStation(st);
+    setIsStationFormOpen(true);
+  };
+
+  const handleSaveStation = (stationData) => {
+    if (editingStation) {
+      // โหมดแก้ไขพิกัด / ข้อมูลสถานีเดิม
+      const targetId = editingStation.id || editingStation.code;
+      const updated = updateStation(targetId, stationData);
+      setStations(updated);
+      if (selectedStation?.id === targetId || selectedStation?.code === targetId) {
+        const refreshed = updated.find(s => s.id === targetId || s.code === targetId) || null;
+        setSelectedStation(refreshed);
+      }
+      if (stationData.coordinates) {
+        setFocusCoords(stationData.coordinates);
+      }
+    } else {
+      // โหมดเพิ่มจุดตั้งเครื่องดูดน้ำ / ตรวจวัดใหม่
+      const { updatedStations, newStation } = addStation(stationData);
+      setStations(updatedStations);
+      setSelectedStation(newStation);
+      if (newStation.coordinates) {
+        setFocusCoords(newStation.coordinates);
+      }
+    }
+    setIsStationFormOpen(false);
+    setEditingStation(null);
+  };
+
+  const handleDeleteStation = (stationId) => {
+    const updated = deleteStation(stationId);
+    setStations(updated);
+    if (selectedStation?.id === stationId || selectedStation?.code === stationId) {
+      setSelectedStation(null);
+    }
+    setIsStationFormOpen(false);
+    setEditingStation(null);
+  };
+
   const handleCreateNewSample = (newSample) => {
     const updated = saveNewSubmission(newSample);
     setSubmissions(updated);
     setIsFormOpen(false);
 
-    // ค้นหาสถานีและเครื่องตรวจวัดคุณภาพน้ำ (เครื่องดูน้ำ) ที่สอดคล้องกับข้อมูลที่บันทึก
-    let targetStation = null;
-    if (newSample.station_id && newSample.station_id !== 'OFF-STATION') {
-      targetStation = WATER_WATCH_STATIONS.find(
-        s => s.id === newSample.station_id || s.code === newSample.station_id
-      );
-    }
-    if (!targetStation && newSample.station_name) {
-      targetStation = WATER_WATCH_STATIONS.find(
-        s => s.name.includes(newSample.station_name) || newSample.station_name.includes(s.name)
-      );
-    }
-    if (!targetStation && newSample.coordinates) {
-      const [lng, lat] = newSample.coordinates;
-      targetStation = findNearestStation(lat, lng);
-    }
-    if (!targetStation) {
-      targetStation = WATER_WATCH_STATIONS[0];
-    }
+    const isOffStation = newSample.is_off_station || newSample.station_id === 'OFF-STATION';
 
-    // มุ่งตรงไปที่เครื่องตรวจวัดน้ำ (Station) ทันที โดยไม่เปิดบล็อกย่อยและไม่ต้องเลื่อนหน้าจอหา
-    setSelectedSample(null);
-    setSelectedStation(targetStation);
-    setFocusCoords(targetStation.coordinates);
+    if (isOffStation) {
+      // 1. กรณีจุดเก็บนอกสถานี (ไม่ใช่ตรงเครื่อง 100%):
+      // ให้เลื่อนหน้าจอ (FlyTo) ไปที่พิกัด Mark Point ที่ระบุ และเลือกตัวอย่างนี้ทันที
+      setSelectedStation(null);
+      setSelectedSample(newSample);
+      if (newSample.coordinates) {
+        setFocusCoords(newSample.coordinates);
+      }
+    } else {
+      // 2. กรณีเครื่องตรวจวัดประจำสถานี (ตรงเครื่อง 100%):
+      // มุ่งตรงไปที่เครื่องตรวจวัดน้ำ (Station) ทันที โดยไม่เปิดบล็อกย่อยและไม่ต้องเลื่อนหน้าจอหา
+      let targetStation = null;
+      if (newSample.station_id) {
+        targetStation = stations.find(
+          s => s.id === newSample.station_id || s.code === newSample.station_id
+        );
+      }
+      if (!targetStation && newSample.station_name) {
+        targetStation = stations.find(
+          s => s.name.includes(newSample.station_name) || newSample.station_name.includes(s.name)
+        );
+      }
+      if (!targetStation && newSample.coordinates) {
+        const [lng, lat] = newSample.coordinates;
+        targetStation = findNearestStation(lat, lng, stations);
+      }
+      if (!targetStation) {
+        targetStation = stations[0] || WATER_WATCH_STATIONS[0];
+      }
+
+      setSelectedSample(null);
+      setSelectedStation(targetStation);
+      setFocusCoords(targetStation.coordinates);
+    }
   };
 
   // Stats calculation
@@ -260,7 +336,16 @@ export default function KokWaterWatchView({ onBackToFloodSim }) {
         <div className="hidden lg:flex items-center gap-2">
           <div className="px-3 py-1 bg-[#F8F7F5] rounded-xl border border-slate-200 text-xs flex items-center gap-1.5">
             <MapPin className="w-3.5 h-3.5 text-[#A6192E]" />
-            <span>สถานีหลัก: <strong>{WATER_WATCH_STATIONS.length} จุด</strong></span>
+            <span>สถานีหลัก/เครื่องดูดน้ำ: <strong>{stations.length} จุด</strong></span>
+            <button
+              type="button"
+              onClick={handleOpenAddStation}
+              className="ml-1 px-1.5 py-0.5 rounded-md bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300 font-bold text-[10px] flex items-center gap-0.5 cursor-pointer transition-colors"
+              title="เพิ่มจุดตั้งเครื่องดูดน้ำหรือตรวจวัดใหม่"
+            >
+              <Plus className="w-3 h-3 text-amber-700" />
+              <span>เพิ่มจุด</span>
+            </button>
           </div>
           <div className="px-3 py-1 bg-[#F8F7F5] rounded-xl border border-slate-200 text-xs flex items-center gap-1.5">
             <Activity className="w-3.5 h-3.5 text-emerald-600" />
@@ -273,26 +358,35 @@ export default function KokWaterWatchView({ onBackToFloodSim }) {
         </div>
 
         {/* Right: Actions */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 sm:gap-2">
+          {/* Main button: ➕ เพิ่มจุดตั้งเครื่อง */}
+          <button
+            type="button"
+            onClick={handleOpenAddStation}
+            className="px-2.5 py-1.5 sm:px-3.5 sm:py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-900 border border-amber-500 font-extrabold text-xs sm:text-xs flex items-center gap-1.5 shadow-md shadow-amber-500/20 transition-all cursor-pointer active:scale-95 shrink-0"
+            title="เพิ่มจุดตั้งเครื่องดูดน้ำหรือตรวจวัดใหม่"
+          >
+            <Plus className="w-4 h-4 text-slate-900 stroke-[3]" />
+            <span className="whitespace-nowrap">เพิ่มจุดตั้งเครื่อง</span>
+          </button>
+
           <button
             onClick={handleExportCSV}
-            className="p-2 sm:px-3 sm:py-2 rounded-xl border border-emerald-300 text-xs font-bold text-emerald-800 bg-emerald-50/80 hover:bg-emerald-100 transition-all flex items-center gap-1.5 shadow-xs"
+            className="p-1.5 sm:px-3 sm:py-2 rounded-xl border border-emerald-300 text-xs font-bold text-emerald-800 bg-emerald-50/80 hover:bg-emerald-100 transition-all flex items-center gap-1.5 shadow-xs"
             title="ส่งออกข้อมูลเป็นไฟล์ Excel (.csv)"
           >
             <Download className="w-4 h-4 text-emerald-600" />
-            <span className="hidden sm:inline">ส่งออก Excel</span>
+            <span className="hidden md:inline">ส่งออก Excel</span>
           </button>
 
           <button
             onClick={() => setIsListDrawerOpen(!isListDrawerOpen)}
-            className="p-2 sm:px-3 sm:py-2 rounded-xl border border-slate-300 text-xs font-bold text-slate-700 hover:bg-slate-100 transition-all flex items-center gap-1.5"
+            className="p-1.5 sm:px-3 sm:py-2 rounded-xl border border-slate-300 text-xs font-bold text-slate-700 hover:bg-slate-100 transition-all flex items-center gap-1.5"
             title="เปิดดูรายการตัวอย่างที่บันทึกไว้"
           >
             <List className="w-4 h-4 text-[#A6192E]" />
             <span className="hidden sm:inline">รายการ ({totalSamples})</span>
           </button>
-
-
         </div>
       </header>
 
@@ -300,10 +394,12 @@ export default function KokWaterWatchView({ onBackToFloodSim }) {
       <div className={`absolute inset-0 pt-14 ${isMapPopupActive ? 'z-30' : 'z-0'}`}>
         <WaterWatchMap
           submissions={submissions}
+          stations={stations}
           selectedSample={selectedSample}
           onSelectSample={(s) => setSelectedSample(s)}
           selectedStation={selectedStation}
           onSelectStation={(st) => setSelectedStation(st)}
+          onEditStation={(st) => handleOpenEditStation(st)}
           focusCoords={focusCoords}
           onPopupChange={(st) => setIsMapPopupActive(!!st)}
         />
@@ -375,12 +471,26 @@ export default function KokWaterWatchView({ onBackToFloodSim }) {
       </div>
     </div>
 
-      {/* 4. Action Button: บันทึกข้อมูลน้ำใหม่ (ขวาล่าง - เป็น icon + บนมือถือ / เต็มรูปแบบบน Desktop) */}
-      <div className={`absolute bottom-6 right-5 sm:bottom-6 sm:right-6 z-20 pointer-events-auto transition-all duration-200 ${
+      {/* 4. Action Buttons: เพิ่มจุดตั้งเครื่อง และ บันทึกข้อมูลน้ำใหม่ (ขวาล่าง) */}
+      <div className={`absolute bottom-6 right-5 sm:bottom-6 sm:right-6 z-20 pointer-events-auto transition-all duration-200 flex items-center gap-2.5 ${
         isMapPopupActive 
           ? 'opacity-0 pointer-events-none translate-y-3 sm:opacity-100 sm:pointer-events-auto sm:translate-y-0' 
           : 'opacity-100 translate-y-0'
       }`}>
+        {/* ปุ่มเพิ่มจุดตั้งเครื่องดูดน้ำ / ตรวจวัด */}
+        <button
+          type="button"
+          onClick={handleOpenAddStation}
+          className="h-14 sm:h-auto px-4 py-2.5 rounded-full sm:rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold border-2 border-amber-400 shadow-2xl active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer"
+          title="เพิ่มจุดตั้งเครื่องดูดน้ำ หรือเครื่องตรวจวัดน้ำใหม่"
+        >
+          <Cpu className="w-6 h-6 sm:w-4 sm:h-4 text-amber-300" />
+          <span className="hidden sm:inline text-xs sm:text-sm">
+            + เพิ่มจุดตั้งเครื่อง
+          </span>
+        </button>
+
+        {/* ปุ่มบันทึกข้อมูลน้ำใหม่ */}
         <button
           type="button"
           onClick={() => {
@@ -551,11 +661,15 @@ export default function KokWaterWatchView({ onBackToFloodSim }) {
       </div>
 
       {/* 5. Station Detail Modal (เมื่อคลิกเลือกจุดสถานี/เครื่องตรวจวัดบนแม่น้ำ) */}
-      {selectedStation && !isFormOpen && (
+      {selectedStation && !isFormOpen && !isStationFormOpen && (
         <StationDetailModal
           station={selectedStation}
           submissions={submissions}
           onClose={() => setSelectedStation(null)}
+          onEditStation={(st) => {
+            setSelectedStation(null);
+            handleOpenEditStation(st);
+          }}
           onRecordForStation={(st) => {
             setSelectedStation(null);
             setLockedStationForForm(st);
@@ -568,7 +682,7 @@ export default function KokWaterWatchView({ onBackToFloodSim }) {
       )}
 
       {/* 6. Sample Detail Modal (เมื่อคลิกเลือกจุดหมุดตัวอย่าง - แสดงผลเป็น Modal เต็มรูปแบบ รองรับทั้งมือถือและ Desktop) */}
-      {selectedSample && !isFormOpen && !selectedStation && (
+      {selectedSample && !isFormOpen && !selectedStation && !isStationFormOpen && (
         <WaterWatchSampleDetail
           sample={selectedSample}
           onClose={() => setSelectedSample(null)}
@@ -580,6 +694,7 @@ export default function KokWaterWatchView({ onBackToFloodSim }) {
       {isFormOpen && (
         <div className="absolute inset-0 z-40 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
           <WaterWatchForm
+            stations={stations}
             lockedStation={lockedStationForForm}
             onCancel={() => {
               setIsFormOpen(false);
@@ -591,6 +706,21 @@ export default function KokWaterWatchView({ onBackToFloodSim }) {
             }}
           />
         </div>
+      )}
+
+      {/* 8. Station Form Modal (เพิ่มจุดตั้งเครื่อง / แก้ไขพิกัดเครื่องดูดน้ำและตรวจวัด) */}
+      {isStationFormOpen && (
+        <StationFormModal
+          isOpen={isStationFormOpen}
+          station={editingStation}
+          existingStations={stations}
+          onClose={() => {
+            setIsStationFormOpen(false);
+            setEditingStation(null);
+          }}
+          onSave={handleSaveStation}
+          onDelete={handleDeleteStation}
+        />
       )}
 
       {/* 7. Settings Modal (Supabase & Data Pipeline Config) */}
