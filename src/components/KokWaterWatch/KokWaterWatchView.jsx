@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Droplets,
   Database,
@@ -46,6 +46,19 @@ export default function KokWaterWatchView({ onBackToFloodSim }) {
   const [isLegendOpen, setIsLegendOpen] = useState(false);
   const [isMapPopupActive, setIsMapPopupActive] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [isSearchDropdownOpen, setIsSearchDropdownOpen] = useState(false);
+  const searchContainerRef = useRef(null);
+
+  // Close search dropdown on click outside
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (searchContainerRef.current && !searchContainerRef.current.contains(event.target)) {
+        setIsSearchDropdownOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   // Supabase Config State
   const initialCreds = getSupabaseCredentials();
@@ -202,34 +215,139 @@ export default function KokWaterWatchView({ onBackToFloodSim }) {
     const code = (sub.sample_code || '').toLowerCase();
     const st = (sub.station_name || '').toLowerCase();
     const collector = (sub.collector?.name || '').toLowerCase();
-    return code.includes(q) || st.includes(q) || collector.includes(q);
+    const waterSource = (sub.sample_nature?.water_source || '').toLowerCase();
+    const asVal = sub.measurements?.arsenic?.value !== undefined ? String(sub.measurements?.arsenic?.value) : '';
+    return code.includes(q) || st.includes(q) || collector.includes(q) || waterSource.includes(q) || asVal.includes(q);
   });
 
   return (
     <div className="relative w-screen h-screen overflow-hidden bg-[#F8F7F5] font-['Prompt',sans-serif] text-[#242424]">
       {/* 1. Top Navigation Bar (ขาว 80% • แดง 20% • แต่งขอบทอง) */}
-      <header className="absolute top-0 left-0 right-0 z-30 bg-white/95 backdrop-blur-md border-b-2 border-[#B4975A]/40 shadow-sm px-4 py-2.5 flex items-center justify-between">
+      <header className="absolute top-0 left-0 right-0 z-30 bg-white/95 backdrop-blur-md border-b-2 border-[#B4975A]/40 shadow-sm px-3 sm:px-4 py-2 flex items-center justify-between gap-2 sm:gap-4">
         {/* Left: Brand */}
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-[#A6192E] flex items-center justify-center text-white shadow-md border border-[#B4975A]">
-              <Droplets className="w-5 h-5" />
+        <div className="flex items-center gap-2.5 sm:gap-3 shrink-0">
+          <div className="flex items-center gap-2 sm:gap-2.5">
+            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-[#A6192E] flex items-center justify-center text-white shadow-md border border-[#B4975A] shrink-0">
+              <Droplets className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="text-sm sm:text-base font-bold text-slate-900 tracking-tight flex items-center gap-1.5">
+                <h1 className="text-xs sm:text-base font-bold text-slate-900 tracking-tight flex items-center gap-1.5 whitespace-nowrap">
                   KOK Water Watch
                 </h1>
               </div>
-              <p className="text-[11px] text-slate-500 hidden md:block">
+              <p className="text-[10px] sm:text-[11px] text-slate-500 hidden lg:block whitespace-nowrap">
                 ระบบเก็บข้อมูลและเฝ้าระวังคุณภาพน้ำแม่น้ำกก &bull; ทีมทดลองภาคสนาม
               </p>
             </div>
           </div>
         </div>
 
+        {/* Center: Search Bar */}
+        <div ref={searchContainerRef} className="flex-1 max-w-xs sm:max-w-sm md:max-w-md relative min-w-0">
+          <div className="relative flex items-center">
+            <Search className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-400 absolute left-3 pointer-events-none" />
+            <input
+              type="text"
+              placeholder="ค้นหาจุดตรวจ, รหัส KOK..."
+              value={searchQuery}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setIsSearchDropdownOpen(true);
+              }}
+              onFocus={() => setIsSearchDropdownOpen(true)}
+              className="w-full pl-8 sm:pl-9 pr-7 sm:pr-8 py-1.5 sm:py-2 bg-slate-100/90 hover:bg-slate-100 focus:bg-white rounded-full sm:rounded-xl border border-slate-200 focus:border-[#A6192E] text-xs sm:text-sm text-slate-800 placeholder:text-slate-400 focus:outline-hidden focus:ring-2 focus:ring-[#A6192E]/20 transition-all shadow-2xs"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchQuery('');
+                  setIsSearchDropdownOpen(false);
+                }}
+                className="absolute right-2 sm:right-2.5 p-0.5 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-200 text-xs font-bold transition-all cursor-pointer"
+                title="ล้างคำค้นหา"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+
+          {/* Live Search Results Dropdown */}
+          {isSearchDropdownOpen && searchQuery.trim() && (
+            <div className="absolute top-full left-0 right-0 mt-1.5 bg-white/98 backdrop-blur-md rounded-2xl shadow-xl border border-slate-200 py-1.5 z-50 max-h-80 overflow-y-auto animate-in fade-in slide-in-from-top-1 duration-150">
+              <div className="px-3 py-1.5 text-[11px] font-semibold text-slate-400 border-b border-slate-100 flex items-center justify-between">
+                <span>ผลการค้นหา ({filteredSubmissions.length})</span>
+                <span className="text-[10px]">แตะเพื่อไปยังจุดตรวจ</span>
+              </div>
+              {filteredSubmissions.length === 0 ? (
+                <div className="px-4 py-6 text-center text-xs text-slate-400">
+                  ไม่พบจุดตรวจที่ตรงกับ "{searchQuery}"
+                </div>
+              ) : (
+                <>
+                  <div className="divide-y divide-slate-100">
+                    {filteredSubmissions.slice(0, 6).map((sub) => {
+                      const asVal = sub.measurements?.arsenic?.value;
+                      const asColor = sub.measurements?.arsenic?.color || '#DE9922';
+                      return (
+                        <div
+                          key={sub.record_id || sub.sample_code}
+                          onClick={() => {
+                            setSelectedHotspot(null);
+                            setSelectedSample(sub);
+                            setFocusCoords(sub.coordinates);
+                            setIsSearchDropdownOpen(false);
+                          }}
+                          className="px-3 py-2 hover:bg-rose-50/60 cursor-pointer transition-colors flex items-center justify-between gap-2 text-left"
+                        >
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-1.5">
+                              <span
+                                className="w-2.5 h-2.5 rounded-full shrink-0 border border-black/10"
+                                style={{ backgroundColor: asColor }}
+                              />
+                              <span className="text-xs sm:text-sm font-bold text-slate-800 truncate">
+                                {sub.station_name || sub.sample_code}
+                              </span>
+                            </div>
+                            <div className="text-[11px] text-slate-500 truncate mt-0.5">
+                              รหัส: {sub.sample_code} &bull; ผู้ตรวจ: {sub.collector?.name || '-'}
+                            </div>
+                          </div>
+                          {asVal !== null && asVal !== undefined && (
+                            <div className="shrink-0 text-right">
+                              <span className={`px-2 py-0.5 rounded-full text-[10px] sm:text-[11px] font-bold ${
+                                asVal > 50 ? 'bg-red-100 text-red-700' : asVal > 10 ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'
+                              }`}>
+                                {asVal} ppb
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                  {filteredSubmissions.length > 6 && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsSearchDropdownOpen(false);
+                        setIsListDrawerOpen(true);
+                      }}
+                      className="w-full py-2 text-center text-xs font-bold text-[#A6192E] hover:bg-red-50/80 transition-colors border-t border-slate-100 cursor-pointer"
+                    >
+                      ดูผลการค้นหาทั้งหมด ({filteredSubmissions.length} จุด) &rarr;
+                    </button>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+        </div>
+
         {/* Right: Actions */}
-        <div className="flex items-center gap-1.5 sm:gap-2">
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
           <button
             onClick={handleExportCSV}
             className="p-1.5 sm:px-3 sm:py-2 rounded-xl border border-emerald-300 text-xs font-bold text-emerald-800 bg-emerald-50/80 hover:bg-emerald-100 transition-all flex items-center gap-1.5 shadow-xs"
