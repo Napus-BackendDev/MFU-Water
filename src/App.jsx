@@ -19,6 +19,9 @@ import FloodAnalysisModal from './components/FloodAnalysisModal';
 import ImageZoomLightbox from './components/ImageZoomLightbox';
 import ErrorBoundary from './components/ErrorBoundary';
 import { THATON_COMMUNITIES, THATON_CENTER } from './data/thatonFloodData';
+import { getTimelineDayByIndex } from './data/timelineFloodData';
+import MapControlSidebar from './components/MapControlSidebar';
+import GeeWaterAnalysisView from './components/GeeWaterAnalysisView';
 
 // Code splitting: Dynamic lazy load for secondary views to maximize initial page performance
 const SentinelCompareView = lazy(() => import('./components/SentinelCompareView'));
@@ -46,11 +49,13 @@ export default function App() {
   const [waterColorMode, setWaterColorMode] = useState('standard'); // 'standard' | 'mndwi'
   const [comparisonBlend, setComparisonBlend] = useState(0); // 0 = 5 ก.ย. 67, 100 = 15 ก.ย. 67
   const [comparisonMode, setComparisonMode] = useState('before'); // 'before' | 'after' | 'blend'
+  const [currentDayIndex, setCurrentDayIndex] = useState(0); // 0 to 30 (5 ก.ย. - 5 ต.ค. 2567)
   const [showMndwiWater, setShowMndwiWater] = useState(false);
   const [showAnalysisModal, setShowAnalysisModal] = useState(false);
   const [lightboxImage, setLightboxImage] = useState(null); // 'before' | 'after' | null
   const [isHeaderExpanded, setIsHeaderExpanded] = useState(true);
   const [isControllerExpanded, setIsControllerExpanded] = useState(() => typeof window !== 'undefined' ? window.innerWidth >= 768 : false);
+  const [isHudOpen, setIsHudOpen] = useState(() => typeof window !== 'undefined' ? window.innerWidth >= 1280 : false);
 
   // Hash route listener
   useEffect(() => {
@@ -97,6 +102,17 @@ export default function App() {
       });
     }
   };
+
+  if (activePage === 'flood-sim' || activePage === 'sentinel-compare') {
+    return (
+      <ErrorBoundary>
+        <GeeWaterAnalysisView onOpenWaterWatch={() => {
+          setActivePage('water-watch');
+          window.location.hash = '#water-watch';
+        }} />
+      </ErrorBoundary>
+    );
+  }
 
   // 1. หน้าต่างหลัก: ภาพถ่ายดาวเทียม Sentinel-2 ก่อน-หลัง 2567 (Main Function จากระบบต้นแบบ)
   if (activePage === 'sentinel-compare') {
@@ -203,6 +219,7 @@ export default function App() {
           waterColorMode={waterColorMode}
           comparisonBlend={comparisonBlend}
           showMndwiWater={showMndwiWater}
+          currentDayIndex={currentDayIndex}
         />
       </div>
 
@@ -288,13 +305,40 @@ export default function App() {
         </button>
       </div>
 
+      {/* 2. Sidebar ไอคอนล้วน ควบคุมการทำงานและวิเคราะห์ภาพถ่ายดาวเทียม */}
+      <div className="absolute left-3 top-16 md:left-4 md:top-20 z-40">
+        <MapControlSidebar
+          is3DMode={is3DMode}
+          setIs3DMode={setIs3DMode}
+          isHudOpen={isHudOpen}
+          setIsHudOpen={setIsHudOpen}
+          isTimelineOpen={isControllerExpanded}
+          setIsTimelineOpen={setIsControllerExpanded}
+          showMndwiWater={showMndwiWater}
+          setShowMndwiWater={setShowMndwiWater}
+          waterColorMode={waterColorMode}
+          setWaterColorMode={setWaterColorMode}
+          onFocusThaton={handleFocusThaton}
+          onOpenAnalysisModal={() => setShowAnalysisModal(true)}
+          onOpenWaterWatch={() => {
+            setActivePage('water-watch');
+            window.location.hash = '#water-watch';
+          }}
+        />
+      </div>
+
       {/* 4. ฝั่งขวา: แผง HUD วิเคราะห์ดาวเทียม Sentinel-2 บนโมเดล 3D */}
       <div className="absolute top-14 right-3 md:top-16 md:right-4 z-20 pointer-events-auto">
         <SentinelAnalysisHUD
+          isOpen={isHudOpen}
+          setIsOpen={setIsHudOpen}
           floodStage={floodStage}
           setFloodStage={(val) => {
             setFloodStage(val);
             setComparisonBlend(val);
+            if (val === 0) setCurrentDayIndex(0);
+            else if (val >= 100) setCurrentDayIndex(10);
+            else setCurrentDayIndex(Math.round((val / 100) * 10));
           }}
           activeZone={activeZone}
           setActiveZone={setActiveZone}
@@ -319,7 +363,7 @@ export default function App() {
       </div>
 
       {/* 5. ซ้ายล่าง: แผงควบคุมเปรียบเทียบภาพถ่ายดาวเทียมจริง ก่อน ↔ หลัง (5 ก.ย. vs 15 ก.ย. 67) */}
-      <div className="absolute bottom-3 left-3 md:bottom-5 md:left-5 z-20 pointer-events-auto">
+      <div className="absolute bottom-3 left-16 md:bottom-5 md:left-20 z-30 pointer-events-auto">
         <SatelliteComparisonController
           isExpanded={isControllerExpanded}
           setIsExpanded={setIsControllerExpanded}
@@ -339,6 +383,14 @@ export default function App() {
           onOpenWaterWatch={() => {
             setActivePage('water-watch');
             window.location.hash = '#water-watch';
+          }}
+          currentDayIndex={currentDayIndex}
+          setCurrentDayIndex={(val) => {
+            const safeIdx = typeof val === 'function' ? val(currentDayIndex) : val;
+            setCurrentDayIndex(safeIdx);
+            const d = getTimelineDayByIndex(safeIdx);
+            setFloodStage(d.floodStage);
+            setComparisonBlend(d.satelliteBlend);
           }}
         />
       </div>

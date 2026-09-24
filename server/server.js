@@ -4,6 +4,7 @@ import { fileURLToPath } from 'url';
 import express from 'express';
 import cors from 'cors';
 import ee from '@google/earthengine';
+import { analyzeGeeWater, parseGeeAnalysisQuery } from './geeWaterAnalysis.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const keyPath = path.join(__dirname, 'service-account.json');
@@ -18,38 +19,65 @@ let cachedSentinelTileUrl = null;
 let cachedNdwiTileUrl = null;
 let cachedWaterTileUrl = null;
 
-// Initialize GEE with Service Account
-if (fs.existsSync(keyPath)) {
+// Keep the status request pending until the initial GEE connection finishes.
+const geeInitialization = new Promise((resolve) => {
+  if (!fs.existsSync(keyPath)) {
+    console.warn('⚠️ service-account.json not found in server directory');
+    resolve(false);
+    return;
+  }
   const key = JSON.parse(fs.readFileSync(keyPath, 'utf8'));
   geeClientEmail = key.client_email;
-
+  const timeout = setTimeout(() => resolve(false), 15000);
+  const finish = (ready) => {
+    clearTimeout(timeout);
+    resolve(ready);
+  };
   ee.data.authenticateViaPrivateKey(
     key,
     () => {
-      ee.initialize(
-        null,
-        null,
-        () => {
-          isGEEReady = true;
-          console.log(`✅ Google Earth Engine connected with ${geeClientEmail}`);
-        },
-        (err) => console.error('GEE Initialize error:', err.message || err)
-      );
+      ee.initialize(null, null, () => {
+        isGEEReady = true;
+        console.log('✅ Google Earth Engine connected');
+        finish(true);
+      }, (err) => {
+        console.error('GEE Initialize error:', err.message || err);
+        finish(false);
+      });
     },
-    (err) => console.error('GEE Auth error:', err.message || err)
+    (err) => {
+      console.error('GEE Auth error:', err.message || err);
+      finish(false);
+    }
   );
-} else {
-  console.warn('⚠️ service-account.json not found in server directory');
-}
+});
 
 // 1. Health Status
-app.get('/api/status', (req, res) => {
+app.get('/api/status', async (req, res) => {
+  if (!isGEEReady) await geeInitialization;
   res.json({
     status: 'ok',
     geeConnected: isGEEReady,
     engine: 'Google Earth Engine API',
     clientEmail: geeClientEmail ? geeClientEmail.replace(/(?<=.{4}).(?=.*@)/g, '*') : null
   });
+});
+
+app.get('/api/gee/analyze', async (req, res) => {
+  if (!isGEEReady) return res.status(503).json({ error: 'Google Earth Engine ยังไม่พร้อม' });
+  let params;
+  try {
+    params = parseGeeAnalysisQuery(req.query);
+  } catch (error) {
+    return res.status(400).json({ error: error.message });
+  }
+  try {
+    const result = await analyzeGeeWater(ee, params);
+    return res.json(result);
+  } catch (error) {
+    console.error('GEE water analysis failed:', error);
+    return res.status(error.status || 502).json({ error: error.message || 'GEE วิเคราะห์ไม่สำเร็จ' });
+  }
 });
 
 // 2. GEE Core: Satellite Water Detection Layer (ผืนน้ำจริงจากดาวเทียมที่คำนวณผ่าน Google Earth Engine)
@@ -252,7 +280,13 @@ app.get('/api/gee/flood-comparison', async (req, res) => {
 });
 
 
-const PORT = 5001;
-app.listen(PORT, () => {
-  console.log(`🚀 GEE Backend Server running on http://localhost:${PORT}`);
-});
+app.use('/api', (req, res) => res.status(404).json({ error: 'ไม่พบ API นี้ กรุณาเริ่มเซิร์ฟเวอร์รุ่นล่าสุด' }));
+
+export default app;
+
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  const PORT = Number(process.env.PORT) || 5001;
+  app.listen(PORT, () => {
+    console.log(`🚀 GEE Backend Server running on http://localhost:${PORT}`);
+  });
+}

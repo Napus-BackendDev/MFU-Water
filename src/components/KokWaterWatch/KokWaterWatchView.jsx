@@ -23,12 +23,21 @@ import {
   Clock,
   Filter,
   Settings,
-  Waves
+  Waves,
+  LocateFixed,
+  Map,
+  Mountain,
+  Crosshair,
+  Grid2X2,
+  ArrowRight,
+  MapPinCheck
 } from 'lucide-react';
 import WaterWatchMap from './WaterWatchMap';
 import WaterWatchForm from './WaterWatchForm';
 import WaterWatchSampleDetail from './WaterWatchSampleDetail';
 import StationDetailModal from './StationDetailModal';
+import { downloadWaterWatchCSV } from './waterWatchExport';
+import { summarizeWaterWatch } from './waterWatchSummary';
 import './kokWaterWatchModern.css';
 import { 
   getStoredSubmissions, 
@@ -61,10 +70,10 @@ const TIME_FILTER_OPTIONS = [
 function isWithinTimeRange(dateStr, filter, customStart, customEnd, allSubmissions = []) {
   try {
     if (!filter || filter === 'all') return true;
-    if (!dateStr) return true;
+    if (!dateStr) return false;
     const targetDate = new Date(dateStr);
     const targetTime = targetDate.getTime();
-    if (isNaN(targetTime)) return true;
+    if (isNaN(targetTime)) return false;
 
     // หา Reference Time: วันที่บันทึกล่าสุดในชุดข้อมูล หรือเวลาปัจจุบัน
     let maxDataTime = Date.now();
@@ -160,12 +169,50 @@ export default function KokWaterWatchView({ onBackToFloodSim }) {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [actionFeedback, setActionFeedback] = useState('');
-  const [mapType, setMapType] = useState('satellite');
-  const [showLabels, setShowLabels] = useState(false);
+  const [mapType, setMapType] = useState(() => {
+    const saved = localStorage.getItem('kok_water_watch_map_type');
+    return saved === 'street' || saved === 'streets' ? 'street' : saved === 'terrain' ? 'terrain' : 'satellite';
+  });
+  const [showLabels, setShowLabels] = useState(() => localStorage.getItem('kok_water_watch_show_labels') === 'true');
   const [filterLevel, setFilterLevel] = useState('all');
+  const [isLocating, setIsLocating] = useState(false);
   const mapController = useRef(null);
+  const settingsPanelRef = useRef(null);
+  const settingsButtonRef = useRef(null);
 
-  // Close search and time filter dropdown on click outside
+  // สถานะเปิด-ปิดของเลเยอร์ (iOS Toggle) ตามภาพที่ 1
+  const [layerSettings, setLayerSettings] = useState(() => {
+    try {
+      const saved = localStorage.getItem('kok_layer_settings');
+      if (saved) return {
+        country: true, province: true, locality: true, river: true, flowArrows: true,
+        focusThailand: false, rain24h: false, researchReports: true,
+        ...JSON.parse(saved)
+      };
+    } catch {}
+    return {
+      country: true,        // เขตประเทศ
+      province: true,       // เขตจังหวัด
+      locality: true,       // เขตอำเภอ
+      river: true,          // เส้นแม่น้ำ
+      flowArrows: !window.matchMedia('(prefers-reduced-motion: reduce)').matches, // ลูกศรเคลื่อนที่
+      focusThailand: false, // โฟกัสไทย
+      rain24h: false,       // ฝนสะสม 24 ชม.
+      researchReports: true // จุดตรวจวัดบนแผนที่ (คง key เดิมเพื่อไม่ให้ค่าเก่าหาย)
+    };
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('kok_layer_settings', JSON.stringify(layerSettings));
+    } catch {}
+  }, [layerSettings]);
+
+  const [showBoundaryLabels, setShowBoundaryLabels] = useState(
+    () => localStorage.getItem('kok_water_watch_show_boundary_labels') !== 'false'
+  );
+
+  // Close search, time filter dropdown, and settings panel on click outside
   useEffect(() => {
     function handleClickOutside(event) {
       if (searchContainerRef.current && !searchContainerRef.current.contains(event.target)) {
@@ -173,6 +220,14 @@ export default function KokWaterWatchView({ onBackToFloodSim }) {
       }
       if (timeFilterContainerRef.current && !timeFilterContainerRef.current.contains(event.target)) {
         setIsTimeFilterOpen(false);
+      }
+      if (
+        settingsPanelRef.current &&
+        !settingsPanelRef.current.contains(event.target) &&
+        settingsButtonRef.current &&
+        !settingsButtonRef.current.contains(event.target)
+      ) {
+        setSettingsOpen(false);
       }
     }
     document.addEventListener('mousedown', handleClickOutside);
@@ -291,52 +346,13 @@ export default function KokWaterWatchView({ onBackToFloodSim }) {
       alert('ยังไม่มีข้อมูลสำหรับส่งออกในช่วงเวลาที่เลือก');
       return;
     }
-    const headers = [
-      'รหัสตัวอย่าง (sample_code)',
-      'ชื่อจุดตรวจ/พิกัด (location_name)',
-      'ละติจูด (latitude)',
-      'ลองจิจูด (longitude)',
-      'วันเวลาที่เก็บ (collection_time)',
-      'ผู้เก็บตัวอย่าง (collector_name)',
-      'หน่วยงาน (organization)',
-      'แหล่งน้ำ (water_source)',
-      'ลักษณะน้ำ (appearance)',
-      'สารหนู_ppb (arsenic)',
-      'ค่า_pH (ph)',
-      'ความขุ่น_NTU (turbidity)',
-      'อุณหภูมิ_C (temperature)',
-      'จำนวนรูปถ่าย (photo_count)',
-      'ลิงก์ภาพถ่าย (photo_urls)'
-    ];
-
-    const rows = timeFilteredSubmissions.map(s => [
-      `"${s.sample_code}"`,
-      `"${(s.station_name || '').replace(/"/g, '""')}"`,
-      s.coordinates?.[1] || '',
-      s.coordinates?.[0] || '',
-      `"${s.collection_time || ''}"`,
-      `"${(s.collector?.name || '').replace(/"/g, '""')}"`,
-      `"${(s.collector?.organization || '').replace(/"/g, '""')}"`,
-      `"${(s.sample_nature?.water_source || '').replace(/"/g, '""')}"`,
-      `"${(s.sample_nature?.water_appearance || '').replace(/"/g, '""')}"`,
-      s.measurements?.arsenic?.value ?? '',
-      s.measurements?.ph?.value ?? '',
-      s.measurements?.turbidity?.value ?? '',
-      s.measurements?.temperature?.value ?? '',
-      s.images?.length || 0,
-      `"${(s.images || []).map(img => img.url).join(' | ')}"`
-    ]);
-
-    const csvContent = '\uFEFF' + [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', `KOK_Water_Watch_${timeFilter}_${new Date().toISOString().slice(0, 10)}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    setActionFeedback(`ส่งออกผลตรวจ ${timeFilteredSubmissions.length} จุดแล้ว`);
+    try {
+      const filename = downloadWaterWatchCSV(timeFilteredSubmissions, timeFilter);
+      setActionFeedback(`เริ่มดาวน์โหลด ${filename} (${timeFilteredSubmissions.length} จุด)`);
+    } catch (error) {
+      console.error('CSV download failed:', error);
+      setActionFeedback('เริ่มดาวน์โหลดไม่ได้ กรุณาลองอีกครั้ง');
+    }
   };
 
   const handleCreateNewSample = (newSample) => {
@@ -444,37 +460,16 @@ export default function KokWaterWatchView({ onBackToFloodSim }) {
     });
   }, [timeFilteredSubmissions, filterLevel]);
 
-  // สถิติสถานการณ์ลุ่มน้ำวันนี้ (หรือชุดข้อมูลปัจจุบัน)
+  const summaryData = useMemo(
+    () => summarizeWaterWatch(timeFilteredSubmissions),
+    [timeFilteredSubmissions, summaryOpen]
+  );
+
+  // การ์ดมุมซ้ายแสดงข้อมูลที่เก็บใน 24 ชั่วโมงล่าสุดจากทุกช่วงเวลา
   const todayStatus = useMemo(() => {
-    const ONE_DAY = 24 * 60 * 60 * 1000;
-    const now = Date.now();
-    let critical = 0;
-    let watch = 0;
-    let normal = 0;
-
-    const list = Array.isArray(submissions) ? submissions : [];
-    const todayItems = list.filter((s) => {
-      if (!s || !s.collection_time) return false;
-      const t = new Date(s.collection_time).getTime();
-      return !isNaN(t) && (now - t <= ONE_DAY || new Date(s.collection_time).toDateString() === new Date().toDateString());
-    });
-
-    const dataset = todayItems.length > 0 ? todayItems : (Array.isArray(timeFilteredSubmissions) ? timeFilteredSubmissions : []);
-    dataset.forEach((s) => {
-      const val = Number(s?.measurements?.arsenic?.value ?? s?.arsenic_ppb ?? s?.arsenic_level_ppb ?? 0);
-      if (val > 10) critical++;
-      else if (val >= 5) watch++;
-      else normal++;
-    });
-
-    return {
-      total: dataset.length,
-      critical,
-      watch,
-      normal,
-      hasTodayData: todayItems.length > 0
-    };
-  }, [submissions, timeFilteredSubmissions]);
+    const recent = summarizeWaterWatch(submissions).recent;
+    return { ...recent, hasTodayData: recent.total > 0 };
+  }, [submissions, summaryOpen]);
 
   return (
     <div className="kok-modern-app">
@@ -482,7 +477,7 @@ export default function KokWaterWatchView({ onBackToFloodSim }) {
         {/* Fullscreen Map Canvas */}
         <div className="absolute inset-0 z-0">
           <WaterWatchMap
-            submissions={levelFilteredSubmissions}
+            submissions={layerSettings.researchReports ? levelFilteredSubmissions : []}
             selectedSample={selectedSample}
             onSelectSample={(s) => setSelectedSample(s)}
             selectedHotspot={selectedHotspot}
@@ -491,18 +486,25 @@ export default function KokWaterWatchView({ onBackToFloodSim }) {
             onPopupChange={(hs) => setIsMapPopupActive(!!hs)}
             controllerRef={mapController}
             hideDefaultControls={true}
+            riverVisible={layerSettings.river}
+            riverFlowPlaying={layerSettings.flowArrows}
+            boundaryVisibility={{
+              country: layerSettings.country,
+              province: layerSettings.province,
+              locality: layerSettings.locality
+            }}
           />
         </div>
 
         {/* 1. สถานการณ์ลุ่มน้ำวันนี้ (บนซ้าย - สไตล์เดียวกับตัวอ้างอิง) */}
         <section className="basin-status-card" aria-labelledby="basin-status-title">
-          <h1 id="basin-status-title">สถานการณ์ลุ่มน้ำวันนี้</h1>
+          <h1 id="basin-status-title">ผลตรวจ 24 ชั่วโมงล่าสุด</h1>
           {submissions.length > 0 && todayStatus.total > 0 ? (
             <>
               <div
                 className="basin-status-bar"
                 role="img"
-                aria-label={`สัดส่วนสถานะ: วิกฤต ${todayStatus.critical}, เฝ้าระวัง ${todayStatus.watch}, ปกติ ${todayStatus.normal}`}
+                aria-label={`สัดส่วนสถานะ: เกินเกณฑ์ ${todayStatus.critical}, เฝ้าระวัง ${todayStatus.watch}, ปกติ ${todayStatus.normal}, ไม่มีค่า ${todayStatus.unknown}`}
               >
                 <span
                   className="status-critical"
@@ -515,6 +517,10 @@ export default function KokWaterWatchView({ onBackToFloodSim }) {
                 <span
                   className="status-normal"
                   style={{ width: `${(todayStatus.normal / todayStatus.total) * 100}%` }}
+                />
+                <span
+                  className="status-unknown"
+                  style={{ width: `${(todayStatus.unknown / todayStatus.total) * 100}%` }}
                 />
               </div>
               <p className="basin-status-counts">
@@ -529,11 +535,12 @@ export default function KokWaterWatchView({ onBackToFloodSim }) {
                 <span className="basin-status-count">
                   <span>ปกติ: {todayStatus.normal}</span>
                 </span>
+                {todayStatus.unknown > 0 && <span className="basin-status-count">| ไม่มีค่า: {todayStatus.unknown}</span>}
               </p>
             </>
           ) : (
             <p className="basin-status-unavailable" role="status">
-              ยังไม่เชื่อมต่อฐานข้อมูลผลตรวจ
+              ยังไม่มีผลตรวจใน 24 ชั่วโมงล่าสุด
             </p>
           )}
         </section>
@@ -566,18 +573,44 @@ export default function KokWaterWatchView({ onBackToFloodSim }) {
           </a>
         </section>
 
-        {/* 3. TIME RANGE Pill (ล่างกลาง) */}
-        <section className="time-range-card" aria-label="ช่วงเวลา">
-          <span className="time-range-label">TIME RANGE</span>
+        {/* 3. TIME RANGE Capsule (ล่างกลาง ดีไซน์โมเดิร์น กระจกใสพรีเมียม) */}
+        <section
+          className={`time-range-capsule ${timeFilter !== 'all' ? 'is-filtered' : ''}`}
+          aria-label="ตัวกรองช่วงเวลา"
+        >
           <button
-            className="time-range-option"
             type="button"
+            className="time-range-capsule-btn group"
             onClick={() => setIsTimeFilterOpen(true)}
-            aria-label={`เลือกช่วงเวลา (${activeFilterOption.label})`}
+            aria-label={`เลือกช่วงเวลาข้อมูล (${activeFilterOption.label})`}
+            title="คลิกเพื่อเลือกช่วงเวลาตรวจวัดสารหนูบนแผนที่"
           >
-            <CalendarDays size={16} aria-hidden="true" />
-            <span>{activeFilterOption.label}</span>
-            <ChevronDown size={15} aria-hidden="true" />
+            {/* Calendar Icon Badge */}
+            <div className={`time-range-icon-badge ${timeFilter !== 'all' ? 'is-active' : ''}`}>
+              <CalendarDays size={16} />
+              {timeFilter !== 'all' && (
+                <span className="time-range-pulse-dot" />
+              )}
+            </div>
+
+            {/* Typography Labels */}
+            <div className="time-range-text-block">
+              <span className="time-range-micro-tag">TIME RANGE</span>
+              <div className="time-range-main-row">
+                <span className="time-range-active-title">{activeFilterOption.label}</span>
+                <span className="time-range-points-badge">
+                  {filterCounts[timeFilter] !== undefined ? filterCounts[timeFilter] : filteredSubmissions.length} จุด
+                </span>
+              </div>
+            </div>
+
+            {/* Divider Line */}
+            <div className="time-range-v-divider" />
+
+            {/* Dropdown Chevron Indicator */}
+            <div className="time-range-chevron-wrap">
+              <ChevronDown size={14} className="time-range-chevron" />
+            </div>
           </button>
         </section>
 
@@ -613,7 +646,8 @@ export default function KokWaterWatchView({ onBackToFloodSim }) {
               <CalendarDays size={19} />
             </button>
             <button
-              className="round-control"
+              ref={settingsButtonRef}
+              className={`round-control ${settingsOpen ? 'is-active' : ''}`}
               type="button"
               aria-label="ตั้งค่า"
               title="ตั้งค่าแผนที่และชั้นข้อมูล"
@@ -638,20 +672,23 @@ export default function KokWaterWatchView({ onBackToFloodSim }) {
             <button
               className="round-control"
               type="button"
-              aria-label="ค้นหา"
-              title="ค้นหาจุดตรวจวัด"
+              aria-label="พิกัด GPS ปัจจุบัน"
+              title="ไปยังตำแหน่งพิกัด GPS ปัจจุบันของเครื่อง"
+              disabled={isLocating}
               onClick={() => {
-                setIsSearchOpen(prev => !prev);
-                setGuideOpen(false);
-                setSummaryOpen(false);
-                setSettingsOpen(false);
+                setIsLocating(true);
+                mapController.current?.locateUser?.();
+                setTimeout(() => setIsLocating(false), 2500);
               }}
             >
-              <Search size={19} />
+              <LocateFixed
+                size={19}
+                className={isLocating ? 'text-sky-500 animate-spin' : 'text-[#176756] hover:text-[#0e483b] transition-colors'}
+              />
             </button>
           </div>
 
-          {/* Zoom Control Capsule */}
+          {/* Zoom Control Capsule (เฉพาะ + และ -) */}
           <div className="zoom-control" aria-label="ควบคุมการซูม">
             <button
               type="button"
@@ -675,194 +712,300 @@ export default function KokWaterWatchView({ onBackToFloodSim }) {
 
         {/* 5. Utility Popups */}
         {guideOpen && (
-          <section className="map-utility-panel" role="region" aria-label="คู่มือการใช้งาน">
-            <button
-              type="button"
-              className="map-utility-close"
-              aria-label="ปิดคู่มือ"
-              onClick={() => setGuideOpen(false)}
-            >
-              <X size={16} />
-            </button>
-            <h2>คู่มือการใช้งาน</h2>
-            <p>
-              ซูมแผนที่เพื่อดูพื้นที่ · แตะหมุดก้อน Hotspot หรือจุดตรวจเพื่อดูค่าสารหนู ผลตรวจล่าสุด และภาพถ่ายหลักฐาน
-            </p>
-            <p>
-              เปิดตั้งค่า (⚙) เพื่อปรับชั้นข้อมูลแผนที่ (ดาวเทียม/ถนน) หรือเลือกดูตามระดับเตือนภัย · กดปุ่มทำแบบสำรวจเพื่อบันทึกผลตรวจสารหนูและพิกัด GPS ลงระบบ
-            </p>
+          <section className="map-utility-panel map-utility-panel--detail" role="region" aria-labelledby="water-guide-title">
+            <header className="utility-detail-header">
+              <div>
+                <span className="utility-detail-kicker">KOK WATER WATCH</span>
+                <h2 id="water-guide-title">คู่มือการใช้งานแผนที่และผลตรวจ</h2>
+                <p>อ่านข้อมูลตามช่วงเวลา ดูตำแหน่งตัวอย่าง และตรวจความหมายของค่าสารหนูก่อนนำไปใช้</p>
+              </div>
+              <button type="button" className="map-utility-close" aria-label="ปิดคู่มือ" onClick={() => setGuideOpen(false)}>
+                <X size={18} />
+              </button>
+            </header>
+            <div className="utility-detail-body">
+              <ol className="water-guide-grid">
+                <li>
+                  <strong>1. เลือกช่วงเวลาที่ต้องการดู</strong>
+                  <p>กด TIME RANGE ด้านล่างแผนที่ เลือก 24 ชั่วโมงล่าสุด, 7 วัน, 30 วัน, 90 วัน, 1 ปี หรือระบุวันเอง แผนที่ รายการผลตรวจ สรุปผล และไฟล์ CSV จะอิงช่วงเวลาที่เลือก</p>
+                </li>
+                <li>
+                  <strong>2. อ่านจุดตรวจบนแผนที่</strong>
+                  <p>ซูมเข้าเพื่อแยกจุดตรวจ แตะหมุดหรือก้อน Hotspot เพื่อดูชื่อพื้นที่ จำนวนตัวอย่าง ค่าสารหนู และรายละเอียดที่บันทึกไว้ รวมถึงภาพถ่ายเมื่อรายการนั้นมีภาพ</p>
+                </li>
+                <li>
+                  <strong>3. แปลผลค่าสารหนู</strong>
+                  <p>หน่วยเป็น ppb: ต่ำกว่า 5 = ปกติ, 5–10 = เฝ้าระวังในระบบ, มากกว่า 10 = เกินเกณฑ์ที่แสดงบนแผนที่ ระดับ 5 ppb เป็นเกณฑ์เตือนของระบบ ไม่ใช่เกณฑ์กฎหมาย</p>
+                </li>
+                <li>
+                  <strong>4. ดูเส้นทางน้ำและขอบเขต</strong>
+                  <p>กดตั้งค่าเพื่อสลับภาพดาวเทียม ถนน หรือภูมิประเทศ ดูแม่น้ำกกทั้งสาย เล่นหรือหยุดลูกศรทิศทางน้ำ และเน้นขอบเขตประเทศ จังหวัด หรืออำเภอ ลูกศรบอกทิศทางบนแผนที่ ไม่ใช่ความเร็วกระแสน้ำจริง</p>
+                </li>
+                <li>
+                  <strong>5. ตรวจแนวโน้มรายวัน</strong>
+                  <p>กดปุ่มปฏิทินด้านขวา สรุปจะแสดงยอดตามตัวกรอง พร้อมรายการแยกวันตามเวลาไทย เปรียบเทียบจำนวนปกติ เฝ้าระวัง เกินเกณฑ์ และรายการที่ไม่มีค่าตรวจ</p>
+                </li>
+                <li>
+                  <strong>6. บันทึกและส่งออก</strong>
+                  <p>กด “ทำแบบสำรวจ” เพื่อเพิ่มผลตรวจพร้อมพิกัด กดดาวน์โหลดเพื่อส่งออก CSV เฉพาะช่วงเวลาที่เลือก ตรวจวันเวลาและแหล่งที่มาของแต่ละรายการก่อนใช้ประกอบการตัดสินใจ</p>
+                </li>
+              </ol>
+              <div className="utility-detail-note">จำนวนในสรุปหมายถึง “รายการผลตรวจ” ไม่ใช่จำนวนสถานีที่ไม่ซ้ำ และข้อมูลบนแผนที่ไม่ใช่การวัดแบบเรียลไทม์</div>
+            </div>
           </section>
         )}
 
         {summaryOpen && (
-          <section className="map-utility-panel" role="region" aria-label="สรุปรายวัน">
-            <button
-              type="button"
-              className="map-utility-close"
-              aria-label="ปิดสรุปรายวัน"
-              onClick={() => setSummaryOpen(false)}
-            >
-              <X size={16} />
-            </button>
-            <h2>สรุปผลตรวจคุณภาพน้ำ</h2>
-            <p className="font-semibold text-slate-700">
-              ชุดข้อมูลปัจจุบัน ({activeFilterOption.label}): ทั้งหมด {timeFilteredSubmissions.length} จุด
-            </p>
-            <div className="grid grid-cols-3 gap-2 mt-3 pt-3 border-t border-slate-100 text-center">
-              <div className="p-2 rounded-xl bg-red-50 text-red-700">
-                <div className="text-lg font-bold">{filterCounts.critical || todayStatus.critical}</div>
-                <div className="text-[10px]">วิกฤต (&gt;10)</div>
+          <section className="map-utility-panel map-utility-panel--detail" role="region" aria-labelledby="water-summary-title">
+            <header className="utility-detail-header">
+              <div>
+                <span className="utility-detail-kicker">DAILY WATER QUALITY</span>
+                <h2 id="water-summary-title">สรุปผลตรวจคุณภาพน้ำรายวัน</h2>
+                <p>ช่วงเวลาที่เลือก: {activeFilterOption.fullLabel} · นับตามวันเก็บตัวอย่าง เวลาไทย</p>
               </div>
-              <div className="p-2 rounded-xl bg-amber-50 text-amber-700">
-                <div className="text-lg font-bold">{filterCounts.watch || todayStatus.watch}</div>
-                <div className="text-[10px]">เฝ้าระวัง (5-10)</div>
+              <button type="button" className="map-utility-close" aria-label="ปิดสรุปรายวัน" onClick={() => setSummaryOpen(false)}>
+                <X size={18} />
+              </button>
+            </header>
+            <div className="utility-detail-body">
+              <div className="water-summary-intro">
+                <div><span>ในช่วงที่เลือก</span><strong>{summaryData.overall.total}</strong><small>รายการผลตรวจ</small></div>
+                <div><span>24 ชั่วโมงล่าสุด</span><strong>{todayStatus.total}</strong><small>รายการจากข้อมูลทั้งหมด</small></div>
+                <div><span>ค่าเฉลี่ยสารหนู</span><strong>{summaryData.overall.average === null ? '—' : summaryData.overall.average.toFixed(1)}</strong><small>ppb · เฉพาะรายการที่มีค่า</small></div>
               </div>
-              <div className="p-2 rounded-xl bg-emerald-50 text-emerald-700">
-                <div className="text-lg font-bold">{filterCounts.normal || todayStatus.normal}</div>
-                <div className="text-[10px]">ปกติ (&lt;5)</div>
+              <div className="water-summary-status" aria-label="จำนวนผลตรวจตามระดับสารหนู">
+                <div className="is-critical"><strong>{summaryData.overall.critical}</strong><span>เกินเกณฑ์<br />มากกว่า 10 ppb</span></div>
+                <div className="is-watch"><strong>{summaryData.overall.watch}</strong><span>เฝ้าระวัง<br />5–10 ppb</span></div>
+                <div className="is-normal"><strong>{summaryData.overall.normal}</strong><span>ปกติ<br />ต่ำกว่า 5 ppb</span></div>
+                <div className="is-unknown"><strong>{summaryData.overall.unknown}</strong><span>ไม่มีค่าตรวจ<br />ยังจัดระดับไม่ได้</span></div>
               </div>
+              <div className="water-summary-section-title">
+                <div>
+                  <h3>แนวโน้มแยกตามวัน</h3>
+                  <p>{summaryData.daily.length} วันที่มีเวลาเก็บตัวอย่างในช่วงที่เลือก · เรียงจากวันล่าสุด</p>
+                </div>
+              </div>
+              {summaryData.daily.length ? (
+                <div className="water-daily-list">
+                  {summaryData.daily.map((day) => (
+                    <article className="water-daily-row" key={day.day}>
+                      <div className="water-daily-row-head">
+                        <strong>{new Date(`${day.day}T12:00:00+07:00`).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Asia/Bangkok' })}</strong>
+                        <span>{day.total} รายการ · เฉลี่ย {day.average === null ? '—' : day.average.toFixed(1)} ppb</span>
+                      </div>
+                      <div className="water-daily-bar" role="img" aria-label={`เกินเกณฑ์ ${day.critical} เฝ้าระวัง ${day.watch} ปกติ ${day.normal} ไม่มีค่า ${day.unknown}`}>
+                        <span className="is-critical" style={{ width: `${day.critical / day.total * 100}%` }} />
+                        <span className="is-watch" style={{ width: `${day.watch / day.total * 100}%` }} />
+                        <span className="is-normal" style={{ width: `${day.normal / day.total * 100}%` }} />
+                        <span className="is-unknown" style={{ width: `${day.unknown / day.total * 100}%` }} />
+                      </div>
+                      <div className="water-daily-counts">
+                        <span>เกินเกณฑ์ {day.critical}</span><span>เฝ้าระวัง {day.watch}</span><span>ปกติ {day.normal}</span><span>ไม่มีค่า {day.unknown}</span>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              ) : <p className="water-summary-empty">ไม่มีรายการที่ระบุวันเวลาเก็บตัวอย่างในช่วงที่เลือก</p>}
+              {summaryData.undated > 0 && <p className="water-summary-caveat">อีก {summaryData.undated} รายการไม่มีวันเวลาที่ใช้ได้ จึงรวมในยอดช่วงที่เลือกแต่ไม่อยู่ในแถวรายวัน</p>}
+              <div className="utility-detail-note">ผลสรุปเป็นจำนวนรายการ ไม่ใช่จำนวนสถานีที่ไม่ซ้ำ · 5 ppb เป็นระดับเตือนของระบบ ไม่ใช่เกณฑ์กฎหมาย · ค่าที่หายไม่ถูกนับเป็น “ปกติ”</div>
             </div>
           </section>
         )}
 
         {settingsOpen && (
-          <section className="map-settings-panel" id="map-settings-panel" aria-label="ตั้งค่าแผนที่">
-            <header className="map-settings-header">
-              <div>
-                <span className="map-settings-icon"><Waves size={17} /></span>
-                <div>
-                  <strong>ชั้นข้อมูลและตัวกรอง</strong>
-                  <small>ปรับมุมมองลุ่มน้ำแม่น้ำกก</small>
-                </div>
-              </div>
+          <section
+            ref={settingsPanelRef}
+            className="map-settings-panel"
+            id="map-settings-panel"
+            aria-label="ตั้งค่าแผนที่และเลเยอร์"
+          >
+            {/* ตัวเลือกเฉพาะที่เปลี่ยนแผนที่ได้จริง */}
+            <div className="map-settings-header-minimal">
+              <span className="map-settings-title-minimal">ตั้งค่าแผนที่</span>
               <button
                 type="button"
-                className="map-settings-close"
-                aria-label="ปิดตั้งค่าแผนที่"
+                className="map-settings-close-minimal"
+                aria-label="ปิดตั้งค่า"
                 onClick={() => setSettingsOpen(false)}
               >
-                <X size={18} />
+                <X size={16} />
               </button>
-            </header>
+            </div>
 
-            <div className="map-settings-section">
-              <div className="map-settings-section-title">
-                <span>รูปแบบแผนที่</span>
-                <small>Map Style</small>
+            <div className="map-settings-title-minimal mb-2">รูปแบบพื้นหลัง</div>
+            <div className="map-styles-grid">
+              {[
+                ['satellite', 'ภาพดาวเทียม', Crosshair],
+                ['street', 'ถนนและสถานที่', Map],
+                ['terrain', 'ภูมิประเทศ', Mountain]
+              ].map(([id, label, Icon]) => (
+                <button
+                  key={id}
+                  type="button"
+                  aria-pressed={mapType === id}
+                  className={`map-style-card ${mapType === id ? 'is-active' : ''}`}
+                  onClick={() => {
+                    setMapType(id);
+                    mapController.current?.setMapType?.(id);
+                  }}
+                >
+                  <Icon size={18} />
+                  <span>{label}</span>
+                </button>
+              ))}
+            </div>
+
+            <label className="river-boundary-label-toggle">
+              <input
+                type="checkbox"
+                checked={showLabels}
+                onChange={(event) => {
+                  setShowLabels(event.target.checked);
+                  mapController.current?.setShowLabels?.(event.target.checked);
+                }}
+              />
+              แสดงชื่อสถานที่บนแผนที่พื้นหลัง
+            </label>
+
+            <div className="map-settings-divider" />
+
+            <div className="map-settings-title-minimal mb-2">ขอบเขตการปกครอง</div>
+
+            {/* รายการเลเยอร์ พร้อมสวิตช์เปิด-ปิด (iOS Toggle) ตามภาพที่ 1 */}
+            <div className="space-y-1">
+              {/* 1. เขตประเทศ */}
+              <div className="layer-toggle-row">
+                <div className="layer-toggle-label">
+                  <Grid2X2 className="layer-toggle-icon" />
+                  <span>เขตประเทศ</span>
+                </div>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-label="เปิดปิดเลเยอร์เขตประเทศ"
+                  aria-checked={layerSettings.country}
+                  className={`ios-toggle ${layerSettings.country ? 'is-on' : 'is-off'}`}
+                  onClick={() => {
+                    const nextVal = !layerSettings.country;
+                    setLayerSettings(prev => ({ ...prev, country: nextVal }));
+                  }}
+                >
+                  <span className="ios-toggle-knob" />
+                </button>
               </div>
-              <div className="map-settings-tabs">
-                <button
-                  type="button"
-                  className={mapType === 'satellite' ? 'is-active' : ''}
-                  onClick={() => {
-                    setMapType('satellite');
-                    mapController.current?.setMapType?.('satellite');
-                  }}
-                >
-                  ดาวเทียม
-                </button>
-                <button
-                  type="button"
-                  className={mapType === 'streets' ? 'is-active' : ''}
-                  onClick={() => {
-                    setMapType('streets');
-                    mapController.current?.setMapType?.('streets');
-                  }}
-                >
-                  ถนน/แผนที่
-                </button>
-                <button
-                  type="button"
-                  className={mapType === 'terrain' ? 'is-active' : ''}
-                  onClick={() => {
-                    setMapType('terrain');
-                    mapController.current?.setMapType?.('terrain');
-                  }}
-                >
-                  ภูมิประเทศ
-                </button>
-              </div>
-              <label className="map-settings-check">
+
+              {[
+                ['province', 'เขตจังหวัด'],
+                ['locality', 'เขตอำเภอ']
+              ].map(([id, label]) => (
+                <div className="layer-toggle-row" key={id}>
+                  <div className="layer-toggle-label">
+                    <Grid2X2 className="layer-toggle-icon" />
+                    <span>{label}</span>
+                  </div>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-label={`เปิดปิดเลเยอร์${label}`}
+                    aria-checked={layerSettings[id] !== false}
+                    className={`ios-toggle ${layerSettings[id] !== false ? 'is-on' : 'is-off'}`}
+                    onClick={() => {
+                      const turningOn = layerSettings[id] === false;
+                      setLayerSettings(prev => ({ ...prev, [id]: prev[id] === false }));
+                      if (turningOn && !showBoundaryLabels) {
+                        setShowBoundaryLabels(true);
+                        mapController.current?.setBoundaryLabels?.(true);
+                      }
+                    }}
+                  >
+                    <span className="ios-toggle-knob" />
+                  </button>
+                </div>
+              ))}
+
+              <label className="river-boundary-label-toggle">
                 <input
                   type="checkbox"
-                  checked={showLabels}
-                  onChange={(e) => {
-                    setShowLabels(e.target.checked);
-                    mapController.current?.setShowLabels?.(e.target.checked);
+                  checked={showBoundaryLabels}
+                  onChange={(event) => {
+                    setShowBoundaryLabels(event.target.checked);
+                    mapController.current?.setBoundaryLabels?.(event.target.checked);
                   }}
                 />
-                <div>
-                  <strong>แสดงชื่อสถานที่และถนน</strong>
-                  <small>ป้ายชื่อภาษาไทยและรหัสทางหลวง</small>
-                </div>
+                แสดงชื่อพื้นที่ภาษาไทย
               </label>
-            </div>
+              <small className="river-boundary-hint">ปิดขอบเขตแล้วเส้นยังจางอยู่ · ข้อมูลเขตปัจจุบันครอบคลุมประเทศไทย เชียงใหม่ และเชียงราย</small>
 
-            <div className="map-settings-section">
-              <div className="map-settings-section-title">
-                <span>กรองระดับสารหนู</span>
-                <small>Filter</small>
+              <div className="map-settings-divider" />
+              <div className="river-flow-overview">
+                <strong>เส้นทางแม่น้ำกก</strong>
+                <span>เมียนมา · แม่อาย · เชียงราย · เชียงแสน · แม่น้ำโขง</span>
+                <button type="button" onClick={() => mapController.current?.fitRiverOverview?.()}>
+                  <Waves size={15} /> ดูทั้งสาย
+                </button>
+                <small>ลูกศรบอกทิศทางบนแผนที่ ไม่ใช่ความเร็วกระแสน้ำจริง</small>
               </div>
-              <div className="grid grid-cols-3 gap-1.5 text-[11px]">
-                <button
-                  type="button"
-                  onClick={() => setFilterLevel(prev => prev === 'normal' ? 'all' : 'normal')}
-                  className={`py-1.5 px-2 rounded-lg border text-center transition-all ${
-                    filterLevel === 'normal'
-                      ? 'bg-emerald-100 border-emerald-500 text-emerald-800 font-bold'
-                      : 'bg-white border-slate-200 text-slate-600'
-                  }`}
-                >
-                  เฉพาะปกติ
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setFilterLevel(prev => prev === 'watch' ? 'all' : 'watch')}
-                  className={`py-1.5 px-2 rounded-lg border text-center transition-all ${
-                    filterLevel === 'watch'
-                      ? 'bg-amber-100 border-amber-500 text-amber-800 font-bold'
-                      : 'bg-white border-slate-200 text-slate-600'
-                  }`}
-                >
-                  เฉพาะเฝ้าระวัง
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setFilterLevel(prev => prev === 'critical' ? 'all' : 'critical')}
-                  className={`py-1.5 px-2 rounded-lg border text-center transition-all ${
-                    filterLevel === 'critical'
-                      ? 'bg-red-100 border-red-500 text-red-800 font-bold'
-                      : 'bg-white border-slate-200 text-slate-600'
-                  }`}
-                >
-                  เฉพาะวิกฤต
-                </button>
-              </div>
-            </div>
 
-            <div className="map-settings-section">
-              <div className="map-settings-section-title">
-                <span>การจัดการข้อมูล</span>
+              {/* 2. เส้นแม่น้ำ */}
+              <div className="layer-toggle-row">
+                <div className="layer-toggle-label">
+                  <Waves className="layer-toggle-icon" />
+                  <span>เส้นแม่น้ำ</span>
+                </div>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-label="เปิดปิดเลเยอร์เส้นแม่น้ำ"
+                  aria-checked={layerSettings.river}
+                  className={`ios-toggle ${layerSettings.river ? 'is-on' : 'is-off'}`}
+                  onClick={() => {
+                    setLayerSettings(prev => ({ ...prev, river: !prev.river }));
+                  }}
+                >
+                  <span className="ios-toggle-knob" />
+                </button>
               </div>
-              <button
-                type="button"
-                onClick={() => {
-                  mapController.current?.locateUser?.();
-                  setSettingsOpen(false);
-                }}
-                className="w-full py-2 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold flex items-center justify-center gap-2 cursor-pointer transition-colors"
-              >
-                <MapPin size={14} className="text-[#A6192E]" />
-                <span>ค้นหาตำแหน่งปัจจุบันของเครื่อง (GPS)</span>
-              </button>
-              <button
-                type="button"
-                onClick={handleResetAllData}
-                className="w-full py-2 px-3 rounded-xl border border-red-200 bg-red-50/50 hover:bg-red-100/60 text-red-700 text-xs font-semibold flex items-center justify-center gap-2 cursor-pointer transition-colors"
-              >
-                <RotateCcw size={14} />
-                <span>รีเซ็ตชุดข้อมูลตัวอย่างเริ่มต้น</span>
-              </button>
+
+              <div className="layer-toggle-row">
+                <div className="layer-toggle-label">
+                  <ArrowRight className="layer-toggle-icon" />
+                  <span>ให้ลูกศรเคลื่อนที่</span>
+                </div>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-label="เล่นหรือหยุดลูกศรทิศทางน้ำ"
+                  aria-checked={layerSettings.flowArrows}
+                  className={`ios-toggle ${layerSettings.flowArrows ? 'is-on' : 'is-off'}`}
+                  disabled={!layerSettings.river}
+                  onClick={() => {
+                    setLayerSettings(prev => ({ ...prev, flowArrows: !prev.flowArrows }));
+                  }}
+                >
+                  <span className="ios-toggle-knob" />
+                </button>
+              </div>
+
+              <div className="map-settings-divider" />
+              <div className="map-settings-title-minimal mb-2">ข้อมูลตรวจวัด</div>
+              <div className="layer-toggle-row">
+                <div className="layer-toggle-label">
+                  <MapPinCheck className="layer-toggle-icon" />
+                  <span>จุดตรวจวัดสารหนู</span>
+                </div>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-label="เปิดปิดจุดตรวจวัดสารหนูบนแผนที่"
+                  aria-checked={layerSettings.researchReports}
+                  className={`ios-toggle ${layerSettings.researchReports ? 'is-on' : 'is-off'}`}
+                  onClick={() => {
+                    setLayerSettings(prev => ({ ...prev, researchReports: !prev.researchReports }));
+                  }}
+                >
+                  <span className="ios-toggle-knob" />
+                </button>
+              </div>
             </div>
           </section>
         )}
@@ -915,31 +1058,38 @@ export default function KokWaterWatchView({ onBackToFloodSim }) {
           </section>
         )}
 
-        {/* 6. Buttons (ล่างขวา) */}
-        {/* App Switcher Button (Blue Wave) */}
-        <button
-          type="button"
-          onClick={onBackToFloodSim}
-          className="app-switch-button"
-          title="สลับไปหน้าแบบจำลองน้ำท่วมแม่น้ำกก 3D"
-        >
-          <Waves size={24} className="text-white drop-shadow" />
-        </button>
+        {/* 6. Bottom Action Buttons (ล่างซ้าย App Switcher, ล่างขวา Survey FAB Button วงกลม) */}
+        {/* App Switcher Button (Blue Wave - ล่างซ้าย) */}
+        <div className="kok-bottom-left-action">
+          <button
+            type="button"
+            onClick={onBackToFloodSim}
+            className="app-switch-button"
+            title="สลับไปหน้าแบบจำลองน้ำท่วมแม่น้ำกก 3D"
+            aria-label="สลับไปหน้าแบบจำลองน้ำท่วม 3D"
+          >
+            <Waves size={20} className="text-white drop-shadow" />
+            <span className="kok-fab-tooltip kok-fab-tooltip-right">แบบจำลอง 3D</span>
+          </button>
+        </div>
 
-        {/* Survey Button (ทำแบบสำรวจ) */}
-        <button
-          className="survey-button"
-          type="button"
-          aria-label="ทำแบบสำรวจ"
-          onClick={() => {
-            setSelectedSample(null);
-            setSelectedHotspot(null);
-            setIsFormOpen(true);
-          }}
-        >
-          <ClipboardList size={19} />
-          <span>ทำแบบสำรวจ</span>
-        </button>
+        {/* Survey FAB Button (ทำแบบสำรวจ / แบบทดสอบ - วงกลม ล่างขวา) */}
+        <div className="kok-bottom-right-action">
+          <button
+            className="survey-button"
+            type="button"
+            aria-label="ทำแบบสำรวจ"
+            title="ทำแบบสำรวจ / บันทึกผลตรวจวัดสารหนู"
+            onClick={() => {
+              setSelectedSample(null);
+              setSelectedHotspot(null);
+              setIsFormOpen(true);
+            }}
+          >
+            <ClipboardList size={20} className="text-white" />
+            <span className="kok-fab-tooltip kok-fab-tooltip-left">ทำแบบสำรวจ</span>
+          </button>
+        </div>
 
         {/* Feedback Toast */}
         {actionFeedback && (
@@ -970,14 +1120,14 @@ export default function KokWaterWatchView({ onBackToFloodSim }) {
             {/* Popover Header */}
             <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-3 shrink-0">
               <div className="flex items-center gap-2.5">
-                <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-[#A6192E] to-[#801424] text-white flex items-center justify-center shadow-md shadow-[#A6192E]/25 shrink-0">
+                <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-emerald-600 to-teal-700 text-white flex items-center justify-center shadow-md shadow-emerald-900/20 shrink-0">
                   <Calendar className="w-5 h-5" />
                 </div>
                 <div>
                   <h4 className="text-sm sm:text-base font-bold text-slate-900 leading-tight flex items-center gap-1.5">
                     <span>ตัวกรองช่วงเวลาตรวจวัด</span>
                     {timeFilter !== 'all' && (
-                      <span className="w-2 h-2 rounded-full bg-[#A6192E] animate-pulse" />
+                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                     )}
                   </h4>
                   <p className="text-[11px] text-slate-500 mt-0.5">
@@ -1004,8 +1154,8 @@ export default function KokWaterWatchView({ onBackToFloodSim }) {
                   onClick={() => handleSelectTimeFilter('all')}
                   className={`w-full p-3 rounded-2xl text-left transition-all flex items-center justify-between border cursor-pointer ${
                     timeFilter === 'all'
-                      ? 'bg-gradient-to-r from-[#A6192E] to-[#851424] text-white border-[#A6192E] shadow-md shadow-[#A6192E]/20 scale-[1.01]'
-                      : 'bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-800'
+                      ? 'bg-gradient-to-r from-emerald-600 to-teal-700 text-white border-emerald-600 shadow-md shadow-emerald-900/20 scale-[1.01]'
+                      : 'bg-slate-50 hover:bg-emerald-50/40 hover:border-emerald-200 border-slate-200 text-slate-800'
                   }`}
                 >
                   <div className="flex items-center gap-2.5">
@@ -1041,8 +1191,8 @@ export default function KokWaterWatchView({ onBackToFloodSim }) {
                         onClick={() => handleSelectTimeFilter(opt.id)}
                         className={`p-2.5 rounded-2xl text-left transition-all border flex flex-col justify-between cursor-pointer ${
                           isSelected
-                            ? 'bg-gradient-to-r from-[#A6192E] to-[#851424] text-white border-[#A6192E] shadow-md shadow-[#A6192E]/20 scale-[1.01]'
-                            : 'bg-white hover:bg-rose-50/50 border-slate-200 text-slate-800'
+                            ? 'bg-gradient-to-r from-emerald-600 to-teal-700 text-white border-emerald-600 shadow-md shadow-emerald-900/20 scale-[1.01]'
+                            : 'bg-white hover:bg-emerald-50/50 hover:border-emerald-200 border-slate-200 text-slate-800'
                         }`}
                       >
                         <div className="text-xs sm:text-sm font-bold truncate">{opt.label}</div>
@@ -1078,8 +1228,8 @@ export default function KokWaterWatchView({ onBackToFloodSim }) {
                         onClick={() => handleSelectTimeFilter(opt.id)}
                         className={`p-2.5 rounded-2xl text-left transition-all border flex flex-col justify-between cursor-pointer ${
                           isSelected
-                            ? 'bg-gradient-to-r from-[#A6192E] to-[#851424] text-white border-[#A6192E] shadow-md shadow-[#A6192E]/20 scale-[1.01]'
-                            : 'bg-white hover:bg-rose-50/50 border-slate-200 text-slate-800'
+                            ? 'bg-gradient-to-r from-emerald-600 to-teal-700 text-white border-emerald-600 shadow-md shadow-emerald-900/20 scale-[1.01]'
+                            : 'bg-white hover:bg-emerald-50/50 hover:border-emerald-200 border-slate-200 text-slate-800'
                         }`}
                       >
                         <div className="text-xs sm:text-sm font-bold truncate">{opt.label}</div>
@@ -1115,8 +1265,8 @@ export default function KokWaterWatchView({ onBackToFloodSim }) {
                         onClick={() => handleSelectTimeFilter(opt.id)}
                         className={`p-2.5 rounded-2xl text-left transition-all border flex flex-col justify-between cursor-pointer ${
                           isSelected
-                            ? 'bg-gradient-to-r from-[#A6192E] to-[#851424] text-white border-[#A6192E] shadow-md shadow-[#A6192E]/20 scale-[1.01]'
-                            : 'bg-white hover:bg-rose-50/50 border-slate-200 text-slate-800'
+                            ? 'bg-gradient-to-r from-emerald-600 to-teal-700 text-white border-emerald-600 shadow-md shadow-emerald-900/20 scale-[1.01]'
+                            : 'bg-white hover:bg-emerald-50/50 hover:border-emerald-200 border-slate-200 text-slate-800'
                         }`}
                       >
                         <div className="text-xs sm:text-sm font-bold truncate">{opt.label}</div>
@@ -1145,7 +1295,7 @@ export default function KokWaterWatchView({ onBackToFloodSim }) {
                   </span>
                   <div className="flex items-center gap-1.5">
                     {timeFilter === 'custom' && (
-                      <span className="text-[10px] text-[#A6192E] font-bold bg-rose-100 px-2 py-0.5 rounded-full">
+                      <span className="text-[10px] text-emerald-800 font-bold bg-emerald-100 border border-emerald-300 px-2 py-0.5 rounded-full">
                         ใช้งานอยู่ ({timeFilteredSubmissions.length} จุด)
                       </span>
                     )}
@@ -1157,7 +1307,7 @@ export default function KokWaterWatchView({ onBackToFloodSim }) {
                           setCustomEndDate('');
                           if (timeFilter === 'custom') setTimeFilter('all');
                         }}
-                        className="text-[11px] text-slate-500 hover:text-[#A6192E] underline cursor-pointer"
+                        className="text-[11px] text-slate-500 hover:text-emerald-700 underline cursor-pointer"
                       >
                         ล้างวันที่
                       </button>
@@ -1172,7 +1322,7 @@ export default function KokWaterWatchView({ onBackToFloodSim }) {
                       type="date"
                       value={customStartDate}
                       onChange={(e) => setCustomStartDate(e.target.value)}
-                      className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-xl text-xs text-slate-800 focus:outline-none focus:border-[#A6192E] shadow-2xs"
+                      className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-xl text-xs text-slate-800 focus:outline-none focus:border-emerald-500 shadow-2xs"
                     />
                   </div>
                   <div>
@@ -1181,7 +1331,7 @@ export default function KokWaterWatchView({ onBackToFloodSim }) {
                       type="date"
                       value={customEndDate}
                       onChange={(e) => setCustomEndDate(e.target.value)}
-                      className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-xl text-xs text-slate-800 focus:outline-none focus:border-[#A6192E] shadow-2xs"
+                      className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-xl text-xs text-slate-800 focus:outline-none focus:border-emerald-500 shadow-2xs"
                     />
                   </div>
                 </div>
@@ -1189,7 +1339,7 @@ export default function KokWaterWatchView({ onBackToFloodSim }) {
                 <button
                   type="button"
                   onClick={() => handleSelectTimeFilter('custom')}
-                  className="w-full py-2.5 bg-gradient-to-r from-[#A6192E] to-[#801424] hover:brightness-110 active:scale-[0.99] text-white rounded-xl text-xs sm:text-sm font-bold transition-all shadow-md shadow-[#A6192E]/25 cursor-pointer flex items-center justify-center gap-1.5"
+                  className="w-full py-2.5 bg-gradient-to-r from-emerald-600 to-teal-700 hover:brightness-110 active:scale-[0.99] text-white rounded-xl text-xs sm:text-sm font-bold transition-all shadow-md shadow-emerald-900/25 cursor-pointer flex items-center justify-center gap-1.5"
                 >
                   <Check className="w-4 h-4" />
                   <span>ใช้งานช่วงวันที่กำหนด ({filterCounts.custom || 0} จุด)</span>
@@ -1201,7 +1351,7 @@ export default function KokWaterWatchView({ onBackToFloodSim }) {
             <div className="mt-3.5 pt-3 border-t border-slate-100 space-y-2 shrink-0 text-xs">
               <div className="flex items-center justify-between">
                 <span className="text-slate-500 font-medium">
-                  แสดงผล <strong className="text-[#A6192E] text-sm">{timeFilteredSubmissions.length}</strong> จาก {totalSamples} จุด
+                  แสดงผล <strong className="text-emerald-700 text-sm font-bold">{timeFilteredSubmissions.length}</strong> จาก {totalSamples} จุด
                 </span>
                 {timeFilter !== 'all' && (
                   <button
@@ -1347,9 +1497,9 @@ export default function KokWaterWatchView({ onBackToFloodSim }) {
                       {sub.sample_code}
                     </span>
                     <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                      asVal > 50
+                      asVal > 10
                         ? 'bg-rose-100 text-rose-800'
-                        : asVal > 10
+                        : asVal >= 5
                         ? 'bg-amber-100 text-amber-800'
                         : 'bg-emerald-100 text-emerald-800'
                     }`}>
@@ -1394,7 +1544,7 @@ export default function KokWaterWatchView({ onBackToFloodSim }) {
             className="py-2 px-3 rounded-xl border border-emerald-300 text-emerald-800 bg-emerald-50 hover:bg-emerald-100 font-bold flex items-center gap-1.5 transition-all text-xs cursor-pointer"
           >
             <Download className="w-3.5 h-3.5 text-emerald-600" />
-            <span>ส่งออก Excel</span>
+            <span>ส่งออก CSV</span>
           </button>
           <button
             type="button"

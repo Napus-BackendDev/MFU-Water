@@ -1,8 +1,20 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
+const geeApiDevPlugin = () => ({
+  name: 'gee-api-dev',
+  apply: 'serve',
+  async configureServer(vite) {
+    const { default: api } = await import('./server/server.js');
+    vite.middlewares.use((req, res, next) => {
+      if (req.url?.startsWith('/api/')) api(req, res, next);
+      else next();
+    });
+  }
+});
+
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), geeApiDevPlugin()],
   build: {
     target: 'esnext',
     chunkSizeWarningLimit: 900,
@@ -18,6 +30,7 @@ export default defineConfig({
   },
   server: {
     port: 3000,
-    open: false
+    strictPort: true,
+    open: false,
   }
 });

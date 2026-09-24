@@ -4,15 +4,12 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 import {
   THATON_CENTER,
   THATON_BOUNDS,
-  THATON_COMMUNITIES,
-  getFloodPolygonGeoJSON,
-  getDioramaMaskGeoJSON,
-  getDioramaFrameGeoJSON
+  getFloodPolygonGeoJSON
 } from '../data/thatonFloodData';
 import {
-  getSentinelZonesGeoJSON,
-  getSentinelCommunityCircleGeoJSON
+  getSentinelZonesGeoJSON
 } from '../data/sentinelFloodAnalysisData';
+import { getTimelineFloodPolygonGeoJSON } from '../data/timelineFloodData';
 
 export default function MapView2D({
   selectedLocation = null,
@@ -23,7 +20,8 @@ export default function MapView2D({
   activeCommunity = null,
   waterColorMode = 'standard', // 'standard' | 'mndwi'
   comparisonBlend = 0, // 0 to 100
-  showMndwiWater = true
+  showMndwiWater = true,
+  currentDayIndex = 0
 }) {
   const mapContainer = useRef(null);
   const mapRef = useRef(null);
@@ -86,13 +84,8 @@ export default function MapView2D({
       style: styleDefinition,
       center: THATON_CENTER,
       zoom: 14.2,
-      minZoom: 12.8,
-      maxZoom: 17.5,
-      // ล็อกขอบเขตให้อยู่เฉพาะโมเดล ต.ท่าตอน - บ้านท่าดอย และแนวข้างสายน้ำกก
-      maxBounds: [
-        [99.315, 20.015],
-        [99.435, 20.105]
-      ],
+      minZoom: 2,
+      maxZoom: 20,
       pitch: is3DMode ? 42 : 0, // เริ่มต้น 2D แบนราบ (0 องศา) หรือ 3D (42 องศา)
       bearing: is3DMode ? 15 : 0,
       maxPitch: 80,
@@ -105,7 +98,6 @@ export default function MapView2D({
       console.warn('MapLibre event:', e?.error?.message || e);
     });
 
-
     map.on('load', () => {
       // 1. ตั้งค่า 3D Terrain สมจริง (Realistic Mountain Ridges & Valley Relief)
       if (is3DMode) {
@@ -115,14 +107,14 @@ export default function MapView2D({
         });
       }
 
-      // 2. บรรยากาศสตูดิโอโมเดล 3D แบบคลีน สบายตา
+      // 2. บรรยากาศท้องฟ้าและหมอกธรรมชาติ (Natural Atmosphere)
       map.setSky({
-        'sky-color': '#080c14',
-        'sky-horizon-blend': 0.8,
-        'horizon-color': '#0f172a',
-        'horizon-fog-blend': 0.1,
-        'fog-color': '#080c14',
-        'fog-ground-blend': 0.0
+        'sky-color': '#a0c4ff',
+        'sky-horizon-blend': 0.5,
+        'horizon-color': '#e2e8f0',
+        'horizon-fog-blend': 0.15,
+        'fog-color': '#cbd5e1',
+        'fog-ground-blend': 0.05
       });
 
       // 3. ภาพถ่ายดาวเทียมความละเอียดสูง Sentinel-2 MSI ครอบคลุม 100% เต็มกรอบโมเดล 3D ต.ท่าตอน - บ้านท่าดอย
@@ -171,7 +163,7 @@ export default function MapView2D({
       // 4. เลเยอร์ขอบเขตผืนน้ำท่วมจริง (Smooth Anti-Aliased Flood Polygon)
       map.addSource('floodInundationSource', {
         type: 'geojson',
-        data: getFloodPolygonGeoJSON(floodStage)
+        data: currentDayIndex !== undefined ? getTimelineFloodPolygonGeoJSON(currentDayIndex) : getFloodPolygonGeoJSON(floodStage)
       });
 
       map.addLayer({
@@ -181,53 +173,6 @@ export default function MapView2D({
         paint: {
           'fill-color': '#f97316',
           'fill-opacity': (showMndwiWater || waterColorMode === 'mndwi') ? (comparisonBlend > 10 ? 0.65 : 0.35) : 0
-        }
-      });
-
-      // 4. หน้ากากตัดเฉพาะสี่เหลี่ยมโมเดล (Inverted Diorama Mask): ปิดบังทั้งโลกภายนอกกรอบสี่เหลี่ยมทั้งหมด
-      map.addSource('dioramaMaskSource', {
-        type: 'geojson',
-        data: getDioramaMaskGeoJSON()
-      });
-
-      map.addLayer({
-        id: 'diorama-mask-layer',
-        type: 'fill',
-        source: 'dioramaMaskSource',
-        paint: {
-          'fill-color': '#080c14',
-          'fill-opacity': 1.0
-        }
-      });
-
-      // 5. เส้นกรอบขอบโมเดลสี่เหลี่ยม 3 มิติ (Diorama Showcase Frame)
-      map.addSource('dioramaFrameSource', {
-        type: 'geojson',
-        data: getDioramaFrameGeoJSON()
-      });
-
-      // เส้นเรืองแสงกรอบโมเดล (Outer Glow)
-      map.addLayer({
-        id: 'diorama-frame-glow',
-        type: 'line',
-        source: 'dioramaFrameSource',
-        paint: {
-          'line-color': '#0ea5e9',
-          'line-width': 7,
-          'line-opacity': 0.45,
-          'line-blur': 4
-        }
-      });
-
-      // เส้นกรอบโมเดลคมชัด (Crisp Architectural Frame)
-      map.addLayer({
-        id: 'diorama-frame-line',
-        type: 'line',
-        source: 'dioramaFrameSource',
-        paint: {
-          'line-color': '#38bdf8',
-          'line-width': 2.5,
-          'line-opacity': 0.95
         }
       });
 
@@ -279,34 +224,6 @@ export default function MapView2D({
         }
       });
 
-      // 7. เลเยอร์แสดงวงรัศมี 500 เมตร รอบจุดชุมชน (ม.2, ม.3, ม.4)
-      map.addSource('sentinelCommunitiesSource', {
-        type: 'geojson',
-        data: getSentinelCommunityCircleGeoJSON(activeCommunity)
-      });
-
-      map.addLayer({
-        id: 'sentinel-community-fill',
-        type: 'fill',
-        source: 'sentinelCommunitiesSource',
-        paint: {
-          'fill-color': '#10b981',
-          'fill-opacity': 0.15
-        }
-      });
-
-      map.addLayer({
-        id: 'sentinel-community-line',
-        type: 'line',
-        source: 'sentinelCommunitiesSource',
-        paint: {
-          'line-color': '#10b981',
-          'line-width': 2.5,
-          'line-dasharray': [6, 4],
-          'line-opacity': 0.95
-        }
-      });
-
       setMapLoaded(true);
     });
 
@@ -319,23 +236,28 @@ export default function MapView2D({
     };
   }, []);
 
-  // อัปเดตขอบเขตผืนน้ำท่วมตาม floodStage และ waterColorMode
+  // อัปเดตขอบเขตผืนน้ำท่วมตาม currentDayIndex / floodStage และ waterColorMode
   useEffect(() => {
     if (!mapRef.current || !mapLoaded) return;
     const map = mapRef.current;
 
     const waterSource = map.getSource('floodInundationSource');
     if (waterSource) {
-      waterSource.setData(getFloodPolygonGeoJSON(floodStage));
+      if (currentDayIndex !== undefined) {
+        waterSource.setData(getTimelineFloodPolygonGeoJSON(currentDayIndex));
+      } else {
+        waterSource.setData(getFloodPolygonGeoJSON(floodStage));
+      }
     }
 
     if (map.getLayer('flood-inundation-fill')) {
       const showOverlay = showMndwiWater || waterColorMode === 'mndwi';
-      const opacity = showOverlay ? (floodStage === 0 ? 0.35 : 0.65) : 0;
+      const isNormal = currentDayIndex !== undefined ? currentDayIndex === 0 : floodStage === 0;
+      const opacity = showOverlay ? (isNormal ? 0.35 : 0.65) : 0;
       map.setPaintProperty('flood-inundation-fill', 'fill-color', '#f97316');
       map.setPaintProperty('flood-inundation-fill', 'fill-opacity', opacity);
     }
-  }, [floodStage, waterColorMode, showMndwiWater, mapLoaded]);
+  }, [currentDayIndex, floodStage, waterColorMode, showMndwiWater, mapLoaded]);
 
   // อัปเดตเลเยอร์โซนและรัศมีชุมชนตาม activeZone และ activeCommunity
   useEffect(() => {
@@ -346,12 +268,7 @@ export default function MapView2D({
     if (zonesSource) {
       zonesSource.setData(getSentinelZonesGeoJSON(activeZone));
     }
-
-    const comSource = map.getSource('sentinelCommunitiesSource');
-    if (comSource) {
-      comSource.setData(getSentinelCommunityCircleGeoJSON(activeCommunity));
-    }
-  }, [activeZone, activeCommunity, mapLoaded]);
+  }, [activeZone, mapLoaded]);
 
   // ปรับความโปร่งใสผสมภาพดาวเทียมจริง ก่อน (5 ก.ย.) ↔ หลัง (15 ก.ย. 67) แบบคงที่สม่ำเสมอทั่วทั้งโมเดล
   useEffect(() => {
@@ -410,86 +327,12 @@ export default function MapView2D({
     }
   }, [is3DMode, mapLoaded]);
 
-  // แสดงหมุดสถานที่สำคัญและชุมชน ต.ท่าตอน / บ้านท่าดอย
+  // นำหมุดสถานที่และชุมชนออกจากแผนที่ตามที่ผู้ใช้ร้องขอ
   useEffect(() => {
     if (!mapRef.current || !mapLoaded) return;
-    const map = mapRef.current;
-
     markersRef.current.forEach(m => m.remove());
     markersRef.current = [];
-
-    THATON_COMMUNITIES.forEach(com => {
-      const isSelected = selectedLocation?.id === com.id;
-
-      let icon = '📍';
-      let iconColor = '#0284c7';
-      if (com.id === 'wat-thaton') {
-        icon = '🛕';
-        iconColor = '#f59e0b';
-      } else if (com.id === 'thaton-bridge') {
-        icon = '🌉';
-        iconColor = '#6366f1';
-      } else if (com.id === 'thadoi-village') {
-        icon = '🏡';
-        iconColor = '#0d9488';
-      } else if (com.id === 'thaton-village') {
-        icon = '🏘️';
-        iconColor = '#0284c7';
-      }
-
-      const el = document.createElement('div');
-      el.className = 'group cursor-pointer select-none';
-      el.style.zIndex = isSelected ? '50' : '30';
-
-      el.innerHTML = `
-        <div class="flex flex-col items-center transform transition-transform duration-150 ${
-          isSelected ? 'scale-115' : 'hover:scale-110'
-        }">
-          <!-- ป้ายชื่อสถานที่ -->
-          <div class="px-2.5 py-1 mb-1 rounded-lg text-xs font-bold shadow-md border whitespace-nowrap transition-all duration-150 ${
-            isSelected
-              ? 'bg-slate-900 text-white border-slate-700 ring-2 ring-sky-400'
-              : 'bg-white/95 text-slate-800 border-slate-300 group-hover:border-sky-500 group-hover:bg-sky-50'
-          }">
-            ${com.name}
-          </div>
-
-          <!-- หมุดไอคอน 3 มิติ -->
-          <div class="w-6 h-6 rounded-full border-2 border-white shadow-lg flex items-center justify-center text-xs transition-all ${
-            isSelected ? 'ring-2 ring-sky-400 scale-125' : ''
-          }" style="background-color: ${iconColor}">
-            ${icon}
-          </div>
-        </div>
-      `;
-
-      el.addEventListener('click', (e) => {
-        e.stopPropagation();
-        if (onSelectLocation) onSelectLocation(com);
-
-        const cam = com.camera || {
-          center: com.coordinates,
-          zoom: 16.0,
-          pitch: is3DMode ? 42 : 0,
-          bearing: is3DMode ? 25 : 0
-        };
-
-        map.flyTo({
-          ...cam,
-          pitch: is3DMode ? (cam.pitch ?? 42) : 0,
-          bearing: is3DMode ? (cam.bearing ?? 0) : 0,
-          duration: 1200,
-          essential: true
-        });
-      });
-
-      const marker = new maplibregl.Marker({ element: el })
-        .setLngLat(com.coordinates)
-        .addTo(map);
-
-      markersRef.current.push(marker);
-    });
-  }, [selectedLocation, mapLoaded, onSelectLocation, is3DMode]);
+  }, [mapLoaded]);
 
   // เลื่อนมุมมองเมื่อมีการเลือกสถานที่จากภายนอก
   useEffect(() => {

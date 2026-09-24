@@ -29,6 +29,11 @@ export function getArsenicLevelConfig(ppbVal) {
   return closest;
 }
 
+export function parseCoordinate(value) {
+  const text = String(value ?? '').trim();
+  return /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)$/.test(text) ? Number(text) : NaN;
+}
+
 export const WATER_WATCH_STATIONS = [
   {
     id: 'ST-01',
@@ -372,8 +377,8 @@ export function clusterSubmissions(submissions = [], radiusMeters = 250) {
       || getArsenicLevelConfig(latestAs);
 
     // ระดับเตือนภัยตามผลตรวจวัดล่าสุด
-    const latestIsDanger = latestAs > 50;
-    const latestIsWatch = latestAs > 10 && !latestIsDanger;
+    const latestIsDanger = latestAs > 10;
+    const latestIsWatch = latestAs >= 5 && latestAs <= 10;
     const latestIsSafe = !latestIsDanger && !latestIsWatch;
 
     // รูปภาพของการตรวจวัดล่าสุดเท่านั้น (Strictly Latest Record - ไม่นำรูปรายงานเก่ามาปนเด็ดขาด)
@@ -587,9 +592,9 @@ export function getStationTelemetry(station, submissions = []) {
     ? 'text-emerald-700 bg-emerald-50 border-emerald-200' 
     : (isUp ? 'text-amber-700 bg-amber-50 border-amber-200' : 'text-slate-700 bg-slate-50 border-slate-200');
 
-  const isDanger = arsenic !== null && arsenic > 20;
-  const isWatch = arsenic !== null && arsenic > 10 && arsenic <= 20;
-  const isSafe = arsenic !== null && arsenic <= 10;
+  const isDanger = arsenic !== null && arsenic > 10;
+  const isWatch = arsenic !== null && arsenic >= 5 && arsenic <= 10;
+  const isSafe = arsenic !== null && arsenic < 5;
 
   return {
     arsenic,
@@ -1365,8 +1370,8 @@ export function normalizeSubmission(item) {
   }
   const asVal = Number(rawVal);
   const cfg = getArsenicLevelConfig(asVal);
-  const isDanger = asVal > 50;
-  const isWatch = asVal > 10 && !isDanger;
+  const isDanger = asVal > 10;
+  const isWatch = asVal >= 5 && asVal <= 10;
   const isSafe = !isDanger && !isWatch;
 
   return {
@@ -1518,4 +1523,3 @@ export function resetStoredSubmissions() {
   } catch (e) {}
   return INITIAL_SUBMISSIONS;
 }
-

@@ -77,6 +77,10 @@
   background: #72bd68;
 }
 
+.basin-status-bar .status-unknown {
+  background: #a9b4bc;
+}
+
 .basin-status-counts {
   display: flex;
   flex-wrap: wrap;
@@ -234,59 +238,166 @@
   text-decoration: underline;
 }
 
-/* 3. Time Range Card (ล่างกลาง) */
-.time-range-card {
+/* 3. Time Range Capsule (ล่างกลาง ดีไซน์โมเดิร์น กระจกใสพรีเมียม) */
+.time-range-capsule {
   position: absolute;
   z-index: 20;
   left: 50%;
-  bottom: 22px;
-  display: grid;
-  grid-template-columns: auto auto;
-  align-items: center;
-  gap: 12px;
-  padding: 8px 10px 8px 14px;
+  bottom: 20px;
   transform: translateX(-50%);
-  border: 1px solid rgba(226, 234, 230, 0.95);
-  border-radius: 16px;
-  background: rgba(255, 255, 255, 0.97);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  box-shadow: 0 4px 20px rgba(32, 61, 50, 0.14);
+  display: flex;
+  align-items: center;
 }
 
-.time-range-label {
-  color: #84938d;
-  font-size: 9.5px;
+.time-range-capsule-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 48px;
+  padding: 4px 12px 4px 6px;
+  border-radius: 9999px;
+  border: 1.5px solid rgba(255, 255, 255, 0.9);
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-shadow: 0 4px 20px rgba(15, 23, 42, 0.12), 0 1px 3px rgba(15, 23, 42, 0.05);
+  cursor: pointer;
+  transition: all 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
+  text-align: left;
+  user-select: none;
+}
+
+.time-range-capsule-btn:hover {
+  transform: translateY(-2px);
+  background: rgba(255, 255, 255, 0.98);
+  border-color: rgba(16, 185, 129, 0.45);
+  box-shadow: 0 8px 28px rgba(15, 23, 42, 0.16), 0 2px 6px rgba(15, 23, 42, 0.08);
+}
+
+.time-range-capsule-btn:active {
+  transform: scale(0.97);
+}
+
+.time-range-capsule.is-filtered .time-range-capsule-btn {
+  border-color: rgba(16, 185, 129, 0.55);
+  box-shadow: 0 4px 20px rgba(16, 185, 129, 0.18), 0 1px 4px rgba(15, 23, 42, 0.06);
+}
+
+/* Icon Badge */
+.time-range-icon-badge {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #f1f5f9;
+  color: #334155;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.time-range-capsule-btn:hover .time-range-icon-badge {
+  background: #e2e8f0;
+  color: #0f172a;
+  transform: scale(1.05);
+}
+
+.time-range-icon-badge.is-active {
+  background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+  color: #047857;
+}
+
+/* Animated Pulse Dot when filtered */
+.time-range-pulse-dot {
+  position: absolute;
+  top: 1px;
+  right: 1px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #10b981;
+  border: 1.5px solid #ffffff;
+  box-shadow: 0 0 6px rgba(16, 185, 129, 0.6);
+  animation: kok-pulse-glow 2s infinite ease-in-out;
+}
+
+@keyframes kok-pulse-glow {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.25);
+    opacity: 0.8;
+  }
+}
+
+/* Typography Text Block */
+.time-range-text-block {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  line-height: 1.15;
+}
+
+.time-range-micro-tag {
+  font-size: 8.5px;
   font-weight: 800;
   letter-spacing: 0.09em;
+  color: #64748b;
+  text-transform: uppercase;
+}
+
+.time-range-main-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 1.5px;
+}
+
+.time-range-active-title {
+  font-size: 12.5px;
+  font-weight: 800;
+  color: #0f172a;
   white-space: nowrap;
 }
 
-.time-range-option {
-  display: inline-flex;
-  min-height: 38px;
-  align-items: center;
-  gap: 9px;
-  padding: 0 12px;
-  border: 1px solid #dce8e2;
-  border-radius: 11px;
-  background: #f5f9f6;
-  color: #286c5a;
-  font: inherit;
-  font-size: 12px;
+.time-range-points-badge {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 10px;
   font-weight: 700;
-  cursor: pointer;
-  transition: all 0.15s ease;
+  color: #047857;
+  background: #ecfdf5;
+  border: 1px solid rgba(16, 185, 129, 0.25);
+  border-radius: 9999px;
+  padding: 0.5px 6px;
+  white-space: nowrap;
 }
 
-.time-range-option:hover {
-  background: #eef6f1;
-  border-color: #bad3c6;
+/* Vertical Hairline Divider */
+.time-range-v-divider {
+  width: 1px;
+  height: 20px;
+  background: #e2e8f0;
+  margin: 0 2px;
 }
 
-.time-range-option svg:last-child {
-  margin-left: 6px;
-  color: #81918b;
+/* Chevron Wrap */
+.time-range-chevron-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  color: #94a3b8;
+  transition: all 0.2s ease;
+}
+
+.time-range-capsule-btn:hover .time-range-chevron-wrap {
+  color: #334155;
+  transform: translateY(1.5px);
 }
 
 /* 4. Floating Map Controls (บนขวา แนวตั้ง) */
@@ -368,67 +479,126 @@
   background: #e8eeeb;
 }
 
-/* 5. Survey Button (ล่างขวา) */
-.survey-button {
+/* 5. Bottom Action Buttons (ล่างซ้าย App Switcher, ล่างขวา Survey Button วงกลม) */
+.kok-bottom-left-action {
   position: absolute;
-  z-index: 20;
-  right: 20px;
-  bottom: 22px;
-  display: inline-flex;
+  z-index: 25;
+  left: 20px;
+  bottom: 20px;
+  display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 9px;
-  min-height: 50px;
-  padding: 0 20px;
-  border: 0;
-  border-radius: 16px;
-  background: #176756;
-  color: #fff;
-  box-shadow: 0 5px 20px rgba(22, 63, 52, 0.28);
-  font: inherit;
-  font-size: 13px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: background 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
 }
 
-.survey-button:hover {
-  transform: translateY(-1px);
-  background: #125847;
-  box-shadow: 0 8px 24px rgba(22, 63, 52, 0.35);
-}
-
-.survey-button:active {
-  transform: scale(0.97);
-}
-
-/* Floating Return / App Switcher Button (ล่างขวา ถัดจาก Survey) */
-.app-switch-button {
+.kok-bottom-right-action {
   position: absolute;
-  z-index: 20;
-  right: 180px;
-  bottom: 22px;
+  z-index: 25;
+  right: 20px;
+  bottom: 20px;
+  display: flex;
+  align-items: center;
+}
+
+/* Floating Return / App Switcher Button (วงกลม สีฟ้าลื่นไหล) */
+.app-switch-button {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 50px;
-  height: 50px;
-  border-radius: 16px;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
   background: linear-gradient(135deg, #0284c7 0%, #2563eb 100%);
-  border: 1px solid rgba(255, 255, 255, 0.4);
-  box-shadow: 0 5px 20px rgba(2, 132, 199, 0.35);
+  border: 1.5px solid rgba(255, 255, 255, 0.5);
+  box-shadow: 0 4px 16px rgba(2, 132, 199, 0.35);
   color: #fff;
   cursor: pointer;
-  transition: all 0.15s ease;
+  padding: 0;
+  transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 .app-switch-button:hover {
-  transform: translateY(-1px) scale(1.03);
-  box-shadow: 0 8px 25px rgba(2, 132, 199, 0.45);
+  transform: translateY(-2px) scale(1.08);
+  box-shadow: 0 8px 24px rgba(2, 132, 199, 0.45);
 }
 
 .app-switch-button:active {
-  transform: scale(0.95);
+  transform: scale(0.92);
+}
+
+/* Survey FAB Button (ปุ่มทำแบบสำรวจ / แบบทดสอบ วงกลม ล่างขวา) */
+.survey-button {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(255, 255, 255, 0.5);
+  background: linear-gradient(135deg, #10b981 0%, #047857 100%);
+  color: #fff;
+  box-shadow: 0 4px 18px rgba(22, 63, 52, 0.35);
+  cursor: pointer;
+  padding: 0;
+  transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.survey-button:hover {
+  transform: translateY(-2px) scale(1.08);
+  background: linear-gradient(135deg, #059669 0%, #065f46 100%);
+  box-shadow: 0 8px 24px rgba(22, 63, 52, 0.45);
+}
+
+.survey-button:active {
+  transform: scale(0.92);
+}
+
+.survey-button svg,
+.app-switch-button svg {
+  width: 20px;
+  height: 20px;
+  color: #fff;
+}
+
+/* Tooltip on Hover for Bottom FABs */
+.kok-fab-tooltip {
+  position: absolute;
+  pointer-events: none;
+  opacity: 0;
+  transform: scale(0.92);
+  transition: opacity 0.18s ease, transform 0.18s ease;
+  background: rgba(15, 23, 42, 0.92);
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 8px;
+  white-space: nowrap;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  z-index: 30;
+}
+
+.kok-fab-tooltip-left {
+  right: calc(100% + 10px);
+  top: 50%;
+  transform: translateY(-50%) scale(0.92);
+}
+
+.survey-button:hover .kok-fab-tooltip-left {
+  opacity: 1;
+  transform: translateY(-50%) scale(1);
+}
+
+.kok-fab-tooltip-right {
+  left: calc(100% + 10px);
+  top: 50%;
+  transform: translateY(-50%) scale(0.92);
+}
+
+.app-switch-button:hover .kok-fab-tooltip-right {
+  opacity: 1;
+  transform: translateY(-50%) scale(1);
 }
 
 /* 6. Utility Panels (Guide, Daily Summary) */
@@ -465,6 +635,93 @@
   line-height: 1.6;
 }
 
+.map-utility-panel--detail {
+  width: min(760px, calc(100vw - 120px));
+  max-height: min(86svh, 860px);
+  padding: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border-radius: 22px;
+  user-select: text;
+}
+
+.utility-detail-header {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 22px 26px 18px;
+  border-bottom: 1px solid #e5eee9;
+  background: rgba(255, 255, 255, 0.98);
+}
+
+.utility-detail-kicker {
+  color: #13806c;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+}
+
+.map-utility-panel--detail h2 {
+  margin: 4px 0 5px;
+  color: #163e33;
+  font-size: 21px;
+  line-height: 1.35;
+}
+
+.map-utility-panel--detail p {
+  color: #546a62;
+  font-size: 13px;
+  line-height: 1.65;
+}
+
+.map-utility-panel--detail .map-utility-close {
+  position: static;
+  width: 36px;
+  height: 36px;
+  flex: 0 0 auto;
+}
+
+.utility-detail-body { padding: 22px 26px 26px; }
+.water-guide-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: 0; padding: 0; list-style: none; }
+.water-guide-grid li { padding: 16px; border: 1px solid #e4eee9; border-radius: 15px; background: #f8fbf9; }
+.water-guide-grid strong { color: #194d40; font-size: 14px; }
+.water-guide-grid p { margin-top: 7px; }
+.utility-detail-note { margin-top: 18px; padding: 12px 14px; border-left: 3px solid #458b79; border-radius: 8px; background: #eff8f4; color: #45675a; font-size: 12px; line-height: 1.6; }
+
+.water-summary-intro { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.water-summary-intro > div { display: flex; min-width: 0; flex-direction: column; gap: 3px; padding: 14px 16px; border-radius: 14px; background: #f2f8f5; }
+.water-summary-intro span { color: #526d61; font-size: 12px; }
+.water-summary-intro strong { color: #174b3c; font-size: 26px; line-height: 1.2; }
+.water-summary-intro small { color: #678074; font-size: 11px; }
+.water-summary-status { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 9px; margin-top: 12px; }
+.water-summary-status > div { display: flex; align-items: center; gap: 9px; padding: 12px; border-radius: 13px; }
+.water-summary-status strong { font-size: 23px; line-height: 1; }
+.water-summary-status span { font-size: 11px; line-height: 1.4; }
+.water-summary-status .is-critical { background: #fff2f1; color: #a93d35; }
+.water-summary-status .is-watch { background: #fff8e7; color: #98611c; }
+.water-summary-status .is-normal { background: #ebfaf4; color: #257653; }
+.water-summary-status .is-unknown { background: #f2f4f6; color: #5c6874; }
+.water-summary-section-title { display: flex; justify-content: space-between; align-items: end; margin: 24px 0 12px; }
+.water-summary-section-title h3 { margin: 0; color: #1a493b; font-size: 17px; }
+.water-summary-section-title p { margin-top: 2px; }
+.water-daily-list { display: grid; gap: 10px; }
+.water-daily-row { padding: 14px 16px; border: 1px solid #e5eee9; border-radius: 14px; background: #fff; }
+.water-daily-row-head { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; }
+.water-daily-row-head strong { color: #214b3f; font-size: 14px; }
+.water-daily-row-head span { color: #64776d; font-size: 12px; text-align: right; }
+.water-daily-bar { display: flex; width: 100%; height: 9px; margin-top: 11px; overflow: hidden; border-radius: 99px; background: #e9edf0; }
+.water-daily-bar .is-critical { background: #c7655c; }
+.water-daily-bar .is-watch { background: #dcad57; }
+.water-daily-bar .is-normal { background: #5aaa7c; }
+.water-daily-bar .is-unknown { background: #a9b4bc; }
+.water-daily-counts { display: flex; flex-wrap: wrap; column-gap: 17px; row-gap: 3px; margin-top: 9px; color: #5e7067; font-size: 11px; }
+.water-summary-empty, .water-summary-caveat { padding: 14px; border-radius: 12px; background: #f7f9f8; }
+.water-summary-caveat { margin-top: 12px !important; }
+
 .map-utility-close {
   position: absolute;
   top: 12px;
@@ -485,161 +742,239 @@
   background: #f0f5f2;
 }
 
-/* 7. Settings Panel (ตั้งค่าแผนที่) */
+/* 7. Minimalist Settings Panel (แผงตั้งค่าและเลเยอร์สไตล์มินิมอล ตามภาพอ้างอิง) */
 .map-settings-panel {
   position: absolute;
-  top: 18px;
+  top: 16px;
   right: 76px;
-  z-index: 30;
-  display: grid;
-  width: min(350px, calc(100vw - 100px));
-  max-height: min(80svh, 740px);
+  z-index: 35;
+  width: 310px;
+  max-height: min(85svh, 720px);
   overflow-y: auto;
   overscroll-behavior: contain;
-  border: 1px solid #dce7e1;
-  border-radius: 18px;
-  background: rgba(255, 255, 255, 0.98);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  color: #29453d;
-  box-shadow: 0 14px 44px rgba(23, 61, 48, 0.2);
-  animation: panel-fade-in 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  border-radius: 24px;
+  background: #ffffff;
+  box-shadow: 0 20px 40px -12px rgba(15, 23, 42, 0.16), 0 0 0 1px rgba(0, 0, 0, 0.04);
+  padding: 16px 18px;
+  animation: panel-spring-in 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
-.map-settings-header {
-  position: sticky;
-  top: 0;
-  z-index: 1;
-  display: flex;
+.river-flow-overview {
+  display: grid;
+  gap: 7px;
+  color: #334155;
+  font-size: 12px;
+}
+
+.river-flow-overview strong { font-size: 13px; }
+.river-flow-overview span { line-height: 1.45; }
+.river-flow-overview small { color: #64748b; line-height: 1.4; }
+.river-flow-overview button {
+  display: inline-flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 14px 16px;
-  border-bottom: 1px solid #edf1ef;
-  background: rgba(255, 255, 255, 0.98);
-}
-
-.map-settings-header > div {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.map-settings-icon {
-  display: grid;
-  width: 34px;
-  height: 34px;
-  place-items: center;
-  border-radius: 11px;
-  background: #eaf5f0;
-  color: #28715d;
-}
-
-.map-settings-header strong {
-  font-size: 13px;
-  color: #1f3a32;
-  font-weight: 700;
-}
-
-.map-settings-header small {
-  margin-top: 2px;
-  color: #8a9992;
-  font-size: 10px;
-}
-
-.map-settings-close {
-  display: grid;
-  width: 32px;
-  height: 32px;
-  place-items: center;
-  border: 0;
-  border-radius: 9px;
-  background: transparent;
-  color: #71847b;
-  cursor: pointer;
-}
-
-.map-settings-close:hover {
-  background: #f1f5f2;
-}
-
-.map-settings-section {
-  display: grid;
-  gap: 10px;
-  padding: 14px 16px;
-  border-bottom: 1px solid #edf1ef;
-}
-
-.map-settings-section-title {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  color: #37564b;
-  font-size: 11px;
-  font-weight: 700;
-}
-
-.map-settings-section-title small {
-  color: #81928a;
-  font-size: 9.5px;
-  font-weight: 500;
-}
-
-.map-settings-check {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  cursor: pointer;
-}
-
-.map-settings-check input {
-  width: 16px;
-  height: 16px;
-  margin: 2px 0 0;
-  accent-color: #26735e;
-}
-
-.map-settings-check strong {
-  display: block;
-  color: #3c554c;
-  font-size: 11px;
-  font-weight: 600;
-}
-
-.map-settings-check small {
-  display: block;
-  margin-top: 2px;
-  color: #84938c;
-  font-size: 9.5px;
-  line-height: 1.4;
-}
-
-.map-settings-tabs {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 4px;
-  padding: 4px;
+  justify-content: center;
+  gap: 6px;
+  min-height: 34px;
+  border: 1px solid #9ad8e6;
   border-radius: 10px;
-  background: #f2f6f3;
+  background: #e9f7fb;
+  color: #075a77;
+  font-weight: 700;
+  cursor: pointer;
 }
 
-.map-settings-tabs button {
-  min-height: 32px;
-  border: 0;
-  border-radius: 7px;
+.river-flow-overview button:focus-visible,
+.ios-toggle:focus-visible {
+  outline: 3px solid #2563eb;
+  outline-offset: 2px;
+}
+
+.river-boundary-label-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 6px 2px 0;
+  color: #334155;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.river-boundary-label-toggle input { accent-color: #176756; }
+.river-boundary-hint { display: block; margin: 3px 2px 8px; color: #64748b; font-size: 11px; }
+
+.kok-river-flow-arrow {
+  display: block;
+  width: 28px;
+  height: 20px;
+  pointer-events: none;
+}
+
+.kok-river-flow-arrow svg {
+  display: block;
+  width: 28px;
+  height: 20px;
+  filter: drop-shadow(0 1px 3px rgba(0, 41, 65, 0.6));
+}
+
+@keyframes panel-spring-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.94) translateY(-6px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.map-settings-header-minimal {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.map-settings-title-minimal {
+  font-size: 13px;
+  font-weight: 700;
+  color: #64748b;
+  letter-spacing: 0.02em;
+}
+
+.map-settings-close-minimal {
+  width: 26px;
+  height: 26px;
+  border-radius: 9999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
   background: transparent;
-  color: #75867f;
-  font: inherit;
-  font-size: 10.5px;
+  color: #94a3b8;
   cursor: pointer;
   transition: all 0.15s ease;
 }
 
-.map-settings-tabs button.is-active {
-  background: #fff;
-  color: #286853;
-  box-shadow: 0 1px 5px rgba(36, 70, 55, 0.12);
+.map-settings-close-minimal:hover {
+  background: #f1f5f9;
+  color: #334155;
+}
+
+/* One choice per real basemap; labels are a separate option. */
+.map-styles-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 5px;
+}
+
+.map-style-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 38px;
+  padding: 7px 12px;
+  border-radius: 14px;
+  font-size: 13px;
   font-weight: 700;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  border: 2px solid transparent;
+  background: transparent;
+  color: #334155;
+  user-select: none;
+}
+
+.map-style-card:hover {
+  background: #f8fafc;
+}
+
+.map-style-card.is-active {
+  border-color: #0070f3;
+  background: rgba(0, 112, 243, 0.08);
+  color: #0070f3;
+}
+
+.map-style-card.is-active svg {
+  color: #0070f3;
+}
+
+/* Hairline Divider */
+.map-settings-divider {
+  height: 1px;
+  background: #f1f5f9;
+  margin: 14px 0 12px;
+}
+
+/* Layers Section */
+.layer-toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 7px 2px;
+  user-select: none;
+}
+
+.layer-toggle-label {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: #1e293b;
+  font-size: 13.5px;
+  font-weight: 700;
+}
+
+.layer-toggle-icon {
+  width: 20px;
+  height: 20px;
+  color: #1e293b;
+  flex-shrink: 0;
+}
+
+/* iOS Toggle Switch (เปิด-ปิด) */
+.ios-toggle {
+  width: 46px;
+  height: 26px;
+  border-radius: 9999px;
+  position: relative;
+  transition: background-color 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  align-items: center;
+  padding: 3px;
+  border: none;
+  cursor: pointer;
+  outline: none;
+}
+
+.ios-toggle.is-on {
+  background-color: #0070f3;
+}
+
+.ios-toggle.is-off {
+  background-color: #cbd5e1;
+}
+
+.ios-toggle:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.ios-toggle-knob {
+  width: 20px;
+  height: 20px;
+  border-radius: 9999px;
+  background-color: #ffffff;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.ios-toggle.is-on .ios-toggle-knob {
+  transform: translateX(20px);
+}
+
+.ios-toggle.is-off .ios-toggle-knob {
+  transform: translateX(0);
 }
 
 /* 8. Action Feedback Toast */
@@ -678,91 +1013,295 @@
   100% { opacity: 0; transform: translateY(-4px); }
 }
 
-/* 9. Mobile Responsive Layout (เหมือนในรูปเป๊ะเมื่อจอย่อ) */
-@media (max-width: 640px) {
+/* ========================================================
+   8.5 Marker & Button Selection Micro-Animations
+   (อนิเมชั่นตอนเลือกหมุด/กลุ่ม และปุ่มกดให้สวยงาม มีชีวิตชีวา)
+   ======================================================== */
+
+/* 1. Marker Hover & Selection Animations */
+.hotspot-marker,
+.single-point-marker {
+  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.hotspot-marker:hover .hotspot-inner,
+.single-point-marker:hover .point-inner {
+  transform: translateY(-2px) scale(1.08);
+}
+
+.hotspot-marker.is-selected,
+.single-point-marker.is-selected {
+  z-index: 75 !important;
+}
+
+.hotspot-marker.is-selected .hotspot-inner,
+.single-point-marker.is-selected .point-inner {
+  animation: marker-select-pop 0.36s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+/* รัศมีแสงสีฟ้ากระจายตัว (Beacon wave) รอบจุดที่ถูกเลือก */
+.hotspot-marker.is-selected .hotspot-node::before,
+.single-point-marker.is-selected .point-pin::before {
+  content: '';
+  position: absolute;
+  inset: -8px;
+  border-radius: 9999px;
+  border: 2px solid #0284c7;
+  background: rgba(2, 132, 199, 0.15);
+  animation: marker-beacon-wave 1.6s infinite ease-out;
+  pointer-events: none;
+}
+
+.hotspot-marker.is-selected .hotspot-badge,
+.single-point-marker.is-selected .point-badge {
+  box-shadow: 0 0 0 2px #fff, 0 8px 22px rgba(2, 132, 199, 0.5) !important;
+  transform: translateY(-2px);
+}
+
+@keyframes marker-select-pop {
+  0% {
+    transform: scale(0.92) translateY(0);
+  }
+  50% {
+    transform: scale(1.28) translateY(-5px);
+  }
+  100% {
+    transform: scale(1.16) translateY(-2px);
+  }
+}
+
+@keyframes marker-beacon-wave {
+  0% {
+    transform: scale(0.7);
+    opacity: 0.9;
+  }
+  65% {
+    transform: scale(2);
+    opacity: 0.2;
+  }
+  100% {
+    transform: scale(2.5);
+    opacity: 0;
+  }
+}
+
+/* 2. Popup Modal Spring Entrance (เปิดการ์ดแบบเด้งนุ่มนวล) */
+.kok-popup-card {
+  animation: popup-spring-card 0.32s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  transform-origin: bottom center;
+}
+
+@keyframes popup-spring-card {
+  0% {
+    opacity: 0;
+    transform: scale(0.86) translateY(12px);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.03) translateY(-3px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* 3. Popup Elements Micro-Interactions */
+.kok-popup-close-btn {
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), background-color 0.15s ease;
+}
+
+.kok-popup-close-btn:hover {
+  transform: rotate(90deg) scale(1.15);
+}
+
+.kok-popup-report-btn {
+  transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.kok-popup-report-btn:hover {
+  transform: translateY(-1.5px) scale(1.02);
+  box-shadow: 0 6px 20px rgba(37, 99, 235, 0.38);
+}
+
+.kok-popup-report-btn:active {
+  transform: scale(0.95) translateY(1px);
+}
+
+.kok-status-dot-pulse {
+  animation: status-breathe 2.2s infinite ease-in-out;
+}
+
+@keyframes status-breathe {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.3);
+    opacity: 0.8;
+  }
+}
+
+/* 4. Map Control Buttons Tactile Feedback (กดปุ่มแล้วยุบตัวเด้งนุ่ม) */
+.round-control,
+.survey-button,
+.app-switch-button,
+.zoom-control button {
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s ease, background 0.15s ease, color 0.15s ease;
+}
+
+.round-control:hover {
+  transform: translateY(-2px) scale(1.06);
+  box-shadow: 0 6px 18px rgba(32, 61, 50, 0.16);
+}
+
+.round-control:active {
+  transform: scale(0.9) translateY(1px);
+}
+
+.zoom-control button:active {
+  transform: scale(0.88);
+  background: rgba(2, 132, 199, 0.12);
+  color: #0284c7;
+}
+
+.survey-button:hover {
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: 0 8px 24px rgba(22, 63, 52, 0.35);
+}
+
+.survey-button:active {
+  transform: scale(0.94) translateY(1px);
+}
+
+.app-switch-button:hover {
+  transform: translateY(-2px) scale(1.06);
+  box-shadow: 0 8px 25px rgba(2, 132, 199, 0.45);
+}
+
+.app-switch-button:active {
+  transform: scale(0.92) translateY(1px);
+}
+
+/* 9. Mobile Responsive Layout (ซ่อนการ์ดสถานะ/เกณฑ์ เอา Time Range ไว้ล่างปุ่ม และปุ่มขนาดกะทัดรัด) */
+@media (max-width: 768px) {
+  /* เอาสถานการณ์ลุ่มน้ำวันนี้ และ เกณฑ์สารหนู ออกบนมือถือ ตามคำขอ */
   .basin-status-card {
-    top: 12px;
-    left: 12px;
-    width: min(340px, calc(100vw - 80px));
-    padding: 12px 14px;
-    border-radius: 14px;
-  }
-
-  .basin-status-card h1 {
-    margin-bottom: 8px;
-    font-size: 16px;
-  }
-
-  .basin-status-bar {
-    height: 10px;
-  }
-
-  .basin-status-counts {
-    gap: 5px;
-    margin-top: 8px;
-    font-size: 11px;
-  }
-
-  .basin-status-count {
-    gap: 5px;
+    display: none !important;
   }
 
   .water-criteria-card {
-    top: 120px;
-    left: 12px;
-    width: min(330px, calc(100vw - 80px));
-    padding: 10px 12px 8px;
-    border-radius: 13px;
+    display: none !important;
   }
 
-  .time-range-card {
-    bottom: 80px;
-    gap: 8px;
-    padding: 6px 8px 6px 12px;
+  /* เอา Time Range ไว้ข้างล่างตัวของปุ่ม (ชิดล่างสุด) */
+  /* Time Range Capsule บนหน้าจอมือถือ */
+  .time-range-capsule {
+    position: absolute;
+    left: 50%;
+    bottom: 12px;
+    transform: translateX(-50%);
+    z-index: 20;
   }
 
-  .time-range-option {
-    min-height: 34px;
-    padding: 0 10px;
-    font-size: 11px;
+  .time-range-capsule-btn {
+    height: 44px;
+    padding: 3px 10px 3px 5px;
+    gap: 7px;
+  }
+
+  .time-range-icon-badge {
+    width: 32px;
+    height: 32px;
+  }
+
+  .time-range-icon-badge svg {
+    width: 15px;
+    height: 15px;
+  }
+
+  .time-range-micro-tag {
+    font-size: 8px;
+    letter-spacing: 0.08em;
+  }
+
+  .time-range-active-title {
+    font-size: 11.5px;
+  }
+
+  .time-range-points-badge {
+    font-size: 9px;
+    padding: 0 5px;
+  }
+
+  .time-range-v-divider {
+    height: 16px;
+    margin: 0 1px;
+  }
+
+  /* ปุ่มล่างซ้าย (App Switcher) และ ล่างขวา (Survey FAB วงกลม) */
+  .kok-bottom-left-action {
+    position: absolute;
+    left: 14px;
+    bottom: 12px;
+    z-index: 25;
+  }
+
+  .kok-bottom-right-action {
+    position: absolute;
+    right: 14px;
+    bottom: 12px;
+    z-index: 25;
+  }
+
+  /* ปุ่มทำแบบสำรวจ / แบบทดสอบ วงกลม ล่างขวา */
+  .survey-button {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    box-shadow: 0 3px 14px rgba(22, 63, 52, 0.32);
+    padding: 0;
+  }
+
+  .survey-button svg {
+    width: 19px;
+    height: 19px;
+  }
+
+  /* ปุ่มสลับระบบ (App Switcher) วงกลม ล่างซ้าย */
+  .app-switch-button {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    box-shadow: 0 3px 14px rgba(2, 132, 199, 0.32);
+    padding: 0;
+  }
+
+  .app-switch-button svg {
+    width: 19px;
+    height: 19px;
   }
 
   .map-controls {
     top: 12px;
     right: 12px;
-    gap: 10px;
+    gap: 8px;
   }
 
   .round-control {
-    width: 42px;
-    height: 42px;
+    width: 40px;
+    height: 40px;
   }
 
   .zoom-control {
-    width: 42px;
-    border-radius: 13px;
+    width: 40px;
+    border-radius: 12px;
   }
 
   .zoom-control button {
-    width: 40px;
-    height: 38px;
-  }
-
-  .survey-button {
-    right: 12px;
-    bottom: 16px;
-    min-height: 46px;
-    padding: 0 16px;
-    border-radius: 14px;
-    font-size: 12px;
-  }
-
-  .app-switch-button {
-    right: 156px;
-    bottom: 16px;
-    width: 46px;
-    height: 46px;
-    border-radius: 14px;
+    width: 38px;
+    height: 36px;
   }
 
   .map-utility-panel {
@@ -770,6 +1309,23 @@
     width: calc(100vw - 84px);
     padding: 14px 16px;
   }
+
+  .map-utility-panel--detail {
+    top: 60px;
+    width: calc(100vw - 24px);
+    max-height: calc(100svh - 130px);
+    padding: 0;
+  }
+
+  .utility-detail-header { padding: 16px; }
+  .utility-detail-body { padding: 16px; }
+  .map-utility-panel--detail h2 { font-size: 17px; }
+  .water-guide-grid { grid-template-columns: 1fr; }
+  .water-summary-intro { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .water-summary-intro > div:last-child { grid-column: 1 / -1; }
+  .water-summary-status { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .water-daily-row-head { align-items: flex-start; flex-direction: column; gap: 2px; }
+  .water-daily-row-head span { text-align: left; }
 
   .map-settings-panel {
     top: 12px;

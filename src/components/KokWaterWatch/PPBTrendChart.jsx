@@ -44,8 +44,8 @@ export function getPPBTimeSeries(items = []) {
       : '-';
 
     const numPpb = ppb !== null && !isNaN(ppb) ? Number(ppb) : 0;
-    const isDanger = numPpb > 50;
-    const isWatch = numPpb > 10 && !isDanger;
+    const isDanger = numPpb > 10;
+    const isWatch = numPpb >= 5 && numPpb <= 10;
     const isSafe = !isDanger && !isWatch;
 
     return {
@@ -107,8 +107,8 @@ export default function PPBTrendChart({
   const plotWidth = svgWidth - paddingLeft - paddingRight;
   const plotHeight = svgHeight - paddingTop - paddingBottom;
 
-  // กำหนดสเกล Y: ต้องครอบคลุมอย่างน้อย 0 ถึง 55 เพื่อให้เห็นเส้นเกณฑ์ WHO 10 และ เกณฑ์อันตราย 50
-  const yCeil = Math.max(55, Math.ceil((maxVal * 1.25) / 10) * 10);
+  // Show both alert thresholds even when every sample is low.
+  const yCeil = Math.max(20, Math.ceil((maxVal * 1.25) / 10) * 10);
   const yFloor = 0;
 
   const getYCoord = (val) => {
@@ -139,9 +139,8 @@ export default function PPBTrendChart({
     ? ''
     : `M ${points[0].x.toFixed(1)},${bottomY} L ${points.map(p => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' L ')} L ${points[points.length - 1].x.toFixed(1)},${bottomY} Z`;
 
-  // เส้นเกณฑ์มาตรฐาน
-  const whoY = getYCoord(10);
-  const dangerY = getYCoord(50);
+  const watchY = getYCoord(5);
+  const dangerY = getYCoord(10);
 
   // ในโหมด Compact จะแสดง selectedPoint เฉพาะเมื่อมีการแตะ/เลือกจุดเท่านั้น เพื่อประหยัดพื้นที่แนวตั้ง
   const selectedPoint = activeIdx !== null ? points[activeIdx] : (!isCompact && series.length > 1 ? points[points.length - 1] : null);
@@ -218,40 +217,40 @@ export default function PPBTrendChart({
             strokeWidth="1"
           />
 
-          {/* เส้นเกณฑ์มาตรฐาน WHO 10 ppb */}
+          {/* Watch threshold: 5 ppb */}
           <line
             x1={paddingLeft}
-            y1={whoY}
+            y1={watchY}
             x2={svgWidth - paddingRight}
-            y2={whoY}
-            stroke="#059669"
+            y2={watchY}
+            stroke="#d97706"
             strokeWidth="1.2"
             strokeDasharray="4 3"
           />
           <text
             x={paddingLeft - 4}
-            y={whoY + 3.5}
+            y={watchY + 3.5}
             textAnchor="end"
             fontSize={isCompact ? 9 : 10.5}
             fontWeight="bold"
-            fill="#059669"
+            fill="#d97706"
             fontFamily="monospace"
           >
-            10
+            5
           </text>
           <text
             x={svgWidth - paddingRight + 4}
-            y={whoY + 3.5}
+            y={watchY + 3.5}
             textAnchor="start"
             fontSize={isCompact ? 8.5 : 9.5}
             fontWeight="bold"
-            fill="#059669"
+            fill="#d97706"
           >
-            WHO (10)
+            เฝ้าระวัง (5)
           </text>
 
-          {/* เส้นเกณฑ์อันตราย 50 ppb */}
-          {yCeil >= 50 && (
+          {/* Exceeds displayed threshold above 10 ppb */}
+          {yCeil >= 10 && (
             <>
               <line
                 x1={paddingLeft}
@@ -271,7 +270,7 @@ export default function PPBTrendChart({
                 fill="#e11d48"
                 fontFamily="monospace"
               >
-                50
+                10
               </text>
               <text
                 x={svgWidth - paddingRight + 4}
@@ -281,7 +280,7 @@ export default function PPBTrendChart({
                 fontWeight="bold"
                 fill="#e11d48"
               >
-                อันตราย (50)
+                เกินเกณฑ์ (10)
               </text>
             </>
           )}
@@ -407,7 +406,7 @@ export default function PPBTrendChart({
                     ? 'bg-amber-500 text-white'
                     : 'bg-emerald-600 text-white'
                 }`}>
-                  {selectedPoint.isDanger ? 'เกินเกณฑ์' : selectedPoint.isWatch ? 'เฝ้าระวัง' : 'ปลอดภัย'}
+                  {selectedPoint.isDanger ? 'เกินเกณฑ์' : selectedPoint.isWatch ? 'เฝ้าระวัง' : 'ปกติ'}
                 </span>
               </div>
               <div className="text-[11px] text-slate-500 flex items-center gap-2 mt-0.5 truncate font-mono">
@@ -431,9 +430,9 @@ export default function PPBTrendChart({
             <span className="text-[11px] sm:text-xs font-bold font-mono text-slate-800">{avgVal} ppb</span>
           </div>
           <div className={`py-0.5 px-1 rounded-md border ${
-            maxVal > 50
+            maxVal > 10
               ? 'bg-rose-50 border-rose-200 text-rose-900'
-              : maxVal > 10
+              : maxVal >= 5
               ? 'bg-amber-50 border-amber-200 text-amber-900'
               : 'bg-emerald-50 border-emerald-200 text-emerald-900'
           }`}>

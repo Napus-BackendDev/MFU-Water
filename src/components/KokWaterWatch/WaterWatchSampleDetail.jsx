@@ -38,8 +38,8 @@ export default function WaterWatchSampleDetail({ sample, onClose, onDelete }) {
   const asVal = Number(rawAs);
   const levelCfg = getArsenicLevelConfig(asVal);
 
-  const isDanger = asVal > 50;
-  const isWatch = asVal > 10 && !isDanger;
+  const isDanger = asVal > 10;
+  const isWatch = asVal >= 5 && asVal <= 10;
   const isSafe = !isDanger && !isWatch;
 
   // พิกัด
@@ -168,7 +168,7 @@ export default function WaterWatchSampleDetail({ sample, onClose, onDelete }) {
                     ? 'bg-amber-100 text-amber-800 border-amber-300'
                     : 'bg-emerald-100 text-emerald-800 border-emerald-300'
                 }`}>
-                  {isDanger ? 'เกินเกณฑ์อันตราย' : isWatch ? 'เฝ้าระวัง' : 'ปกติ (ปลอดภัย)'}
+                  {isDanger ? 'เกินเกณฑ์' : isWatch ? 'เฝ้าระวัง' : 'ปกติ'}
                 </span>
               </div>
             </div>
@@ -178,19 +178,19 @@ export default function WaterWatchSampleDetail({ sample, onClose, onDelete }) {
               {isDanger && (
                 <span className="text-rose-700 flex items-center gap-1.5 font-bold">
                   <AlertCircle className="w-4 h-4 shrink-0" />
-                  <span>⚠️ เกินเกณฑ์มาตรฐานอันตราย (&gt; 50 ppb) ห้ามบริโภคหรือนำไปปรุงอาหารโดยเด็ดขาด</span>
+                  <span>⚠️ เกินเกณฑ์ที่แสดงบนแผนที่ (&gt; 10 ppb) ไม่ควรบริโภคก่อนตรวจยืนยันคุณภาพน้ำ</span>
                 </span>
               )}
               {isWatch && (
                 <span className="text-amber-800 flex items-center gap-1.5 font-bold">
                   <AlertTriangle className="w-4 h-4 shrink-0 text-amber-600" />
-                  <span>⚠️ อยู่ในระดับเฝ้าระวัง (11 - 50 ppb) เกินเกณฑ์น้ำดื่ม WHO ควรกรองก่อนใช้งาน</span>
+                  <span>⚠️ อยู่ในระดับเฝ้าระวัง (5-10 ppb) ควรตรวจยืนยันคุณภาพน้ำก่อนนำไปบริโภค</span>
                 </span>
               )}
               {isSafe && (
                 <span className="text-emerald-800 flex items-center gap-1.5 font-bold">
                   <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600" />
-                  <span>✅ อยู่ในเกณฑ์มาตรฐานปลอดภัยตามเกณฑ์น้ำดื่ม WHO (&le; 10 ppb)</span>
+                  <span>อยู่ในระดับปกติของระบบ (&lt; 5 ppb) ไม่ใช่การยืนยันว่าน้ำดื่มได้</span>
                 </span>
               )}
             </div>
@@ -250,18 +250,18 @@ export default function WaterWatchSampleDetail({ sample, onClose, onDelete }) {
               </div>
             </div>
 
-            {/* Visual Gauge Bar (WHO Scale) */}
+            {/* Visual gauge on a 0-100 ppb scale */}
             <div className="mt-3.5 pt-3 border-t border-black/10">
               <div className="flex items-center justify-between text-[10px] text-slate-500 mb-1">
-                <span>เกจวัดเทียบมาตรฐาน (WHO &le;10 / เฝ้าระวัง &le;50 / อันตราย &gt;50)</span>
+                <span>ระดับแจ้งเตือนของระบบ (ปกติ &lt;5 / เฝ้าระวัง 5-10 / เกินเกณฑ์ &gt;10 ppb)</span>
                 <span className="font-mono font-bold text-slate-700">{asVal} ppb</span>
               </div>
 
               <div className="relative pt-1 pb-2">
                 <div className="h-2.5 w-full rounded-full bg-slate-200 flex overflow-hidden border border-slate-300 shadow-inner">
-                  <div className="h-full bg-emerald-500 w-[20%]" title="ปลอดภัย (0-10 ppb)"></div>
-                  <div className="h-full bg-amber-400 w-[40%]" title="เฝ้าระวัง (11-50 ppb)"></div>
-                  <div className="h-full bg-rose-500 w-[40%]" title="อันตราย (> 50 ppb)"></div>
+                  <div className="h-full bg-emerald-500 w-[5%]" title="ปกติ (< 5 ppb)"></div>
+                  <div className="h-full bg-amber-400 w-[5%]" title="เฝ้าระวัง (5-10 ppb)"></div>
+                  <div className="h-full bg-rose-500 w-[90%]" title="เกินเกณฑ์ (> 10 ppb)"></div>
                 </div>
 
                 {/* Marker Pin */}
@@ -278,9 +278,9 @@ export default function WaterWatchSampleDetail({ sample, onClose, onDelete }) {
 
               <div className="flex justify-between text-[8px] font-mono text-slate-500">
                 <span>0</span>
-                <span className="text-emerald-700 font-bold">10 (เกณฑ์ WHO)</span>
-                <span className="text-amber-700 font-bold">50 (เฝ้าระวัง)</span>
-                <span className="text-rose-700 font-bold">&gt;100 ppb</span>
+                <span className="text-emerald-700 font-bold">5</span>
+                <span className="text-amber-700 font-bold">10</span>
+                <span className="text-rose-700 font-bold">100+ ppb</span>
               </div>
             </div>
           </div>

@@ -20,6 +20,8 @@ import {
 } from '../data/sentinelFloodAnalysisData';
 
 export default function SentinelAnalysisHUD({
+  isOpen: controlledIsOpen,
+  setIsOpen: setControlledIsOpen,
   floodStage,
   setFloodStage,
   activeZone,
@@ -30,7 +32,9 @@ export default function SentinelAnalysisHUD({
   setWaterColorMode,
   onFlyToLocation
 }) {
-  const [isOpen, setIsOpen] = useState(() => typeof window !== 'undefined' ? window.innerWidth >= 1024 : false);
+  const [internalOpen, setInternalOpen] = useState(() => typeof window !== 'undefined' ? window.innerWidth >= 1024 : false);
+  const isOpen = controlledIsOpen !== undefined ? controlledIsOpen : internalOpen;
+  const setIsOpen = setControlledIsOpen || setInternalOpen;
   const [showMethods, setShowMethods] = useState(false);
 
   return (

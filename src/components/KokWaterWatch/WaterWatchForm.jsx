@@ -8,7 +8,7 @@ import {
   Check
 } from 'lucide-react';
 import { uploadSampleImage, saveSampleToSupabase } from '../../lib/supabase';
-import { ARSENIC_LEVELS } from '../../data/waterWatchData';
+import { ARSENIC_LEVELS, parseCoordinate } from '../../data/waterWatchData';
 
 export { ARSENIC_LEVELS };
 
@@ -127,8 +127,8 @@ export default function WaterWatchForm({
     }
 
     // Validation 2: Coordinates required and must be valid numbers
-    const parsedLat = parseFloat(latitude);
-    const parsedLng = parseFloat(longitude);
+    const parsedLat = parseCoordinate(latitude);
+    const parsedLng = parseCoordinate(longitude);
 
     if (
       latitude === '' ||
@@ -225,7 +225,7 @@ export default function WaterWatchForm({
           arsenic: {
             value: selectedLevel.ppb,
             unit: 'ppb',
-            status: selectedLevel.ppb > 50 ? 'danger' : selectedLevel.ppb > 10 ? 'watch' : 'normal',
+            status: selectedLevel.ppb > 10 ? 'danger' : selectedLevel.ppb >= 5 ? 'watch' : 'normal',
             method: 'ชุดทดสอบภาคสนาม (Arsenic Field Test Kit)',
             instrument: `แถบเทียบสีระดับ ${selectedLevel.level} (${selectedLevel.label})`,
             level: selectedLevel.level,
@@ -405,17 +405,17 @@ export default function WaterWatchForm({
                 </div>
               </div>
               <div>
-                {selectedLevel.ppb <= 10 ? (
+                {selectedLevel.ppb < 5 ? (
                   <span className="px-2.5 py-0.5 rounded-full text-[11px] sm:text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-200 whitespace-nowrap">
-                    เกณฑ์ปลอดภัย (ดื่มได้)
+                    ปกติ (&lt; 5 ppb) ไม่ยืนยันว่าน้ำดื่มได้
                   </span>
-                ) : selectedLevel.ppb <= 50 ? (
+                ) : selectedLevel.ppb <= 10 ? (
                   <span className="px-2.5 py-0.5 rounded-full text-[11px] sm:text-xs font-bold bg-amber-100 text-amber-800 border border-amber-200 whitespace-nowrap">
-                    เฝ้าระวัง (เกินเกณฑ์บริโภค)
+                    เฝ้าระวัง (5-10 ppb)
                   </span>
                 ) : (
                   <span className="px-2.5 py-0.5 rounded-full text-[11px] sm:text-xs font-bold bg-red-100 text-red-800 border border-red-200 whitespace-nowrap">
-                    เกินมาตรฐานอันตราย
+                    เกินเกณฑ์ (&gt; 10 ppb)
                   </span>
                 )}
               </div>
