@@ -7,9 +7,13 @@ import {
   MapPin,
   Camera,
   Calendar,
+  CalendarDays,
+  CircleHelp,
+  ClipboardList,
   Download,
   Check,
   Plus,
+  Minus,
   ChevronDown,
   ChevronUp,
   X,
@@ -17,12 +21,15 @@ import {
   Flame,
   RotateCcw,
   Clock,
-  Filter
+  Filter,
+  Settings,
+  Waves
 } from 'lucide-react';
 import WaterWatchMap from './WaterWatchMap';
 import WaterWatchForm from './WaterWatchForm';
 import WaterWatchSampleDetail from './WaterWatchSampleDetail';
 import StationDetailModal from './StationDetailModal';
+import './kokWaterWatchModern.css';
 import { 
   getStoredSubmissions, 
   saveNewSubmission, 
@@ -146,6 +153,17 @@ export default function KokWaterWatchView({ onBackToFloodSim }) {
   const [customStartDate, setCustomStartDate] = useState('');
   const [customEndDate, setCustomEndDate] = useState('');
   const timeFilterContainerRef = useRef(null);
+
+  // Modern UI Reference States (ตรงตามรูปภาพอ้างอิง)
+  const [guideOpen, setGuideOpen] = useState(false);
+  const [summaryOpen, setSummaryOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [actionFeedback, setActionFeedback] = useState('');
+  const [mapType, setMapType] = useState('satellite');
+  const [showLabels, setShowLabels] = useState(false);
+  const [filterLevel, setFilterLevel] = useState('all');
+  const mapController = useRef(null);
 
   // Close search and time filter dropdown on click outside
   useEffect(() => {
@@ -318,6 +336,7 @@ export default function KokWaterWatchView({ onBackToFloodSim }) {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    setActionFeedback(`ส่งออกผลตรวจ ${timeFilteredSubmissions.length} จุดแล้ว`);
   };
 
   const handleCreateNewSample = (newSample) => {
@@ -413,207 +432,526 @@ export default function KokWaterWatchView({ onBackToFloodSim }) {
     }
   }, [timeFilteredSubmissions, searchQuery]);
 
+  // กรองตามระดับความเสี่ยงเพิ่มเติมเมื่อเลือกในตั้งค่า
+  const levelFilteredSubmissions = useMemo(() => {
+    if (filterLevel === 'all') return timeFilteredSubmissions;
+    return timeFilteredSubmissions.filter((s) => {
+      const val = Number(s?.measurements?.arsenic?.value ?? s?.arsenic_ppb ?? s?.arsenic_level_ppb ?? 0);
+      if (filterLevel === 'critical') return val > 10;
+      if (filterLevel === 'watch') return val >= 5 && val <= 10;
+      if (filterLevel === 'normal') return val < 5;
+      return true;
+    });
+  }, [timeFilteredSubmissions, filterLevel]);
+
+  // สถิติสถานการณ์ลุ่มน้ำวันนี้ (หรือชุดข้อมูลปัจจุบัน)
+  const todayStatus = useMemo(() => {
+    const ONE_DAY = 24 * 60 * 60 * 1000;
+    const now = Date.now();
+    let critical = 0;
+    let watch = 0;
+    let normal = 0;
+
+    const list = Array.isArray(submissions) ? submissions : [];
+    const todayItems = list.filter((s) => {
+      if (!s || !s.collection_time) return false;
+      const t = new Date(s.collection_time).getTime();
+      return !isNaN(t) && (now - t <= ONE_DAY || new Date(s.collection_time).toDateString() === new Date().toDateString());
+    });
+
+    const dataset = todayItems.length > 0 ? todayItems : (Array.isArray(timeFilteredSubmissions) ? timeFilteredSubmissions : []);
+    dataset.forEach((s) => {
+      const val = Number(s?.measurements?.arsenic?.value ?? s?.arsenic_ppb ?? s?.arsenic_level_ppb ?? 0);
+      if (val > 10) critical++;
+      else if (val >= 5) watch++;
+      else normal++;
+    });
+
+    return {
+      total: dataset.length,
+      critical,
+      watch,
+      normal,
+      hasTodayData: todayItems.length > 0
+    };
+  }, [submissions, timeFilteredSubmissions]);
+
   return (
-    <div className="relative w-screen h-screen overflow-hidden bg-[#F8F7F5] font-['Prompt',sans-serif] text-[#242424]">
-      {/* 1. Top Navigation Bar (ขาว 80% • แดง 20% • แต่งขอบทอง) */}
-      <header className="absolute top-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-b-2 border-[#B4975A]/40 shadow-sm px-2 sm:px-4 py-2 flex items-center justify-between gap-1.5 sm:gap-4">
-        {/* Left: Brand (ซ่อนไอคอนและชื่อเว็บไซต์เมื่อเป็นจอเล็ก ตามคำขอของผู้ใช้) */}
-        <div className="hidden sm:flex items-center gap-2.5 sm:gap-3 shrink-0">
-          <div className="flex items-center gap-2 sm:gap-2.5">
-            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-[#A6192E] flex items-center justify-center text-white shadow-md border border-[#B4975A] shrink-0">
-              <Droplets className="w-4 h-4 sm:w-5 sm:h-5" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-xs sm:text-base font-bold text-slate-900 tracking-tight flex items-center gap-1.5 whitespace-nowrap">
-                  KOK Water Watch
-                </h1>
+    <div className="kok-modern-app">
+      <div className="kok-modern-canvas">
+        {/* Fullscreen Map Canvas */}
+        <div className="absolute inset-0 z-0">
+          <WaterWatchMap
+            submissions={levelFilteredSubmissions}
+            selectedSample={selectedSample}
+            onSelectSample={(s) => setSelectedSample(s)}
+            selectedHotspot={selectedHotspot}
+            onSelectHotspot={(hs) => setSelectedHotspot(hs)}
+            focusCoords={focusCoords}
+            onPopupChange={(hs) => setIsMapPopupActive(!!hs)}
+            controllerRef={mapController}
+            hideDefaultControls={true}
+          />
+        </div>
+
+        {/* 1. สถานการณ์ลุ่มน้ำวันนี้ (บนซ้าย - สไตล์เดียวกับตัวอ้างอิง) */}
+        <section className="basin-status-card" aria-labelledby="basin-status-title">
+          <h1 id="basin-status-title">สถานการณ์ลุ่มน้ำวันนี้</h1>
+          {submissions.length > 0 && todayStatus.total > 0 ? (
+            <>
+              <div
+                className="basin-status-bar"
+                role="img"
+                aria-label={`สัดส่วนสถานะ: วิกฤต ${todayStatus.critical}, เฝ้าระวัง ${todayStatus.watch}, ปกติ ${todayStatus.normal}`}
+              >
+                <span
+                  className="status-critical"
+                  style={{ width: `${(todayStatus.critical / todayStatus.total) * 100}%` }}
+                />
+                <span
+                  className="status-watch"
+                  style={{ width: `${(todayStatus.watch / todayStatus.total) * 100}%` }}
+                />
+                <span
+                  className="status-normal"
+                  style={{ width: `${(todayStatus.normal / todayStatus.total) * 100}%` }}
+                />
               </div>
-              <p className="text-[10px] sm:text-[11px] text-slate-500 hidden xl:block whitespace-nowrap">
-                ระบบเก็บข้อมูลและเฝ้าระวังคุณภาพน้ำแม่น้ำกก &bull; ทีมทดลองภาคสนาม
+              <p className="basin-status-counts">
+                <span className="basin-status-count">
+                  <span>วิกฤต: {todayStatus.critical}</span>
+                </span>
+                <i>|</i>
+                <span className="basin-status-count">
+                  <span>เฝ้าระวัง: {todayStatus.watch}</span>
+                </span>
+                <i>|</i>
+                <span className="basin-status-count">
+                  <span>ปกติ: {todayStatus.normal}</span>
+                </span>
               </p>
+            </>
+          ) : (
+            <p className="basin-status-unavailable" role="status">
+              ยังไม่เชื่อมต่อฐานข้อมูลผลตรวจ
+            </p>
+          )}
+        </section>
+
+        {/* 2. เกณฑ์สารหนูในน้ำแม่น้ำ (บนซ้าย ใต้สถานการณ์ลุ่มน้ำ) */}
+        <section className="water-criteria-card" aria-labelledby="water-criteria-title">
+          <h2 id="water-criteria-title">
+            เกณฑ์สารหนูในน้ำแม่น้ำ <span>As · ppb</span>
+          </h2>
+          <div className="criteria-levels">
+            <div className="criteria-level level-green">
+              <i />
+              <span>ปกติ</span>
+              <strong>&lt; 5</strong>
             </div>
+            <div className="criteria-level level-yellow">
+              <i />
+              <span>เฝ้าระวัง</span>
+              <strong>5–10</strong>
+            </div>
+            <div className="criteria-level level-red">
+              <i />
+              <span>เกินเกณฑ์</span>
+              <strong>&gt; 10</strong>
+            </div>
+          </div>
+          <p>เกณฑ์ คพ. น้ำผิวดินประเภท 2: ไม่เกิน 10 ppb · 5 ppb เป็นเชิงเตือนระวัง ไม่ใช่เกณฑ์กฎหมาย</p>
+          <a href="https://epo01.pcd.go.th/th/news/detail/181868" target="_blank" rel="noreferrer">
+            แหล่งอ้างอิง: กรมควบคุมมลพิษ ↗
+          </a>
+        </section>
+
+        {/* 3. TIME RANGE Pill (ล่างกลาง) */}
+        <section className="time-range-card" aria-label="ช่วงเวลา">
+          <span className="time-range-label">TIME RANGE</span>
+          <button
+            className="time-range-option"
+            type="button"
+            onClick={() => setIsTimeFilterOpen(true)}
+            aria-label={`เลือกช่วงเวลา (${activeFilterOption.label})`}
+          >
+            <CalendarDays size={16} aria-hidden="true" />
+            <span>{activeFilterOption.label}</span>
+            <ChevronDown size={15} aria-hidden="true" />
+          </button>
+        </section>
+
+        {/* 4. Map Floating Controls (บนขวา แนวตั้ง) */}
+        <div className="map-controls" aria-label="เครื่องมือแผนที่">
+          <div className="map-actions" aria-label="เมนูหลัก">
+            <button
+              className="round-control"
+              type="button"
+              aria-label="คู่มือ"
+              title="คู่มือการใช้งาน"
+              onClick={() => {
+                setGuideOpen(prev => !prev);
+                setSummaryOpen(false);
+                setSettingsOpen(false);
+                setIsSearchOpen(false);
+              }}
+            >
+              <CircleHelp size={20} />
+            </button>
+            <button
+              className="round-control"
+              type="button"
+              aria-label="สรุปรายวัน"
+              title="สรุปผลตรวจวันนี้"
+              onClick={() => {
+                setSummaryOpen(prev => !prev);
+                setGuideOpen(false);
+                setSettingsOpen(false);
+                setIsSearchOpen(false);
+              }}
+            >
+              <CalendarDays size={19} />
+            </button>
+            <button
+              className="round-control"
+              type="button"
+              aria-label="ตั้งค่า"
+              title="ตั้งค่าแผนที่และชั้นข้อมูล"
+              onClick={() => {
+                setSettingsOpen(prev => !prev);
+                setGuideOpen(false);
+                setSummaryOpen(false);
+                setIsSearchOpen(false);
+              }}
+            >
+              <Settings size={20} />
+            </button>
+            <button
+              className="round-control"
+              type="button"
+              aria-label="Export ข้อมูล"
+              title="ส่งออกผลตรวจเป็นไฟล์ CSV"
+              onClick={handleExportCSV}
+            >
+              <Download size={19} />
+            </button>
+            <button
+              className="round-control"
+              type="button"
+              aria-label="ค้นหา"
+              title="ค้นหาจุดตรวจวัด"
+              onClick={() => {
+                setIsSearchOpen(prev => !prev);
+                setGuideOpen(false);
+                setSummaryOpen(false);
+                setSettingsOpen(false);
+              }}
+            >
+              <Search size={19} />
+            </button>
+          </div>
+
+          {/* Zoom Control Capsule */}
+          <div className="zoom-control" aria-label="ควบคุมการซูม">
+            <button
+              type="button"
+              aria-label="ซูมเข้า"
+              title="ซูมเข้า"
+              onClick={() => mapController.current?.zoomIn?.()}
+            >
+              <Plus size={20} />
+            </button>
+            <span />
+            <button
+              type="button"
+              aria-label="ซูมออก"
+              title="ซูมออก"
+              onClick={() => mapController.current?.zoomOut?.()}
+            >
+              <Minus size={20} />
+            </button>
           </div>
         </div>
 
-        {/* Center / Search & Filter Area (บนมือถือเสิร์ชจะอยู่ฝั่งซ้าย/แถวบนชัดเจน และฟิลเตอร์แยกออกมามีระยะห่างที่ลงตัว) */}
-        <div className="flex-1 flex items-center justify-start sm:justify-center gap-1.5 sm:gap-3 min-w-0">
-          {/* Search Bar */}
-          <div ref={searchContainerRef} className="flex-1 sm:max-w-xs md:max-w-sm relative min-w-[120px]">
-            <div className="relative flex items-center">
-              <Search className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-400 absolute left-3 pointer-events-none" />
-              <input
-                type="text"
-                placeholder="ค้นหาจุดตรวจ, รหัส KOK..."
-                value={searchQuery}
-                onChange={(e) => {
-                  setSearchQuery(e.target.value);
-                  setIsSearchDropdownOpen(true);
-                }}
-                onFocus={() => setIsSearchDropdownOpen(true)}
-                className="w-full pl-8 sm:pl-9 pr-7 sm:pr-8 py-1.5 sm:py-2 bg-slate-100 hover:bg-slate-100 focus:bg-white rounded-xl border border-slate-200 focus:border-[#A6192E] text-xs sm:text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#A6192E]/20 transition-all shadow-xs"
-              />
-              {searchQuery && (
+        {/* 5. Utility Popups */}
+        {guideOpen && (
+          <section className="map-utility-panel" role="region" aria-label="คู่มือการใช้งาน">
+            <button
+              type="button"
+              className="map-utility-close"
+              aria-label="ปิดคู่มือ"
+              onClick={() => setGuideOpen(false)}
+            >
+              <X size={16} />
+            </button>
+            <h2>คู่มือการใช้งาน</h2>
+            <p>
+              ซูมแผนที่เพื่อดูพื้นที่ · แตะหมุดก้อน Hotspot หรือจุดตรวจเพื่อดูค่าสารหนู ผลตรวจล่าสุด และภาพถ่ายหลักฐาน
+            </p>
+            <p>
+              เปิดตั้งค่า (⚙) เพื่อปรับชั้นข้อมูลแผนที่ (ดาวเทียม/ถนน) หรือเลือกดูตามระดับเตือนภัย · กดปุ่มทำแบบสำรวจเพื่อบันทึกผลตรวจสารหนูและพิกัด GPS ลงระบบ
+            </p>
+          </section>
+        )}
+
+        {summaryOpen && (
+          <section className="map-utility-panel" role="region" aria-label="สรุปรายวัน">
+            <button
+              type="button"
+              className="map-utility-close"
+              aria-label="ปิดสรุปรายวัน"
+              onClick={() => setSummaryOpen(false)}
+            >
+              <X size={16} />
+            </button>
+            <h2>สรุปผลตรวจคุณภาพน้ำ</h2>
+            <p className="font-semibold text-slate-700">
+              ชุดข้อมูลปัจจุบัน ({activeFilterOption.label}): ทั้งหมด {timeFilteredSubmissions.length} จุด
+            </p>
+            <div className="grid grid-cols-3 gap-2 mt-3 pt-3 border-t border-slate-100 text-center">
+              <div className="p-2 rounded-xl bg-red-50 text-red-700">
+                <div className="text-lg font-bold">{filterCounts.critical || todayStatus.critical}</div>
+                <div className="text-[10px]">วิกฤต (&gt;10)</div>
+              </div>
+              <div className="p-2 rounded-xl bg-amber-50 text-amber-700">
+                <div className="text-lg font-bold">{filterCounts.watch || todayStatus.watch}</div>
+                <div className="text-[10px]">เฝ้าระวัง (5-10)</div>
+              </div>
+              <div className="p-2 rounded-xl bg-emerald-50 text-emerald-700">
+                <div className="text-lg font-bold">{filterCounts.normal || todayStatus.normal}</div>
+                <div className="text-[10px]">ปกติ (&lt;5)</div>
+              </div>
+            </div>
+          </section>
+        )}
+
+        {settingsOpen && (
+          <section className="map-settings-panel" id="map-settings-panel" aria-label="ตั้งค่าแผนที่">
+            <header className="map-settings-header">
+              <div>
+                <span className="map-settings-icon"><Waves size={17} /></span>
+                <div>
+                  <strong>ชั้นข้อมูลและตัวกรอง</strong>
+                  <small>ปรับมุมมองลุ่มน้ำแม่น้ำกก</small>
+                </div>
+              </div>
+              <button
+                type="button"
+                className="map-settings-close"
+                aria-label="ปิดตั้งค่าแผนที่"
+                onClick={() => setSettingsOpen(false)}
+              >
+                <X size={18} />
+              </button>
+            </header>
+
+            <div className="map-settings-section">
+              <div className="map-settings-section-title">
+                <span>รูปแบบแผนที่</span>
+                <small>Map Style</small>
+              </div>
+              <div className="map-settings-tabs">
                 <button
                   type="button"
+                  className={mapType === 'satellite' ? 'is-active' : ''}
                   onClick={() => {
-                    setSearchQuery('');
-                    setIsSearchDropdownOpen(false);
+                    setMapType('satellite');
+                    mapController.current?.setMapType?.('satellite');
                   }}
-                  className="absolute right-2 sm:right-2.5 p-0.5 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-200 text-xs font-bold transition-all cursor-pointer"
-                  title="ล้างคำค้นหา"
                 >
-                  <X className="w-3.5 h-3.5" />
+                  ดาวเทียม
                 </button>
-              )}
+                <button
+                  type="button"
+                  className={mapType === 'streets' ? 'is-active' : ''}
+                  onClick={() => {
+                    setMapType('streets');
+                    mapController.current?.setMapType?.('streets');
+                  }}
+                >
+                  ถนน/แผนที่
+                </button>
+                <button
+                  type="button"
+                  className={mapType === 'terrain' ? 'is-active' : ''}
+                  onClick={() => {
+                    setMapType('terrain');
+                    mapController.current?.setMapType?.('terrain');
+                  }}
+                >
+                  ภูมิประเทศ
+                </button>
+              </div>
+              <label className="map-settings-check">
+                <input
+                  type="checkbox"
+                  checked={showLabels}
+                  onChange={(e) => {
+                    setShowLabels(e.target.checked);
+                    mapController.current?.setShowLabels?.(e.target.checked);
+                  }}
+                />
+                <div>
+                  <strong>แสดงชื่อสถานที่และถนน</strong>
+                  <small>ป้ายชื่อภาษาไทยและรหัสทางหลวง</small>
+                </div>
+              </label>
             </div>
 
-            {/* Live Search Results Dropdown */}
-            {isSearchDropdownOpen && searchQuery.trim() && (
-              <div className="absolute top-full left-0 right-0 mt-1.5 bg-white rounded-2xl shadow-xl border border-slate-200 py-1.5 z-50 max-h-80 overflow-y-auto animate-in fade-in slide-in-from-top-1 duration-150">
-                <div className="px-3 py-1.5 text-[11px] font-semibold text-slate-400 border-b border-slate-100 flex items-center justify-between">
-                  <span>ผลการค้นหา ({filteredSubmissions.length})</span>
-                  <span className="text-[10px]">แตะเพื่อไปยังจุดตรวจ</span>
-                </div>
-                {filteredSubmissions.length === 0 ? (
-                  <div className="px-4 py-6 text-center text-xs text-slate-400">
-                    ไม่พบจุดตรวจที่ตรงกับ "{searchQuery}"
+            <div className="map-settings-section">
+              <div className="map-settings-section-title">
+                <span>กรองระดับสารหนู</span>
+                <small>Filter</small>
+              </div>
+              <div className="grid grid-cols-3 gap-1.5 text-[11px]">
+                <button
+                  type="button"
+                  onClick={() => setFilterLevel(prev => prev === 'normal' ? 'all' : 'normal')}
+                  className={`py-1.5 px-2 rounded-lg border text-center transition-all ${
+                    filterLevel === 'normal'
+                      ? 'bg-emerald-100 border-emerald-500 text-emerald-800 font-bold'
+                      : 'bg-white border-slate-200 text-slate-600'
+                  }`}
+                >
+                  เฉพาะปกติ
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFilterLevel(prev => prev === 'watch' ? 'all' : 'watch')}
+                  className={`py-1.5 px-2 rounded-lg border text-center transition-all ${
+                    filterLevel === 'watch'
+                      ? 'bg-amber-100 border-amber-500 text-amber-800 font-bold'
+                      : 'bg-white border-slate-200 text-slate-600'
+                  }`}
+                >
+                  เฉพาะเฝ้าระวัง
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFilterLevel(prev => prev === 'critical' ? 'all' : 'critical')}
+                  className={`py-1.5 px-2 rounded-lg border text-center transition-all ${
+                    filterLevel === 'critical'
+                      ? 'bg-red-100 border-red-500 text-red-800 font-bold'
+                      : 'bg-white border-slate-200 text-slate-600'
+                  }`}
+                >
+                  เฉพาะวิกฤต
+                </button>
+              </div>
+            </div>
+
+            <div className="map-settings-section">
+              <div className="map-settings-section-title">
+                <span>การจัดการข้อมูล</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  mapController.current?.locateUser?.();
+                  setSettingsOpen(false);
+                }}
+                className="w-full py-2 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold flex items-center justify-center gap-2 cursor-pointer transition-colors"
+              >
+                <MapPin size={14} className="text-[#A6192E]" />
+                <span>ค้นหาตำแหน่งปัจจุบันของเครื่อง (GPS)</span>
+              </button>
+              <button
+                type="button"
+                onClick={handleResetAllData}
+                className="w-full py-2 px-3 rounded-xl border border-red-200 bg-red-50/50 hover:bg-red-100/60 text-red-700 text-xs font-semibold flex items-center justify-center gap-2 cursor-pointer transition-colors"
+              >
+                <RotateCcw size={14} />
+                <span>รีเซ็ตชุดข้อมูลตัวอย่างเริ่มต้น</span>
+              </button>
+            </div>
+          </section>
+        )}
+
+        {isSearchOpen && (
+          <section className="map-utility-panel" role="region" aria-label="ค้นหาข้อมูล">
+            <button
+              type="button"
+              className="map-utility-close"
+              aria-label="ปิดการค้นหา"
+              onClick={() => setIsSearchOpen(false)}
+            >
+              <X size={16} />
+            </button>
+            <h2>ค้นหาจุดตรวจวัด</h2>
+            <div className="relative mt-2">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="พิมพ์ชื่อหมู่บ้าน, รหัสตัวอย่าง, ผู้ตรวจ..."
+                className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-[#176756]"
+                autoFocus
+              />
+            </div>
+            {searchQuery && (
+              <div className="max-h-48 overflow-y-auto mt-2 space-y-1">
+                {filteredSubmissions.slice(0, 5).map((sub) => (
+                  <div
+                    key={sub.record_id || sub.sample_code}
+                    onClick={() => {
+                      setFocusCoords(sub.coordinates);
+                      setSelectedSample(sub);
+                      setIsSearchOpen(false);
+                    }}
+                    className="p-2 rounded-lg hover:bg-slate-100 flex items-center justify-between text-xs cursor-pointer"
+                  >
+                    <span className="font-semibold text-slate-700 truncate mr-2">{sub.station_name || sub.sample_code}</span>
+                    <span className="font-mono text-[11px] font-bold text-[#A6192E] shrink-0">
+                      {sub.measurements?.arsenic?.value ?? sub.arsenic_ppb ?? sub.arsenic_level_ppb} ppb
+                    </span>
                   </div>
-                ) : (
-                  <>
-                    <div className="divide-y divide-slate-100">
-                      {filteredSubmissions.slice(0, 6).map((sub) => {
-                        const asVal = sub.measurements?.arsenic?.value;
-                        const asColor = sub.measurements?.arsenic?.color || '#DE9922';
-                        return (
-                          <div
-                            key={sub.record_id || sub.sample_code}
-                            onClick={() => {
-                              setSelectedHotspot(null);
-                              setSelectedSample(sub);
-                              setFocusCoords(sub.coordinates);
-                              setIsSearchDropdownOpen(false);
-                            }}
-                            className="px-3 py-2 hover:bg-rose-50/60 cursor-pointer transition-colors flex items-center justify-between gap-2 text-left"
-                          >
-                            <div className="min-w-0 flex-1">
-                              <div className="flex items-center gap-1.5">
-                                <span
-                                  className="w-2.5 h-2.5 rounded-full shrink-0 border border-black/10"
-                                  style={{ backgroundColor: asColor }}
-                                />
-                                <span className="text-xs sm:text-sm font-bold text-slate-800 truncate">
-                                  {sub.station_name || sub.sample_code}
-                                </span>
-                              </div>
-                              <div className="text-[11px] text-slate-500 truncate mt-0.5">
-                                รหัส: {sub.sample_code} &bull; ผู้ตรวจ: {sub.collector?.name || '-'}
-                              </div>
-                            </div>
-                            {asVal !== null && asVal !== undefined && (
-                              <div className="shrink-0 text-right">
-                                <span className={`px-2 py-0.5 rounded-full text-[10px] sm:text-[11px] font-bold ${
-                                  asVal > 50 ? 'bg-red-100 text-red-700' : asVal > 10 ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'
-                                }`}>
-                                  {asVal} ppb
-                                </span>
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                    {filteredSubmissions.length > 6 && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setIsSearchDropdownOpen(false);
-                          setIsListDrawerOpen(true);
-                        }}
-                        className="w-full py-2 text-center text-xs font-bold text-[#A6192E] hover:bg-red-50/80 transition-colors border-t border-slate-100 cursor-pointer"
-                      >
-                        ดูผลการค้นหาทั้งหมด ({filteredSubmissions.length} จุด) &rarr;
-                      </button>
-                    )}
-                  </>
+                ))}
+                {filteredSubmissions.length === 0 && (
+                  <p className="text-xs text-slate-400 py-2 text-center">ไม่พบผลการค้นหา</p>
                 )}
               </div>
             )}
-          </div>
+          </section>
+        )}
 
-          {/* Large Time Range Filter Selector (แยกออกมาพร้อมระยะห่างที่สวยงามชัดเจน) */}
-          <div ref={timeFilterContainerRef} className="relative shrink-0 flex items-center">
-            <div className={`h-8 sm:h-9 pl-2 sm:pl-3 pr-1.5 sm:pr-2.5 rounded-xl border transition-all flex items-center gap-1 sm:gap-2 shadow-xs select-none ${
-              timeFilter !== 'all'
-                ? 'bg-gradient-to-r from-amber-50 to-rose-50 border-[#A6192E] text-[#A6192E] ring-2 ring-[#A6192E]/20 font-bold'
-                : 'bg-slate-100 hover:bg-slate-200/90 border-slate-200 text-slate-700 font-medium'
-            }`}>
-              <button
-                type="button"
-                onClick={() => setIsTimeFilterOpen(prev => !prev)}
-                className="flex items-center gap-1 sm:gap-1.5 cursor-pointer focus:outline-none"
-                title="ฟิลเตอร์ระยะเวลาข้อมูลจุดตรวจวัดบนแผนที่ (วัน/เดือน/ปี/กำหนดเอง)"
-              >
-                <Calendar className={`w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0 ${timeFilter !== 'all' ? 'text-[#A6192E]' : 'text-slate-500'}`} />
-                
-                <div className="flex items-center gap-1 text-xs sm:text-sm whitespace-nowrap">
-                  <span className="hidden md:inline text-slate-400 font-normal">ช่วงเวลา:</span>
-                  <span className="font-bold truncate max-w-[70px] sm:max-w-[125px] md:max-w-none">
-                    {activeFilterOption.label}
-                  </span>
-                  <span className={`px-1.5 py-0.5 rounded-full font-mono text-[10px] sm:text-[11px] font-bold ${
-                    timeFilter !== 'all' ? 'bg-[#A6192E] text-white shadow-xs' : 'bg-slate-200 text-slate-700'
-                  }`}>
-                    {timeFilteredSubmissions.length} จุด
-                  </span>
-                </div>
+        {/* 6. Buttons (ล่างขวา) */}
+        {/* App Switcher Button (Blue Wave) */}
+        <button
+          type="button"
+          onClick={onBackToFloodSim}
+          className="app-switch-button"
+          title="สลับไปหน้าแบบจำลองน้ำท่วมแม่น้ำกก 3D"
+        >
+          <Waves size={24} className="text-white drop-shadow" />
+        </button>
 
-                <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-200 ${
-                  isTimeFilterOpen ? 'rotate-180 text-[#A6192E]' : ''
-                }`} />
-              </button>
+        {/* Survey Button (ทำแบบสำรวจ) */}
+        <button
+          className="survey-button"
+          type="button"
+          aria-label="ทำแบบสำรวจ"
+          onClick={() => {
+            setSelectedSample(null);
+            setSelectedHotspot(null);
+            setIsFormOpen(true);
+          }}
+        >
+          <ClipboardList size={19} />
+          <span>ทำแบบสำรวจ</span>
+        </button>
 
-              {timeFilter !== 'all' && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setTimeFilter('all');
-                    setCustomStartDate('');
-                    setCustomEndDate('');
-                  }}
-                  className="p-0.5 rounded-full hover:bg-rose-200/80 text-[#A6192E] transition-colors ml-0.5 cursor-pointer"
-                  title="ล้างตัวกรองช่วงเวลา (กลับเป็นทั้งหมด)"
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Right: Actions */}
-        <div className="flex items-center gap-1 sm:gap-2 shrink-0">
-          <button
-            onClick={handleExportCSV}
-            className="p-2 sm:px-3 sm:py-2 rounded-xl border border-emerald-300 text-xs font-bold text-emerald-800 bg-emerald-50/80 hover:bg-emerald-100 transition-all flex items-center gap-1.5 shadow-xs cursor-pointer"
-            title="ส่งออกข้อมูลเป็นไฟล์ Excel (.csv)"
+        {/* Feedback Toast */}
+        {actionFeedback && (
+          <p
+            className="map-action-feedback"
+            role="status"
+            onAnimationEnd={() => setActionFeedback('')}
           >
-            <Download className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-600" />
-            <span className="hidden md:inline">ส่งออก Excel</span>
-          </button>
-
-          <button
-            onClick={() => setIsListDrawerOpen(!isListDrawerOpen)}
-            className="p-2 sm:px-3 sm:py-2 rounded-xl border border-slate-300 text-xs font-bold text-slate-700 hover:bg-slate-100 transition-all flex items-center gap-1.5 cursor-pointer"
-            title="เปิดดูรายการตัวอย่างที่บันทึกไว้"
-          >
-            <List className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#A6192E]" />
-            <span className="hidden sm:inline">
-              รายการ ({timeFilteredSubmissions.length}{timeFilter !== 'all' ? `/${totalSamples}` : ''})
-            </span>
-          </button>
-        </div>
-      </header>
+            {actionFeedback}
+          </p>
+        )}
+      </div>
 
       {/* Large Time Filter Modal (Bottom Sheet on Mobile / Centered Card Modal on Desktop with Backdrop Blur) */}
       {isTimeFilterOpen && (
@@ -897,107 +1235,7 @@ export default function KokWaterWatchView({ onBackToFloodSim }) {
         </div>
       )}
 
-      {/* 2. Interactive Map (Full Screen) */}
-      <div className="absolute inset-0 pt-14 z-0">
-        <WaterWatchMap
-          submissions={timeFilteredSubmissions}
-          selectedSample={selectedSample}
-          onSelectSample={(s) => setSelectedSample(s)}
-          selectedHotspot={selectedHotspot}
-          onSelectHotspot={(hs) => setSelectedHotspot(hs)}
-          focusCoords={focusCoords}
-          onPopupChange={(hs) => setIsMapPopupActive(!!hs)}
-        />
-      </div>
-
-      {/* 3. Floating Navigation & Legend (ซ้ายล่าง) */}
-      <div className={`absolute bottom-6 left-5 sm:bottom-6 sm:left-6 z-40 pointer-events-auto flex flex-col items-start gap-2.5 max-w-[260px] sm:max-w-xs transition-all duration-200 ${
-        isMapPopupActive 
-          ? 'opacity-0 pointer-events-none translate-y-3 sm:opacity-100 sm:pointer-events-auto sm:translate-y-0' 
-          : 'opacity-100 translate-y-0'
-      }`}>
-        {/* ปุ่มกลับหน้าหลักจำลองน้ำท่วม 3D */}
-        <button
-          type="button"
-          onClick={onBackToFloodSim}
-          className="group px-3.5 py-2 rounded-xl bg-white/95 backdrop-blur-md border border-slate-300 shadow-lg text-xs font-bold text-slate-700 hover:bg-[#A6192E] hover:text-white hover:border-[#A6192E] transition-all flex items-center gap-2 cursor-pointer active:scale-95"
-          title="สลับกลับไปหน้าแบบจำลองน้ำท่วมแม่น้ำกก 3D"
-        >
-          <ArrowLeft className="w-4 h-4 text-[#A6192E] group-hover:text-white transition-colors" />
-          <span>หน้าหลักจำลองน้ำท่วม 3D</span>
-        </button>
-
-        {/* Floating Legend & River Info (เกณฑ์คุณภาพน้ำ) */}
-        <div className="w-full bg-white/95 backdrop-blur-md p-2.5 sm:p-3.5 rounded-2xl shadow-xl border border-[#B4975A]/40 text-xs space-y-1.5 sm:space-y-2">
-          <div 
-            className="flex items-center justify-between border-b pb-1 cursor-pointer sm:cursor-default"
-            onClick={() => setIsLegendOpen(prev => !prev)}
-          >
-            <span className="font-bold text-slate-900 flex items-center gap-1.5 text-xs">
-              <Droplets className="w-4 h-4 text-[#A6192E]" />
-              เกณฑ์คุณภาพน้ำ
-            </span>
-            <div className="flex items-center gap-1">
-              <span className="text-[10px] text-slate-400 hidden sm:inline">เกณฑ์ WHO</span>
-              <button type="button" className="sm:hidden text-slate-500 hover:text-slate-800 p-0.5">
-                {isLegendOpen ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronUp className="w-3.5 h-3.5" />}
-              </button>
-            </div>
-          </div>
-
-          <div className={`${isLegendOpen ? 'block' : 'hidden sm:block'} space-y-1.5 sm:space-y-2`}>
-            <div className="space-y-1 text-[11px]">
-              <div className="flex items-center justify-between">
-                <span className="flex items-center gap-1.5">
-                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-600 shrink-0"></span>
-                  <span>ปกติ (&le; 10 ppb)</span>
-                </span>
-                <span className="font-mono text-emerald-700 font-bold">ปลอดภัย</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="flex items-center gap-1.5">
-                  <span className="w-2.5 h-2.5 rounded-full bg-amber-500 shrink-0"></span>
-                  <span>เฝ้าระวัง (11 - 50 ppb)</span>
-                </span>
-                <span className="font-mono text-amber-700 font-bold">ควรกรอง</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="flex items-center gap-1.5">
-                  <span className="w-2.5 h-2.5 rounded-full bg-rose-600 shrink-0"></span>
-                  <span>เกินเกณฑ์ (&gt; 50 ppb)</span>
-                </span>
-                <span className="font-mono text-rose-700 font-bold">ห้ามดื่ม</span>
-              </div>
-            </div>
-            <div className="pt-1 border-t text-[10px] text-slate-500 flex items-center justify-between">
-              <span>แตะหมุด Hotspot หรือจุดตรวจเพื่อดูรายละเอียด</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* 4. Action Button: บันทึกข้อมูลน้ำใหม่ (ขวาล่าง ย่อขนาดและปรับตำแหน่งให้เหมาะสมกับมือถือ) */}
-      <div className={`absolute bottom-3 right-3 sm:bottom-6 sm:right-6 z-20 pointer-events-auto transition-all duration-200 flex items-center gap-2.5 ${
-        isFormOpen || isMapPopupActive 
-          ? 'opacity-0 pointer-events-none translate-y-3 sm:opacity-100 sm:pointer-events-auto sm:translate-y-0' 
-          : 'opacity-100 translate-y-0'
-      }`}>
-        <button
-          type="button"
-          onClick={() => {
-            setSelectedSample(null);
-            setSelectedHotspot(null);
-            setIsFormOpen(true);
-          }}
-          className="w-11 h-11 sm:w-auto sm:h-auto p-0 sm:px-5 sm:py-3 rounded-full sm:rounded-2xl bg-[#A6192E] hover:bg-[#851424] text-white font-bold border-2 border-[#B4975A] shadow-xl shadow-[#A6192E]/40 active:scale-90 hover:scale-105 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
-          title="บันทึกข้อมูลน้ำใหม่"
-        >
-          <Plus className="w-5 h-5 text-amber-300 stroke-[2.5]" />
-          <span className="hidden sm:inline text-xs sm:text-sm">
-            บันทึกข้อมูลน้ำใหม่
-          </span>
-        </button>
-      </div>
+      {/* Map and modern controls are rendered in kok-modern-canvas */}
 
       {/* 5. Submissions List Sidebar */}
       <div 

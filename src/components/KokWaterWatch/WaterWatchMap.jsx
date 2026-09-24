@@ -185,7 +185,9 @@ export default function WaterWatchMap({
   selectedHotspot = null,
   onSelectHotspot = null,
   focusCoords = null,
-  onPopupChange = null
+  onPopupChange = null,
+  controllerRef = null,
+  hideDefaultControls = false
 }) {
   const mapContainer = useRef(null);
   const mapRef = useRef(null);
@@ -554,6 +556,20 @@ export default function WaterWatchMap({
   const onPopupChangeRef = useRef(onPopupChange);
 
   useEffect(() => {
+    if (controllerRef) {
+      controllerRef.current = {
+        zoomIn: handleZoomIn,
+        zoomOut: handleZoomOut,
+        locateUser: handleGoToCurrentLocation,
+        setMapType: (t) => setMapType(t),
+        setShowLabels: (s) => setShowLabels(s),
+        mapType,
+        showLabels
+      };
+    }
+  }, [controllerRef, mapType, showLabels]);
+
+  useEffect(() => {
     isPinnedRef.current = isPinned;
   }, [isPinned]);
 
@@ -719,7 +735,7 @@ export default function WaterWatchMap({
         layout: {
           visibility: curFilters.country && showBoundaryLabels ? 'visible' : 'none',
           'symbol-placement': 'point',
-          'text-field': ['coalesce', ['get', 'shapeName'], ['get', 'name'], ''],
+          'text-field': ['concat', 'ประเทศ: ', ['coalesce', ['get', 'shapeName'], ['get', 'name'], '']],
           'text-size': 16,
           'text-font': ['Open Sans Bold'],
           'text-allow-overlap': false
@@ -756,7 +772,7 @@ export default function WaterWatchMap({
         layout: {
           visibility: curFilters.province && showBoundaryLabels ? 'visible' : 'none',
           'symbol-placement': 'point',
-          'text-field': ['coalesce', ['get', 'shapeName'], ['get', 'name'], ''],
+          'text-field': ['concat', 'จังหวัด: ', ['coalesce', ['get', 'shapeName'], ['get', 'name'], '']],
           'text-size': 13,
           'text-font': ['Open Sans Bold'],
           'text-allow-overlap': false
@@ -805,7 +821,7 @@ export default function WaterWatchMap({
         layout: {
           visibility: curFilters.locality && showBoundaryLabels ? 'visible' : 'none',
           'symbol-placement': 'point',
-          'text-field': ['coalesce', ['get', 'shapeName'], ['get', 'name'], ''],
+          'text-field': ['concat', 'อำเภอ: ', ['coalesce', ['get', 'shapeName'], ['get', 'name'], '']],
           'text-size': 11,
           'text-font': ['Open Sans Regular'],
           'text-allow-overlap': false
@@ -1616,42 +1632,44 @@ export default function WaterWatchMap({
       </div>
 
       {/* 2. Floating Vertical Toolstrip (ทางขวา: แคปซูล + / - และ ปุ่มรูปบ้าน ที่ตั้งปัจจุบัน) */}
-      <div className={`absolute right-2 sm:right-4 z-20 pointer-events-auto flex flex-col items-center gap-2 select-none transition-all duration-200 ${
-        isBoundaryFilterOpen ? 'top-80 sm:top-84' : 'top-24 sm:top-24'
-      }`}>
-        {/* Capsule: Zoom In (+) & Zoom Out (-) */}
-        <div className="flex flex-col bg-[#182234]/95 backdrop-blur-md rounded-2xl border border-white/15 shadow-xl overflow-hidden text-white">
+      {!hideDefaultControls && (
+        <div className={`absolute right-2 sm:right-4 z-20 pointer-events-auto flex flex-col items-center gap-2 select-none transition-all duration-200 ${
+          isBoundaryFilterOpen ? 'top-80 sm:top-84' : 'top-24 sm:top-24'
+        }`}>
+          {/* Capsule: Zoom In (+) & Zoom Out (-) */}
+          <div className="flex flex-col bg-[#182234]/95 backdrop-blur-md rounded-2xl border border-white/15 shadow-xl overflow-hidden text-white">
+            <button
+              type="button"
+              onClick={handleZoomIn}
+              className="w-10 h-10 sm:w-11 sm:h-11 flex items-center justify-center text-white/90 hover:text-white hover:bg-white/15 active:bg-white/25 transition-all cursor-pointer border-b border-white/10"
+              title="ซูมเข้า (Zoom In)"
+            >
+              <Plus className="w-5 h-5 sm:w-5.5 sm:h-5.5 stroke-[2.2]" />
+            </button>
+            <button
+              type="button"
+              onClick={handleZoomOut}
+              className="w-10 h-10 sm:w-11 sm:h-11 flex items-center justify-center text-white/90 hover:text-white hover:bg-white/15 active:bg-white/25 transition-all cursor-pointer"
+              title="ซูมออก (Zoom Out)"
+            >
+              <Minus className="w-5 h-5 sm:w-5.5 sm:h-5.5 stroke-[2.2]" />
+            </button>
+          </div>
+
+          {/* Squircle: Home Icon (ตำแหน่งปัจจุบันของเครื่อง / อุปกรณ์) */}
           <button
             type="button"
-            onClick={handleZoomIn}
-            className="w-10 h-10 sm:w-11 sm:h-11 flex items-center justify-center text-white/90 hover:text-white hover:bg-white/15 active:bg-white/25 transition-all cursor-pointer border-b border-white/10"
-            title="ซูมเข้า (Zoom In)"
+            onClick={handleGoToCurrentLocation}
+            disabled={isLocating}
+            className={`w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-[#182234]/95 backdrop-blur-md border border-white/15 shadow-xl flex items-center justify-center text-white/90 hover:text-white hover:bg-white/15 active:bg-white/25 transition-all cursor-pointer group ${
+              isLocating ? 'ring-2 ring-sky-400' : ''
+            }`}
+            title="ตำแหน่งปัจจุบันของเครื่อง / อุปกรณ์ (GPS Current Location)"
           >
-            <Plus className="w-5 h-5 sm:w-5.5 sm:h-5.5 stroke-[2.2]" />
-          </button>
-          <button
-            type="button"
-            onClick={handleZoomOut}
-            className="w-10 h-10 sm:w-11 sm:h-11 flex items-center justify-center text-white/90 hover:text-white hover:bg-white/15 active:bg-white/25 transition-all cursor-pointer"
-            title="ซูมออก (Zoom Out)"
-          >
-            <Minus className="w-5 h-5 sm:w-5.5 sm:h-5.5 stroke-[2.2]" />
+            <Home className={`w-5 h-5 sm:w-5.5 sm:h-5.5 group-hover:scale-110 transition-transform ${isLocating ? 'animate-bounce text-sky-400' : ''}`} />
           </button>
         </div>
-
-        {/* Squircle: Home Icon (ตำแหน่งปัจจุบันของเครื่อง / อุปกรณ์) */}
-        <button
-          type="button"
-          onClick={handleGoToCurrentLocation}
-          disabled={isLocating}
-          className={`w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-[#182234]/95 backdrop-blur-md border border-white/15 shadow-xl flex items-center justify-center text-white/90 hover:text-white hover:bg-white/15 active:bg-white/25 transition-all cursor-pointer group ${
-            isLocating ? 'ring-2 ring-sky-400' : ''
-          }`}
-          title="ตำแหน่งปัจจุบันของเครื่อง / อุปกรณ์ (GPS Current Location)"
-        >
-          <Home className={`w-5 h-5 sm:w-5.5 sm:h-5.5 group-hover:scale-110 transition-transform ${isLocating ? 'animate-bounce text-sky-400' : ''}`} />
-        </button>
-      </div>
+      )}
 
       {/* 3. Floating Location Feedback Toast (แสดงสถานะเมื่อกดปุ่มรูปบ้าน ดึงตำแหน่งเครื่อง) */}
       {locationStatus && (
