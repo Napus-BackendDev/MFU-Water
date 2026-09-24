@@ -51,54 +51,61 @@ const TIME_FILTER_OPTIONS = [
 
 // ตรวจสอบว่า collection_time ของแต่ละรายการอยู่ในช่วงเวลาที่กำหนดหรือไม่
 function isWithinTimeRange(dateStr, filter, customStart, customEnd, allSubmissions = []) {
-  if (filter === 'all') return true;
-  if (!dateStr) return true;
-  const targetTime = new Date(dateStr).getTime();
-  if (isNaN(targetTime)) return true;
+  try {
+    if (!filter || filter === 'all') return true;
+    if (!dateStr) return true;
+    const targetTime = new Date(dateStr).getTime();
+    if (isNaN(targetTime)) return true;
 
-  // หา Reference Time: วันที่บันทึกล่าสุดในชุดข้อมูล หรือเวลาปัจจุบัน
-  let maxDataTime = Date.now();
-  for (const s of allSubmissions) {
-    if (s.collection_time) {
-      const t = new Date(s.collection_time).getTime();
-      if (!isNaN(t) && t > maxDataTime) maxDataTime = t;
-    }
-  }
-  const refTime = maxDataTime;
-
-  const ONE_HOUR = 3600 * 1000;
-  const ONE_DAY = 24 * ONE_HOUR;
-
-  switch (filter) {
-    case 'today':
-      return targetTime >= (refTime - ONE_DAY);
-    case '7days':
-      return targetTime >= (refTime - 7 * ONE_DAY);
-    case 'month':
-      return targetTime >= (refTime - 30 * ONE_DAY);
-    case '3months':
-      return targetTime >= (refTime - 90 * ONE_DAY);
-    case 'year': {
-      const refYear = new Date(refTime).getFullYear();
-      const targetYear = new Date(targetTime).getFullYear();
-      return targetYear === refYear;
-    }
-    case '1year':
-      return targetTime >= (refTime - 365 * ONE_DAY);
-    case 'custom': {
-      let valid = true;
-      if (customStart) {
-        const startT = new Date(customStart + 'T00:00:00').getTime();
-        if (!isNaN(startT) && targetTime < startT) valid = false;
+    // หา Reference Time: วันที่บันทึกล่าสุดในชุดข้อมูล หรือเวลาปัจจุบัน
+    let maxDataTime = Date.now();
+    if (Array.isArray(allSubmissions)) {
+      for (const s of allSubmissions) {
+        if (s && s.collection_time) {
+          const t = new Date(s.collection_time).getTime();
+          if (!isNaN(t) && t > maxDataTime) maxDataTime = t;
+        }
       }
-      if (customEnd) {
-        const endT = new Date(customEnd + 'T23:59:59').getTime();
-        if (!isNaN(endT) && targetTime > endT) valid = false;
-      }
-      return valid;
     }
-    default:
-      return true;
+    const refTime = maxDataTime;
+
+    const ONE_HOUR = 3600 * 1000;
+    const ONE_DAY = 24 * ONE_HOUR;
+
+    switch (filter) {
+      case 'today':
+        return targetTime >= (refTime - ONE_DAY);
+      case '7days':
+        return targetTime >= (refTime - 7 * ONE_DAY);
+      case 'month':
+        return targetTime >= (refTime - 30 * ONE_DAY);
+      case '3months':
+        return targetTime >= (refTime - 90 * ONE_DAY);
+      case 'year': {
+        const refYear = new Date(refTime).getFullYear();
+        const targetYear = new Date(targetTime).getFullYear();
+        return targetYear === refYear;
+      }
+      case '1year':
+        return targetTime >= (refTime - 365 * ONE_DAY);
+      case 'custom': {
+        let valid = true;
+        if (customStart) {
+          const startT = new Date(customStart + 'T00:00:00').getTime();
+          if (!isNaN(startT) && targetTime < startT) valid = false;
+        }
+        if (customEnd) {
+          const endT = new Date(customEnd + 'T23:59:59').getTime();
+          if (!isNaN(endT) && targetTime > endT) valid = false;
+        }
+        return valid;
+      }
+      default:
+        return true;
+    }
+  } catch (err) {
+    console.warn('isWithinTimeRange error:', err);
+    return true;
   }
 }
 
@@ -284,48 +291,71 @@ export default function KokWaterWatchView({ onBackToFloodSim }) {
     }
   };
 
-  const totalSamples = submissions.length;
+  const totalSamples = Array.isArray(submissions) ? submissions.length : 0;
 
   // คำนวณจำนวนจุดตรวจวัดที่ตรงกับแต่ละ Filter Option เพื่อแสดงในเมนู Dropdown
   const filterCounts = useMemo(() => {
-    const counts = {};
-    for (const opt of TIME_FILTER_OPTIONS) {
-      if (opt.id === 'all') {
-        counts[opt.id] = submissions.length;
-      } else {
-        counts[opt.id] = submissions.filter(s => 
-          isWithinTimeRange(s.collection_time, opt.id, customStartDate, customEndDate, submissions)
-        ).length;
+    try {
+      const counts = {};
+      const list = Array.isArray(submissions) ? submissions : [];
+      for (const opt of TIME_FILTER_OPTIONS) {
+        if (opt.id === 'all') {
+          counts[opt.id] = list.length;
+        } else {
+          counts[opt.id] = list.filter(s => 
+            s && isWithinTimeRange(s.collection_time, opt.id, customStartDate, customEndDate, list)
+          ).length;
+        }
       }
+      return counts;
+    } catch (err) {
+      console.warn('filterCounts error:', err);
+      return {};
     }
-    return counts;
   }, [submissions, customStartDate, customEndDate]);
 
   // จุดตรวจที่ผ่านการกรองช่วงเวลา (Time Filtered Submissions)
   const timeFilteredSubmissions = useMemo(() => {
-    if (timeFilter === 'all') return submissions;
-    return submissions.filter(sub => 
-      isWithinTimeRange(sub.collection_time, timeFilter, customStartDate, customEndDate, submissions)
-    );
+    try {
+      const list = Array.isArray(submissions) ? submissions : [];
+      if (!timeFilter || timeFilter === 'all') return list;
+      return list.filter(sub => 
+        sub && isWithinTimeRange(sub.collection_time, timeFilter, customStartDate, customEndDate, list)
+      );
+    } catch (err) {
+      console.warn('timeFilteredSubmissions error:', err);
+      return Array.isArray(submissions) ? submissions : [];
+    }
   }, [submissions, timeFilter, customStartDate, customEndDate]);
 
   // หาตัวเลือกฟิลเตอร์ปัจจุบัน
   const activeFilterOption = useMemo(() => {
-    return TIME_FILTER_OPTIONS.find(o => o.id === timeFilter) || TIME_FILTER_OPTIONS[0];
+    return TIME_FILTER_OPTIONS.find(o => o.id === timeFilter) || TIME_FILTER_OPTIONS[0] || {
+      id: 'all',
+      label: 'ทั้งหมด',
+      fullLabel: 'ทุกช่วงเวลา (ทั้งหมด)'
+    };
   }, [timeFilter]);
 
   // ค้นหาเฉพาะในชุดที่ผ่านการกรองช่วงเวลาแล้ว
   const filteredSubmissions = useMemo(() => {
-    return timeFilteredSubmissions.filter(sub => {
-      if (!searchQuery.trim()) return true;
-      const q = searchQuery.toLowerCase();
-      const code = (sub.sample_code || '').toLowerCase();
-      const st = (sub.station_name || '').toLowerCase();
-      const collector = (sub.collector?.name || '').toLowerCase();
-      const waterSource = (sub.sample_nature?.water_source || '').toLowerCase();
-      const asVal = sub.measurements?.arsenic?.value !== undefined ? String(sub.measurements?.arsenic?.value) : '';
-      return code.includes(q) || st.includes(q) || collector.includes(q) || waterSource.includes(q) || asVal.includes(q);
-    });
+    try {
+      const list = Array.isArray(timeFilteredSubmissions) ? timeFilteredSubmissions : [];
+      return list.filter(sub => {
+        if (!sub) return false;
+        if (!searchQuery.trim()) return true;
+        const q = searchQuery.toLowerCase();
+        const code = (sub.sample_code || '').toLowerCase();
+        const st = (sub.station_name || '').toLowerCase();
+        const collector = (sub.collector?.name || '').toLowerCase();
+        const waterSource = (sub.sample_nature?.water_source || '').toLowerCase();
+        const asVal = sub.measurements?.arsenic?.value !== undefined ? String(sub.measurements?.arsenic?.value) : '';
+        return code.includes(q) || st.includes(q) || collector.includes(q) || waterSource.includes(q) || asVal.includes(q);
+      });
+    } catch (err) {
+      console.warn('filteredSubmissions error:', err);
+      return Array.isArray(timeFilteredSubmissions) ? timeFilteredSubmissions : [];
+    }
   }, [timeFilteredSubmissions, searchQuery]);
 
   return (

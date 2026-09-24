@@ -17,6 +17,7 @@ import SatelliteComparisonController from './components/SatelliteComparisonContr
 import SentinelAnalysisHUD from './components/SentinelAnalysisHUD';
 import FloodAnalysisModal from './components/FloodAnalysisModal';
 import ImageZoomLightbox from './components/ImageZoomLightbox';
+import ErrorBoundary from './components/ErrorBoundary';
 import { THATON_COMMUNITIES, THATON_CENTER } from './data/thatonFloodData';
 
 // Code splitting: Dynamic lazy load for secondary views to maximize initial page performance
@@ -100,89 +101,96 @@ export default function App() {
   // 1. หน้าต่างหลัก: ภาพถ่ายดาวเทียม Sentinel-2 ก่อน-หลัง 2567 (Main Function จากระบบต้นแบบ)
   if (activePage === 'sentinel-compare') {
     return (
-      <Suspense fallback={
-        <div className="w-screen h-screen flex items-center justify-center bg-slate-900 text-white font-['Prompt',sans-serif]">
-          <div className="flex flex-col items-center gap-3">
-            <div className="w-8 h-8 border-4 border-sky-400 border-t-transparent rounded-full animate-spin"></div>
-            <p className="text-sm font-semibold">กำลังโหลดข้อมูลดาวเทียม Sentinel-2 (ก่อน-หลัง 2567)...</p>
+      <ErrorBoundary>
+        <Suspense fallback={
+          <div className="w-screen h-screen flex items-center justify-center bg-[#F8F7F5] text-slate-800 font-['Prompt',sans-serif]">
+            <div className="flex flex-col items-center gap-3">
+              <div className="w-8 h-8 border-4 border-sky-500 border-t-transparent rounded-full animate-spin"></div>
+              <p className="text-sm font-semibold text-slate-700">กำลังโหลดข้อมูลดาวเทียม Sentinel-2...</p>
+            </div>
           </div>
-        </div>
-      }>
-        <SentinelCompareView
-          onSwitchTo3DSim={() => {
-            setActivePage('flood-sim');
-            window.location.hash = '#3d';
-          }}
-          onOpenWaterWatch={() => {
-            setActivePage('water-watch');
-            window.location.hash = '#water-watch';
-          }}
-          onFlyToLocation={(coords, zoom = 15.5) => {
-            setActivePage('flood-sim');
-            window.location.hash = '#3d';
-            setTimeout(() => {
-              if (window.map) {
-                window.map.flyTo({
-                  center: coords,
-                  zoom: zoom,
-                  pitch: 45,
-                  bearing: 15,
-                  duration: 1500,
-                  essential: true
-                });
-              }
-            }, 300);
-          }}
-        />
-      </Suspense>
+        }>
+          <SentinelCompareView
+            onSwitchTo3DSim={() => {
+              setActivePage('flood-sim');
+              window.location.hash = '#3d';
+            }}
+            onOpenWaterWatch={() => {
+              setActivePage('water-watch');
+              window.location.hash = '#water-watch';
+            }}
+            onFlyToLocation={(coords, zoom = 15.5) => {
+              setActivePage('flood-sim');
+              window.location.hash = '#3d';
+              setTimeout(() => {
+                if (window.map) {
+                  window.map.flyTo({
+                    center: coords,
+                    zoom: zoom,
+                    pitch: 45,
+                    bearing: 15,
+                    duration: 1500,
+                    essential: true
+                  });
+                }
+              }, 300);
+            }}
+          />
+        </Suspense>
+      </ErrorBoundary>
     );
   }
 
   if (activePage === 'water-watch') {
     return (
-      <Suspense fallback={
-        <div className="w-screen h-screen flex items-center justify-center bg-slate-900 text-white font-['Prompt',sans-serif]">
-          <div className="flex flex-col items-center gap-3">
-            <div className="w-8 h-8 border-4 border-sky-400 border-t-transparent rounded-full animate-spin"></div>
-            <p className="text-sm font-semibold">กำลังโหลด KOK Water Watch...</p>
+      <ErrorBoundary>
+        <Suspense fallback={
+          <div className="w-screen h-screen flex items-center justify-center bg-[#F8F7F5] text-slate-800 font-['Prompt',sans-serif]">
+            <div className="flex flex-col items-center gap-3">
+              <div className="w-9 h-9 border-4 border-[#A6192E] border-t-transparent rounded-full animate-spin"></div>
+              <p className="text-sm font-semibold text-slate-700">กำลังโหลด KOK Water Watch...</p>
+            </div>
           </div>
-        </div>
-      }>
-        <KokWaterWatchView
-          onBackToFloodSim={() => {
-            setActivePage('flood-sim');
-            window.location.hash = '#flood-sim';
-          }}
-        />
-      </Suspense>
+        }>
+          <KokWaterWatchView
+            onBackToFloodSim={() => {
+              setActivePage('flood-sim');
+              window.location.hash = '#flood-sim';
+            }}
+          />
+        </Suspense>
+      </ErrorBoundary>
     );
   }
 
   if (activePage === 'google-3d') {
     return (
-      <Suspense fallback={
-        <div className="w-screen h-screen flex items-center justify-center bg-slate-900 text-white font-['Prompt',sans-serif]">
-          <div className="flex flex-col items-center gap-3">
-            <div className="w-8 h-8 border-4 border-amber-400 border-t-transparent rounded-full animate-spin"></div>
-            <p className="text-sm font-semibold">กำลังโหลด Google Maps 3D View...</p>
+      <ErrorBoundary>
+        <Suspense fallback={
+          <div className="w-screen h-screen flex items-center justify-center bg-[#F8F7F5] text-slate-800 font-['Prompt',sans-serif]">
+            <div className="flex flex-col items-center gap-3">
+              <div className="w-8 h-8 border-4 border-amber-500 border-t-transparent rounded-full animate-spin"></div>
+              <p className="text-sm font-semibold text-slate-700">กำลังโหลด Google Maps 3D View...</p>
+            </div>
           </div>
-        </div>
-      }>
-        <GoogleMaps3DView
-          onBack={() => {
-            setActivePage('flood-sim');
-            window.location.hash = '#flood-sim';
-          }}
-          floodStage={floodStage}
-        />
-      </Suspense>
+        }>
+          <GoogleMaps3DView
+            onBack={() => {
+              setActivePage('flood-sim');
+              window.location.hash = '#flood-sim';
+            }}
+            floodStage={floodStage}
+          />
+        </Suspense>
+      </ErrorBoundary>
     );
   }
 
   return (
-    <div className="relative w-screen h-screen overflow-hidden bg-white font-['Prompt',sans-serif] text-slate-800">
-      {/* 3D Map Viewport (ภาพถ่ายดาวเทียม 3D คมชัด 100% ไร้สิ่งรบกวน) */}
-      <div className="absolute inset-0 z-0">
+    <ErrorBoundary>
+      <div className="relative w-screen h-screen overflow-hidden bg-white font-['Prompt',sans-serif] text-slate-800">
+        {/* 3D Map Viewport (ภาพถ่ายดาวเทียม 3D คมชัด 100% ไร้สิ่งรบกวน) */}
+        <div className="absolute inset-0 z-0">
         <MapView2D
           selectedLocation={selectedLocation}
           onSelectLocation={(loc) => {
@@ -472,5 +480,6 @@ export default function App() {
         onClose={() => setLightboxImage(null)}
       />
     </div>
+    </ErrorBoundary>
   );
 }

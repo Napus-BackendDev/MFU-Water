@@ -1339,6 +1339,9 @@ const LEGACY_STORAGE_KEY = 'kok_water_watch_submissions';
 
 export function getStoredSubmissions() {
   try {
+    if (typeof window === 'undefined' || typeof localStorage === 'undefined') {
+      return INITIAL_SUBMISSIONS;
+    }
     let raw = localStorage.getItem(LOCAL_STORAGE_KEY_V2);
     if (!raw) {
       // ตรวจสอบข้อมูลเก่าใน LocalStorage และ Migrate ให้เป็น Schema 2.0
@@ -1347,7 +1350,7 @@ export function getStoredSubmissions() {
         try {
           const legacyItems = JSON.parse(legacyRaw);
           if (Array.isArray(legacyItems) && legacyItems.length > 0) {
-            const migrated = legacyItems.map(it => normalizeSubmission(it)).filter(Boolean);
+            const migrated = legacyItems.filter(Boolean).map(it => normalizeSubmission(it)).filter(Boolean);
             localStorage.setItem(LOCAL_STORAGE_KEY_V2, JSON.stringify(migrated));
             return migrated;
           }
@@ -1357,11 +1360,11 @@ export function getStoredSubmissions() {
     if (raw) {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed) && parsed.length > 0) {
-        const storedCodes = new Set(parsed.map(p => p.sample_code));
-        const missingDefaults = INITIAL_SUBMISSIONS.filter(init => !storedCodes.has(init.sample_code));
-        const normalizedParsed = parsed.map(it => normalizeSubmission(it)).filter(Boolean);
+        const storedCodes = new Set(parsed.filter(Boolean).map(p => p?.sample_code).filter(Boolean));
+        const missingDefaults = INITIAL_SUBMISSIONS.filter(init => init?.sample_code && !storedCodes.has(init.sample_code));
+        const normalizedParsed = parsed.filter(Boolean).map(it => normalizeSubmission(it)).filter(Boolean);
         const merged = [...normalizedParsed, ...missingDefaults];
-        return merged;
+        return merged.length > 0 ? merged : INITIAL_SUBMISSIONS;
       }
     }
   } catch (e) {
