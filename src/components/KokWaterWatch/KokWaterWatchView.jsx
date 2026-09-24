@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   Droplets,
   Database,
@@ -15,7 +15,9 @@ import {
   X,
   Search,
   Flame,
-  RotateCcw
+  RotateCcw,
+  Clock,
+  Filter
 } from 'lucide-react';
 import WaterWatchMap from './WaterWatchMap';
 import WaterWatchForm from './WaterWatchForm';
@@ -35,6 +37,71 @@ import {
   isSupabaseConfigured 
 } from '../../lib/supabase';
 
+// ตัวเลือกช่วงเวลาสำหรับฟิลเตอร์ขนาดใหญ่
+const TIME_FILTER_OPTIONS = [
+  { id: 'all', label: 'ทั้งหมด', fullLabel: 'ทุกช่วงเวลา (ทั้งหมด)', desc: 'แสดงจุดตรวจวัดทั้งหมดทุกช่วงเวลา', group: 'all' },
+  { id: 'today', label: 'วันนี้ (24 ชม.)', fullLabel: 'วันนี้ (24 ชม. ล่าสุด)', desc: 'ผลตรวจย้อนหลังไม่เกิน 24 ชั่วโมง', group: 'daily' },
+  { id: '7days', label: '7 วันล่าสุด', fullLabel: '7 วันล่าสุด (รายสัปดาห์)', desc: 'ผลตรวจในรอบ 7 วันที่ผ่านมา', group: 'daily' },
+  { id: 'month', label: 'เดือนนี้ (30 วัน)', fullLabel: 'เดือนนี้ (30 วันล่าสุด)', desc: 'ผลตรวจในรอบ 30 วันที่ผ่านมา', group: 'monthly' },
+  { id: '3months', label: '3 เดือนล่าสุด', fullLabel: '3 เดือนล่าสุด (ไตรมาส)', desc: 'ผลตรวจในรอบ 90 วันที่ผ่านมา', group: 'monthly' },
+  { id: 'year', label: 'ปีนี้ (2026)', fullLabel: 'ปีนี้ (2026)', desc: 'ข้อมูลที่บันทึกในปี 2026', group: 'yearly' },
+  { id: '1year', label: 'ย้อนหลัง 1 ปี', fullLabel: 'ย้อนหลัง 1 ปี (365 วัน)', desc: 'ผลตรวจย้อนหลัง 1 ปีเต็ม', group: 'yearly' },
+  { id: 'custom', label: 'กำหนดวันเอง', fullLabel: 'กำหนดช่วงวันเอง (Custom)', desc: 'ระบุวันเริ่มต้นและสิ้นสุดตามต้องการ', group: 'custom' }
+];
+
+// ตรวจสอบว่า collection_time ของแต่ละรายการอยู่ในช่วงเวลาที่กำหนดหรือไม่
+function isWithinTimeRange(dateStr, filter, customStart, customEnd, allSubmissions = []) {
+  if (filter === 'all') return true;
+  if (!dateStr) return true;
+  const targetTime = new Date(dateStr).getTime();
+  if (isNaN(targetTime)) return true;
+
+  // หา Reference Time: วันที่บันทึกล่าสุดในชุดข้อมูล หรือเวลาปัจจุบัน
+  let maxDataTime = Date.now();
+  for (const s of allSubmissions) {
+    if (s.collection_time) {
+      const t = new Date(s.collection_time).getTime();
+      if (!isNaN(t) && t > maxDataTime) maxDataTime = t;
+    }
+  }
+  const refTime = maxDataTime;
+
+  const ONE_HOUR = 3600 * 1000;
+  const ONE_DAY = 24 * ONE_HOUR;
+
+  switch (filter) {
+    case 'today':
+      return targetTime >= (refTime - ONE_DAY);
+    case '7days':
+      return targetTime >= (refTime - 7 * ONE_DAY);
+    case 'month':
+      return targetTime >= (refTime - 30 * ONE_DAY);
+    case '3months':
+      return targetTime >= (refTime - 90 * ONE_DAY);
+    case 'year': {
+      const refYear = new Date(refTime).getFullYear();
+      const targetYear = new Date(targetTime).getFullYear();
+      return targetYear === refYear;
+    }
+    case '1year':
+      return targetTime >= (refTime - 365 * ONE_DAY);
+    case 'custom': {
+      let valid = true;
+      if (customStart) {
+        const startT = new Date(customStart + 'T00:00:00').getTime();
+        if (!isNaN(startT) && targetTime < startT) valid = false;
+      }
+      if (customEnd) {
+        const endT = new Date(customEnd + 'T23:59:59').getTime();
+        if (!isNaN(endT) && targetTime > endT) valid = false;
+      }
+      return valid;
+    }
+    default:
+      return true;
+  }
+}
+
 export default function KokWaterWatchView({ onBackToFloodSim }) {
   const [submissions, setSubmissions] = useState(getStoredSubmissions);
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -49,11 +116,21 @@ export default function KokWaterWatchView({ onBackToFloodSim }) {
   const [isSearchDropdownOpen, setIsSearchDropdownOpen] = useState(false);
   const searchContainerRef = useRef(null);
 
-  // Close search dropdown on click outside
+  // Time Filter State (ตัวกรองระยะเวลาขนาดใหญ่)
+  const [timeFilter, setTimeFilter] = useState('all');
+  const [isTimeFilterOpen, setIsTimeFilterOpen] = useState(false);
+  const [customStartDate, setCustomStartDate] = useState('');
+  const [customEndDate, setCustomEndDate] = useState('');
+  const timeFilterContainerRef = useRef(null);
+
+  // Close search and time filter dropdown on click outside
   useEffect(() => {
     function handleClickOutside(event) {
       if (searchContainerRef.current && !searchContainerRef.current.contains(event.target)) {
         setIsSearchDropdownOpen(false);
+      }
+      if (timeFilterContainerRef.current && !timeFilterContainerRef.current.contains(event.target)) {
+        setIsTimeFilterOpen(false);
       }
     }
     document.addEventListener('mousedown', handleClickOutside);
@@ -145,8 +222,8 @@ export default function KokWaterWatchView({ onBackToFloodSim }) {
   };
 
   const handleExportCSV = () => {
-    if (!submissions || !submissions.length) {
-      alert('ยังไม่มีข้อมูลสำหรับส่งออก');
+    if (!timeFilteredSubmissions || !timeFilteredSubmissions.length) {
+      alert('ยังไม่มีข้อมูลสำหรับส่งออกในช่วงเวลาที่เลือก');
       return;
     }
     const headers = [
@@ -167,7 +244,7 @@ export default function KokWaterWatchView({ onBackToFloodSim }) {
       'ลิงก์ภาพถ่าย (photo_urls)'
     ];
 
-    const rows = submissions.map(s => [
+    const rows = timeFilteredSubmissions.map(s => [
       `"${s.sample_code}"`,
       `"${(s.station_name || '').replace(/"/g, '""')}"`,
       s.coordinates?.[1] || '',
@@ -190,7 +267,7 @@ export default function KokWaterWatchView({ onBackToFloodSim }) {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.setAttribute('download', `KOK_Water_Watch_${new Date().toISOString().slice(0, 10)}.csv`);
+    link.setAttribute('download', `KOK_Water_Watch_${timeFilter}_${new Date().toISOString().slice(0, 10)}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -209,21 +286,52 @@ export default function KokWaterWatchView({ onBackToFloodSim }) {
 
   const totalSamples = submissions.length;
 
-  const filteredSubmissions = submissions.filter(sub => {
-    if (!searchQuery.trim()) return true;
-    const q = searchQuery.toLowerCase();
-    const code = (sub.sample_code || '').toLowerCase();
-    const st = (sub.station_name || '').toLowerCase();
-    const collector = (sub.collector?.name || '').toLowerCase();
-    const waterSource = (sub.sample_nature?.water_source || '').toLowerCase();
-    const asVal = sub.measurements?.arsenic?.value !== undefined ? String(sub.measurements?.arsenic?.value) : '';
-    return code.includes(q) || st.includes(q) || collector.includes(q) || waterSource.includes(q) || asVal.includes(q);
-  });
+  // คำนวณจำนวนจุดตรวจวัดที่ตรงกับแต่ละ Filter Option เพื่อแสดงในเมนู Dropdown
+  const filterCounts = useMemo(() => {
+    const counts = {};
+    for (const opt of TIME_FILTER_OPTIONS) {
+      if (opt.id === 'all') {
+        counts[opt.id] = submissions.length;
+      } else {
+        counts[opt.id] = submissions.filter(s => 
+          isWithinTimeRange(s.collection_time, opt.id, customStartDate, customEndDate, submissions)
+        ).length;
+      }
+    }
+    return counts;
+  }, [submissions, customStartDate, customEndDate]);
+
+  // จุดตรวจที่ผ่านการกรองช่วงเวลา (Time Filtered Submissions)
+  const timeFilteredSubmissions = useMemo(() => {
+    if (timeFilter === 'all') return submissions;
+    return submissions.filter(sub => 
+      isWithinTimeRange(sub.collection_time, timeFilter, customStartDate, customEndDate, submissions)
+    );
+  }, [submissions, timeFilter, customStartDate, customEndDate]);
+
+  // หาตัวเลือกฟิลเตอร์ปัจจุบัน
+  const activeFilterOption = useMemo(() => {
+    return TIME_FILTER_OPTIONS.find(o => o.id === timeFilter) || TIME_FILTER_OPTIONS[0];
+  }, [timeFilter]);
+
+  // ค้นหาเฉพาะในชุดที่ผ่านการกรองช่วงเวลาแล้ว
+  const filteredSubmissions = useMemo(() => {
+    return timeFilteredSubmissions.filter(sub => {
+      if (!searchQuery.trim()) return true;
+      const q = searchQuery.toLowerCase();
+      const code = (sub.sample_code || '').toLowerCase();
+      const st = (sub.station_name || '').toLowerCase();
+      const collector = (sub.collector?.name || '').toLowerCase();
+      const waterSource = (sub.sample_nature?.water_source || '').toLowerCase();
+      const asVal = sub.measurements?.arsenic?.value !== undefined ? String(sub.measurements?.arsenic?.value) : '';
+      return code.includes(q) || st.includes(q) || collector.includes(q) || waterSource.includes(q) || asVal.includes(q);
+    });
+  }, [timeFilteredSubmissions, searchQuery]);
 
   return (
     <div className="relative w-screen h-screen overflow-hidden bg-[#F8F7F5] font-['Prompt',sans-serif] text-[#242424]">
       {/* 1. Top Navigation Bar (ขาว 80% • แดง 20% • แต่งขอบทอง) */}
-      <header className="absolute top-0 left-0 right-0 z-30 bg-white/95 backdrop-blur-md border-b-2 border-[#B4975A]/40 shadow-sm px-3 sm:px-4 py-2 flex items-center justify-between gap-2 sm:gap-4">
+      <header className="absolute top-0 left-0 right-0 z-30 bg-white/95 backdrop-blur-md border-b-2 border-[#B4975A]/40 shadow-sm px-2.5 sm:px-4 py-2 flex items-center justify-between gap-2 sm:gap-4">
         {/* Left: Brand */}
         <div className="flex items-center gap-2.5 sm:gap-3 shrink-0">
           <div className="flex items-center gap-2 sm:gap-2.5">
@@ -236,121 +344,424 @@ export default function KokWaterWatchView({ onBackToFloodSim }) {
                   KOK Water Watch
                 </h1>
               </div>
-              <p className="text-[10px] sm:text-[11px] text-slate-500 hidden lg:block whitespace-nowrap">
+              <p className="text-[10px] sm:text-[11px] text-slate-500 hidden xl:block whitespace-nowrap">
                 ระบบเก็บข้อมูลและเฝ้าระวังคุณภาพน้ำแม่น้ำกก &bull; ทีมทดลองภาคสนาม
               </p>
             </div>
           </div>
         </div>
 
-        {/* Center: Search Bar */}
-        <div ref={searchContainerRef} className="flex-1 max-w-xs sm:max-w-sm md:max-w-md relative min-w-0">
-          <div className="relative flex items-center">
-            <Search className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-400 absolute left-3 pointer-events-none" />
-            <input
-              type="text"
-              placeholder="ค้นหาจุดตรวจ, รหัส KOK..."
-              value={searchQuery}
-              onChange={(e) => {
-                setSearchQuery(e.target.value);
-                setIsSearchDropdownOpen(true);
-              }}
-              onFocus={() => setIsSearchDropdownOpen(true)}
-              className="w-full pl-8 sm:pl-9 pr-7 sm:pr-8 py-1.5 sm:py-2 bg-slate-100/90 hover:bg-slate-100 focus:bg-white rounded-full sm:rounded-xl border border-slate-200 focus:border-[#A6192E] text-xs sm:text-sm text-slate-800 placeholder:text-slate-400 focus:outline-hidden focus:ring-2 focus:ring-[#A6192E]/20 transition-all shadow-2xs"
-            />
-            {searchQuery && (
-              <button
-                type="button"
-                onClick={() => {
-                  setSearchQuery('');
-                  setIsSearchDropdownOpen(false);
+        {/* Center: Search Bar & Large Time Range Filter (อยู่ข้างๆ กัน) */}
+        <div className="flex-1 flex items-center justify-center gap-1.5 sm:gap-2.5 max-w-sm sm:max-w-xl md:max-w-2xl min-w-0">
+          {/* Search Bar */}
+          <div ref={searchContainerRef} className="flex-1 max-w-[150px] sm:max-w-xs md:max-w-sm relative min-w-0">
+            <div className="relative flex items-center">
+              <Search className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-400 absolute left-3 pointer-events-none" />
+              <input
+                type="text"
+                placeholder="ค้นหาจุดตรวจ, รหัส KOK..."
+                value={searchQuery}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setIsSearchDropdownOpen(true);
                 }}
-                className="absolute right-2 sm:right-2.5 p-0.5 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-200 text-xs font-bold transition-all cursor-pointer"
-                title="ล้างคำค้นหา"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
+                onFocus={() => setIsSearchDropdownOpen(true)}
+                className="w-full pl-8 sm:pl-9 pr-7 sm:pr-8 py-1.5 sm:py-2 bg-slate-100/90 hover:bg-slate-100 focus:bg-white rounded-full sm:rounded-xl border border-slate-200 focus:border-[#A6192E] text-xs sm:text-sm text-slate-800 placeholder:text-slate-400 focus:outline-hidden focus:ring-2 focus:ring-[#A6192E]/20 transition-all shadow-2xs"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchQuery('');
+                    setIsSearchDropdownOpen(false);
+                  }}
+                  className="absolute right-2 sm:right-2.5 p-0.5 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-200 text-xs font-bold transition-all cursor-pointer"
+                  title="ล้างคำค้นหา"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+
+            {/* Live Search Results Dropdown */}
+            {isSearchDropdownOpen && searchQuery.trim() && (
+              <div className="absolute top-full left-0 right-0 mt-1.5 bg-white/98 backdrop-blur-md rounded-2xl shadow-xl border border-slate-200 py-1.5 z-50 max-h-80 overflow-y-auto animate-in fade-in slide-in-from-top-1 duration-150">
+                <div className="px-3 py-1.5 text-[11px] font-semibold text-slate-400 border-b border-slate-100 flex items-center justify-between">
+                  <span>ผลการค้นหา ({filteredSubmissions.length})</span>
+                  <span className="text-[10px]">แตะเพื่อไปยังจุดตรวจ</span>
+                </div>
+                {filteredSubmissions.length === 0 ? (
+                  <div className="px-4 py-6 text-center text-xs text-slate-400">
+                    ไม่พบจุดตรวจที่ตรงกับ "{searchQuery}"
+                  </div>
+                ) : (
+                  <>
+                    <div className="divide-y divide-slate-100">
+                      {filteredSubmissions.slice(0, 6).map((sub) => {
+                        const asVal = sub.measurements?.arsenic?.value;
+                        const asColor = sub.measurements?.arsenic?.color || '#DE9922';
+                        return (
+                          <div
+                            key={sub.record_id || sub.sample_code}
+                            onClick={() => {
+                              setSelectedHotspot(null);
+                              setSelectedSample(sub);
+                              setFocusCoords(sub.coordinates);
+                              setIsSearchDropdownOpen(false);
+                            }}
+                            className="px-3 py-2 hover:bg-rose-50/60 cursor-pointer transition-colors flex items-center justify-between gap-2 text-left"
+                          >
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-1.5">
+                                <span
+                                  className="w-2.5 h-2.5 rounded-full shrink-0 border border-black/10"
+                                  style={{ backgroundColor: asColor }}
+                                />
+                                <span className="text-xs sm:text-sm font-bold text-slate-800 truncate">
+                                  {sub.station_name || sub.sample_code}
+                                </span>
+                              </div>
+                              <div className="text-[11px] text-slate-500 truncate mt-0.5">
+                                รหัส: {sub.sample_code} &bull; ผู้ตรวจ: {sub.collector?.name || '-'}
+                              </div>
+                            </div>
+                            {asVal !== null && asVal !== undefined && (
+                              <div className="shrink-0 text-right">
+                                <span className={`px-2 py-0.5 rounded-full text-[10px] sm:text-[11px] font-bold ${
+                                  asVal > 50 ? 'bg-red-100 text-red-700' : asVal > 10 ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'
+                                }`}>
+                                  {asVal} ppb
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                    {filteredSubmissions.length > 6 && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsSearchDropdownOpen(false);
+                          setIsListDrawerOpen(true);
+                        }}
+                        className="w-full py-2 text-center text-xs font-bold text-[#A6192E] hover:bg-red-50/80 transition-colors border-t border-slate-100 cursor-pointer"
+                      >
+                        ดูผลการค้นหาทั้งหมด ({filteredSubmissions.length} จุด) &rarr;
+                      </button>
+                    )}
+                  </>
+                )}
+              </div>
             )}
           </div>
 
-          {/* Live Search Results Dropdown */}
-          {isSearchDropdownOpen && searchQuery.trim() && (
-            <div className="absolute top-full left-0 right-0 mt-1.5 bg-white/98 backdrop-blur-md rounded-2xl shadow-xl border border-slate-200 py-1.5 z-50 max-h-80 overflow-y-auto animate-in fade-in slide-in-from-top-1 duration-150">
-              <div className="px-3 py-1.5 text-[11px] font-semibold text-slate-400 border-b border-slate-100 flex items-center justify-between">
-                <span>ผลการค้นหา ({filteredSubmissions.length})</span>
-                <span className="text-[10px]">แตะเพื่อไปยังจุดตรวจ</span>
+          {/* Large Time Range Filter Selector (ตัวกรองระยะเวลาขนาดใหญ่ข้าง Search) */}
+          <div ref={timeFilterContainerRef} className="relative shrink-0">
+            <button
+              type="button"
+              onClick={() => setIsTimeFilterOpen(!isTimeFilterOpen)}
+              className={`h-8 sm:h-9 px-2.5 sm:px-3 rounded-full sm:rounded-xl border transition-all flex items-center gap-1.5 sm:gap-2 cursor-pointer shadow-2xs select-none ${
+                timeFilter !== 'all'
+                  ? 'bg-gradient-to-r from-amber-50 via-rose-50 to-amber-50 border-[#A6192E] text-[#A6192E] ring-2 ring-[#A6192E]/20 font-bold'
+                  : 'bg-slate-100 hover:bg-slate-200/90 border-slate-200 text-slate-700 font-medium'
+              }`}
+              title="ฟิลเตอร์ระยะเวลาข้อมูลจุดตรวจวัดบนแผนที่ (วัน/เดือน/ปี/กำหนดเอง)"
+            >
+              <Calendar className={`w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0 ${timeFilter !== 'all' ? 'text-[#A6192E]' : 'text-slate-500'}`} />
+              
+              <div className="flex items-center gap-1 sm:gap-1.5 text-xs sm:text-sm whitespace-nowrap">
+                <span className="hidden lg:inline text-slate-400 font-normal">ช่วงเวลา:</span>
+                <span className="font-bold truncate max-w-[85px] sm:max-w-[125px] md:max-w-none">
+                  {activeFilterOption.label}
+                </span>
+                <span className={`px-1.5 py-0.2 rounded-full font-mono text-[10px] sm:text-[11px] font-bold ${
+                  timeFilter !== 'all' ? 'bg-[#A6192E] text-white shadow-2xs' : 'bg-slate-200 text-slate-700'
+                }`}>
+                  {timeFilteredSubmissions.length} จุด
+                </span>
               </div>
-              {filteredSubmissions.length === 0 ? (
-                <div className="px-4 py-6 text-center text-xs text-slate-400">
-                  ไม่พบจุดตรวจที่ตรงกับ "{searchQuery}"
-                </div>
+
+              {timeFilter !== 'all' ? (
+                <span
+                  role="button"
+                  tabIndex={0}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setTimeFilter('all');
+                  }}
+                  className="p-0.5 rounded-full hover:bg-rose-200/80 text-[#A6192E] transition-colors ml-0.5"
+                  title="ล้างตัวกรองช่วงเวลา"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </span>
               ) : (
-                <>
-                  <div className="divide-y divide-slate-100">
-                    {filteredSubmissions.slice(0, 6).map((sub) => {
-                      const asVal = sub.measurements?.arsenic?.value;
-                      const asColor = sub.measurements?.arsenic?.color || '#DE9922';
-                      return (
-                        <div
-                          key={sub.record_id || sub.sample_code}
-                          onClick={() => {
-                            setSelectedHotspot(null);
-                            setSelectedSample(sub);
-                            setFocusCoords(sub.coordinates);
-                            setIsSearchDropdownOpen(false);
-                          }}
-                          className="px-3 py-2 hover:bg-rose-50/60 cursor-pointer transition-colors flex items-center justify-between gap-2 text-left"
-                        >
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-center gap-1.5">
-                              <span
-                                className="w-2.5 h-2.5 rounded-full shrink-0 border border-black/10"
-                                style={{ backgroundColor: asColor }}
-                              />
-                              <span className="text-xs sm:text-sm font-bold text-slate-800 truncate">
-                                {sub.station_name || sub.sample_code}
-                              </span>
-                            </div>
-                            <div className="text-[11px] text-slate-500 truncate mt-0.5">
-                              รหัส: {sub.sample_code} &bull; ผู้ตรวจ: {sub.collector?.name || '-'}
-                            </div>
-                          </div>
-                          {asVal !== null && asVal !== undefined && (
-                            <div className="shrink-0 text-right">
-                              <span className={`px-2 py-0.5 rounded-full text-[10px] sm:text-[11px] font-bold ${
-                                asVal > 50 ? 'bg-red-100 text-red-700' : asVal > 10 ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'
-                              }`}>
-                                {asVal} ppb
-                              </span>
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
+                <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-200 ${
+                  isTimeFilterOpen ? 'rotate-180 text-[#A6192E]' : ''
+                }`} />
+              )}
+            </button>
+
+            {/* Large Time Filter Dropdown / Popover Modal */}
+            {isTimeFilterOpen && (
+              <div className="absolute top-full right-0 sm:right-auto sm:left-1/2 sm:-translate-x-1/2 mt-1.5 w-80 sm:w-96 max-w-[95vw] bg-white/98 backdrop-blur-md rounded-2xl shadow-2xl border-2 border-[#B4975A]/50 py-3 px-3.5 z-50 animate-in fade-in slide-in-from-top-2 duration-150 text-left font-['Prompt',sans-serif]">
+                {/* Popover Header */}
+                <div className="flex items-center justify-between border-b border-slate-100 pb-2 mb-2.5">
+                  <div className="flex items-center gap-2">
+                    <div className="w-7 h-7 rounded-lg bg-[#A6192E]/10 flex items-center justify-center text-[#A6192E]">
+                      <Calendar className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h4 className="text-xs sm:text-sm font-bold text-slate-900 leading-tight">
+                        ตัวกรองช่วงเวลาตรวจวัด
+                      </h4>
+                      <p className="text-[10px] text-slate-500">
+                        กรองจุดบนแผนที่และกลุ่ม Hotspot ทันที
+                      </p>
+                    </div>
                   </div>
-                  {filteredSubmissions.length > 6 && (
+                  <button
+                    type="button"
+                    onClick={() => setIsTimeFilterOpen(false)}
+                    className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-all cursor-pointer"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+
+                {/* Filter Options Grouped */}
+                <div className="space-y-2.5 max-h-[60vh] overflow-y-auto pr-0.5">
+                  {/* Quick Select: All */}
+                  <div>
                     <button
                       type="button"
                       onClick={() => {
-                        setIsSearchDropdownOpen(false);
-                        setIsListDrawerOpen(true);
+                        setTimeFilter('all');
+                        setIsTimeFilterOpen(false);
                       }}
-                      className="w-full py-2 text-center text-xs font-bold text-[#A6192E] hover:bg-red-50/80 transition-colors border-t border-slate-100 cursor-pointer"
+                      className={`w-full p-2 rounded-xl text-left transition-all flex items-center justify-between border cursor-pointer ${
+                        timeFilter === 'all'
+                          ? 'bg-[#A6192E] text-white border-[#A6192E] shadow-sm'
+                          : 'bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-800'
+                      }`}
                     >
-                      ดูผลการค้นหาทั้งหมด ({filteredSubmissions.length} จุด) &rarr;
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm">🌐</span>
+                        <div>
+                          <div className="text-xs font-bold leading-tight">ทุกช่วงเวลา (ทั้งหมด)</div>
+                          <div className={`text-[10px] ${timeFilter === 'all' ? 'text-white/80' : 'text-slate-400'}`}>
+                            แสดงจุดตรวจวัดทั้งหมดในระบบ
+                          </div>
+                        </div>
+                      </div>
+                      <span className={`px-2 py-0.5 rounded-full text-[11px] font-mono font-bold ${
+                        timeFilter === 'all' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'
+                      }`}>
+                        {filterCounts.all || totalSamples} จุด
+                      </span>
+                    </button>
+                  </div>
+
+                  {/* 1. รายวัน (Daily) */}
+                  <div className="space-y-1">
+                    <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1 px-1">
+                      <span>☀️ รายวัน / ล่าสุด (Daily)</span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-1.5">
+                      {TIME_FILTER_OPTIONS.filter(o => o.group === 'daily').map((opt) => {
+                        const isSelected = timeFilter === opt.id;
+                        const count = filterCounts[opt.id] || 0;
+                        return (
+                          <button
+                            key={opt.id}
+                            type="button"
+                            onClick={() => {
+                              setTimeFilter(opt.id);
+                              setIsTimeFilterOpen(false);
+                            }}
+                            className={`p-2 rounded-xl text-left transition-all border flex flex-col justify-between cursor-pointer ${
+                              isSelected
+                                ? 'bg-[#A6192E] text-white border-[#A6192E] shadow-sm'
+                                : 'bg-white hover:bg-rose-50/50 border-slate-200 text-slate-800'
+                            }`}
+                          >
+                            <div className="text-xs font-bold truncate">{opt.label}</div>
+                            <div className="flex items-center justify-between mt-1 text-[10px]">
+                              <span className={isSelected ? 'text-white/80' : 'text-slate-400'}>
+                                {opt.id === 'today' ? '24 ชม.' : '7 วัน'}
+                              </span>
+                              <span className={`px-1.5 py-0.2 rounded-md font-mono font-bold ${
+                                isSelected ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-700'
+                              }`}>
+                                {count} จุด
+                              </span>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* 2. รายเดือน (Monthly) */}
+                  <div className="space-y-1">
+                    <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1 px-1">
+                      <span>🗓️ รายเดือน / ไตรมาส (Monthly)</span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-1.5">
+                      {TIME_FILTER_OPTIONS.filter(o => o.group === 'monthly').map((opt) => {
+                        const isSelected = timeFilter === opt.id;
+                        const count = filterCounts[opt.id] || 0;
+                        return (
+                          <button
+                            key={opt.id}
+                            type="button"
+                            onClick={() => {
+                              setTimeFilter(opt.id);
+                              setIsTimeFilterOpen(false);
+                            }}
+                            className={`p-2 rounded-xl text-left transition-all border flex flex-col justify-between cursor-pointer ${
+                              isSelected
+                                ? 'bg-[#A6192E] text-white border-[#A6192E] shadow-sm'
+                                : 'bg-white hover:bg-rose-50/50 border-slate-200 text-slate-800'
+                            }`}
+                          >
+                            <div className="text-xs font-bold truncate">{opt.label}</div>
+                            <div className="flex items-center justify-between mt-1 text-[10px]">
+                              <span className={isSelected ? 'text-white/80' : 'text-slate-400'}>
+                                {opt.id === 'month' ? '30 วัน' : '90 วัน'}
+                              </span>
+                              <span className={`px-1.5 py-0.2 rounded-md font-mono font-bold ${
+                                isSelected ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-700'
+                              }`}>
+                                {count} จุด
+                              </span>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* 3. รายปี (Yearly) */}
+                  <div className="space-y-1">
+                    <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1 px-1">
+                      <span>📅 รายปี (Yearly)</span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-1.5">
+                      {TIME_FILTER_OPTIONS.filter(o => o.group === 'yearly').map((opt) => {
+                        const isSelected = timeFilter === opt.id;
+                        const count = filterCounts[opt.id] || 0;
+                        return (
+                          <button
+                            key={opt.id}
+                            type="button"
+                            onClick={() => {
+                              setTimeFilter(opt.id);
+                              setIsTimeFilterOpen(false);
+                            }}
+                            className={`p-2 rounded-xl text-left transition-all border flex flex-col justify-between cursor-pointer ${
+                              isSelected
+                                ? 'bg-[#A6192E] text-white border-[#A6192E] shadow-sm'
+                                : 'bg-white hover:bg-rose-50/50 border-slate-200 text-slate-800'
+                            }`}
+                          >
+                            <div className="text-xs font-bold truncate">{opt.label}</div>
+                            <div className="flex items-center justify-between mt-1 text-[10px]">
+                              <span className={isSelected ? 'text-white/80' : 'text-slate-400'}>
+                                {opt.id === 'year' ? 'ปีนี้' : '365 วัน'}
+                              </span>
+                              <span className={`px-1.5 py-0.2 rounded-md font-mono font-bold ${
+                                isSelected ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-700'
+                              }`}>
+                                {count} จุด
+                              </span>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* 4. กำหนดช่วงวันเอง (Custom Date Range) */}
+                  <div className="p-2.5 rounded-xl border border-slate-200 bg-slate-50/70 space-y-2">
+                    <div className="flex items-center justify-between text-xs font-bold text-slate-700">
+                      <span className="flex items-center gap-1.5">
+                        <span>⚙️</span>
+                        <span>กำหนดช่วงวันเอง</span>
+                      </span>
+                      {timeFilter === 'custom' && (
+                        <span className="text-[10px] text-[#A6192E] font-bold bg-rose-100 px-2 py-0.2 rounded-full">
+                          ใช้งานอยู่ ({filterCounts.custom || 0} จุด)
+                        </span>
+                      )}
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div>
+                        <label className="text-[10px] text-slate-500 block mb-0.5 font-medium">วันที่เริ่มต้น</label>
+                        <input
+                          type="date"
+                          value={customStartDate}
+                          onChange={(e) => setCustomStartDate(e.target.value)}
+                          className="w-full px-2 py-1 bg-white border border-slate-300 rounded-lg text-xs text-slate-800 focus:outline-hidden focus:border-[#A6192E]"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] text-slate-500 block mb-0.5 font-medium">วันที่สิ้นสุด</label>
+                        <input
+                          type="date"
+                          value={customEndDate}
+                          onChange={(e) => setCustomEndDate(e.target.value)}
+                          className="w-full px-2 py-1 bg-white border border-slate-300 rounded-lg text-xs text-slate-800 focus:outline-hidden focus:border-[#A6192E]"
+                        />
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setTimeFilter('custom');
+                        setIsTimeFilterOpen(false);
+                      }}
+                      className="w-full py-1.5 bg-[#A6192E] hover:bg-[#851424] text-white rounded-lg text-xs font-bold transition-all shadow-xs cursor-pointer flex items-center justify-center gap-1"
+                    >
+                      <Check className="w-3.5 h-3.5" />
+                      <span>ใช้งานช่วงวันที่กำหนด</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Footer Info & Reset */}
+                <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between text-[11px]">
+                  <span className="text-slate-500 font-medium">
+                    แสดงผล <strong className="text-[#A6192E]">{timeFilteredSubmissions.length}</strong> จาก {totalSamples} จุด
+                  </span>
+                  {timeFilter !== 'all' && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setTimeFilter('all');
+                        setCustomStartDate('');
+                        setCustomEndDate('');
+                        setIsTimeFilterOpen(false);
+                      }}
+                      className="text-xs text-[#A6192E] hover:underline font-bold flex items-center gap-1 cursor-pointer"
+                    >
+                      <RotateCcw className="w-3 h-3" />
+                      <span>รีเซ็ตเป็นทั้งหมด</span>
                     </button>
                   )}
-                </>
-              )}
-            </div>
-          )}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Right: Actions */}
         <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
           <button
             onClick={handleExportCSV}
-            className="p-1.5 sm:px-3 sm:py-2 rounded-xl border border-emerald-300 text-xs font-bold text-emerald-800 bg-emerald-50/80 hover:bg-emerald-100 transition-all flex items-center gap-1.5 shadow-xs"
+            className="p-1.5 sm:px-3 sm:py-2 rounded-xl border border-emerald-300 text-xs font-bold text-emerald-800 bg-emerald-50/80 hover:bg-emerald-100 transition-all flex items-center gap-1.5 shadow-xs cursor-pointer"
             title="ส่งออกข้อมูลเป็นไฟล์ Excel (.csv)"
           >
             <Download className="w-4 h-4 text-emerald-600" />
@@ -359,11 +770,13 @@ export default function KokWaterWatchView({ onBackToFloodSim }) {
 
           <button
             onClick={() => setIsListDrawerOpen(!isListDrawerOpen)}
-            className="p-1.5 sm:px-3 sm:py-2 rounded-xl border border-slate-300 text-xs font-bold text-slate-700 hover:bg-slate-100 transition-all flex items-center gap-1.5"
+            className="p-1.5 sm:px-3 sm:py-2 rounded-xl border border-slate-300 text-xs font-bold text-slate-700 hover:bg-slate-100 transition-all flex items-center gap-1.5 cursor-pointer"
             title="เปิดดูรายการตัวอย่างที่บันทึกไว้"
           >
             <List className="w-4 h-4 text-[#A6192E]" />
-            <span className="hidden sm:inline">รายการ ({totalSamples})</span>
+            <span className="hidden sm:inline">
+              รายการ ({timeFilteredSubmissions.length}{timeFilter !== 'all' ? `/${totalSamples}` : ''})
+            </span>
           </button>
         </div>
       </header>
@@ -371,7 +784,7 @@ export default function KokWaterWatchView({ onBackToFloodSim }) {
       {/* 2. Interactive Map (Full Screen) */}
       <div className="absolute inset-0 pt-14 z-0">
         <WaterWatchMap
-          submissions={submissions}
+          submissions={timeFilteredSubmissions}
           selectedSample={selectedSample}
           onSelectSample={(s) => setSelectedSample(s)}
           selectedHotspot={selectedHotspot}
@@ -493,7 +906,7 @@ export default function KokWaterWatchView({ onBackToFloodSim }) {
               <h3 className="text-sm font-bold text-white flex items-center gap-2">
                 <span>รายการตัวอย่างน้ำ</span>
                 <span className="text-[10px] bg-white/20 px-2 py-0.5 rounded-full font-mono text-amber-200">
-                  {totalSamples} รายการ
+                  {filteredSubmissions.length}{timeFilter !== 'all' ? ` / ${totalSamples}` : ''} รายการ
                 </span>
               </h3>
               <p className="text-[11px] text-rose-100">แตะเพื่อดูตำแหน่งและผลตรวจบนแผนที่</p>
@@ -508,6 +921,23 @@ export default function KokWaterWatchView({ onBackToFloodSim }) {
             <X className="w-5 h-5" />
           </button>
         </div>
+
+        {/* Time Filter Active Notice in Sidebar */}
+        {timeFilter !== 'all' && (
+          <div className="px-3 py-2 bg-amber-50 border-b border-amber-200 flex items-center justify-between text-xs">
+            <div className="flex items-center gap-1.5 text-amber-900 font-semibold truncate">
+              <Calendar className="w-3.5 h-3.5 text-[#A6192E] shrink-0" />
+              <span className="truncate">ช่วงเวลา: {activeFilterOption.fullLabel}</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setTimeFilter('all')}
+              className="text-[11px] text-[#A6192E] font-bold hover:underline shrink-0 ml-2 cursor-pointer"
+            >
+              ล้างตัวกรอง
+            </button>
+          </div>
+        )}
 
         {/* Search bar inside sidebar */}
         <div className="p-3 border-b border-slate-200 bg-[#F8F7F5]">

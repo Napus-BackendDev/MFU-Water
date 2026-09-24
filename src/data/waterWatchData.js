@@ -914,6 +914,350 @@ export const INITIAL_SUBMISSIONS = [
     ],
     status: 'COMPLETED',
     sync_stage: 'INDEXED'
+  },
+  {
+    record_id: 'rec-007-init',
+    sample_code: 'KOK-20260921-0007',
+    schema_version: '2.0',
+    station_name: 'จุดสะพานท่าตอน (ฝั่งตลาดกลาง)',
+    coordinates: [99.3614, 20.0609],
+    collection_time: '2026-09-21T09:30:00+07:00',
+    gps_accuracy_meters: 4.1,
+    entry_type: 'realtime',
+    collector: {
+      id: 'VOL-0004',
+      name: 'นายสมชาย ใจดี',
+      phone: '082-111-9876',
+      organization: 'ประชาชนท่าตอน'
+    },
+    sample_nature: {
+      water_source: 'แม่น้ำกก สะพานท่าตอน',
+      notes: 'ตรวจวัดย้อนหลัง 3 วัน เทียบสีได้ระดับ 4 (30 ppb) เฝ้าระวัง'
+    },
+    measurements: {
+      arsenic: {
+        value: 30,
+        unit: 'ppb',
+        status: 'watch',
+        method: 'ชุดทดสอบภาคสนาม (Arsenic Field Test Kit)',
+        instrument: 'แถบเทียบสีระดับ 4 (30 ppb)',
+        level: 4,
+        label: '30 ppb',
+        desc: 'สีเหลืองทอง',
+        color: '#E8BE36'
+      }
+    },
+    images: [
+      {
+        id: 'img-009',
+        title: 'ภาพที่ 1: แถบเทียบสี 30 ppb',
+        url: 'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=800&auto=format&fit=crop&q=80',
+        size_kb: 410
+      }
+    ],
+    status: 'COMPLETED',
+    sync_stage: 'INDEXED'
+  },
+  {
+    record_id: 'rec-008-init',
+    sample_code: 'KOK-20260918-0008',
+    schema_version: '2.0',
+    station_name: 'จุดริมน้ำเหนือสะพานท่าตอน',
+    coordinates: [99.3590, 20.0650],
+    collection_time: '2026-09-18T14:15:00+07:00',
+    gps_accuracy_meters: 5.0,
+    entry_type: 'realtime',
+    collector: {
+      id: 'VOL-0001',
+      name: 'นายกิตติศักดิ์ เจริญสุข',
+      phone: '081-992-4521',
+      organization: 'ทีมอาสาสมัครลุ่มน้ำกก มฟล.'
+    },
+    sample_nature: {
+      water_source: 'แม่น้ำกก เหนือสะพานท่าตอน',
+      notes: 'ตรวจวัดย้อนหลัง 6 วัน ค่าปลอดภัยระดับ 3 (10 ppb)'
+    },
+    measurements: {
+      arsenic: {
+        value: 10,
+        unit: 'ppb',
+        status: 'normal',
+        method: 'ชุดทดสอบภาคสนาม (Arsenic Field Test Kit)',
+        instrument: 'แถบเทียบสีระดับ 3 (10 ppb)',
+        level: 3,
+        label: '10 ppb',
+        desc: 'สีเหลืองมะนาว',
+        color: '#F7E752'
+      }
+    },
+    images: [
+      {
+        id: 'img-010',
+        title: 'ภาพที่ 1: แถบเทียบสี 10 ppb',
+        url: 'https://images.unsplash.com/photo-1579154204601-01588f351e67?w=800&auto=format&fit=crop&q=80',
+        size_kb: 430
+      }
+    ],
+    status: 'COMPLETED',
+    sync_stage: 'INDEXED'
+  },
+  {
+    record_id: 'rec-009-init',
+    sample_code: 'KOK-20260910-0009',
+    schema_version: '2.0',
+    station_name: 'จุดโค้งน้ำท่าตอนตะวันออก',
+    coordinates: [99.3845, 20.0530],
+    collection_time: '2026-09-10T10:45:00+07:00',
+    gps_accuracy_meters: 4.6,
+    entry_type: 'realtime',
+    collector: {
+      id: 'VOL-0003',
+      name: 'นางสาวพิมลดา สุริยันต์',
+      phone: '089-773-1890',
+      organization: 'ศูนย์สิ่งแวดล้อมชุมชนท่าตอน'
+    },
+    sample_nature: {
+      water_source: 'แม่น้ำกก โค้งน้ำท่าตอน',
+      notes: 'ตรวจวัดรอบสองสัปดาห์ก่อน ระดับ 2 (5 ppb) ปลอดภัย'
+    },
+    measurements: {
+      arsenic: {
+        value: 5,
+        unit: 'ppb',
+        status: 'normal',
+        method: 'ชุดทดสอบภาคสนาม (Arsenic Field Test Kit)',
+        instrument: 'แถบเทียบสีระดับ 2 (5 ppb)',
+        level: 2,
+        label: '5 ppb',
+        desc: 'สีเหลืองอ่อน',
+        color: '#FEF3A9'
+      }
+    },
+    images: [
+      {
+        id: 'img-011',
+        title: 'ภาพที่ 1: แถบเทียบสี 5 ppb',
+        url: 'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=800&auto=format&fit=crop&q=80',
+        size_kb: 390
+      }
+    ],
+    status: 'COMPLETED',
+    sync_stage: 'INDEXED'
+  },
+  {
+    record_id: 'rec-010-init',
+    sample_code: 'KOK-20260902-0010',
+    schema_version: '2.0',
+    station_name: 'จุดสะพานท่าตอน (ฝั่งทิศใต้)',
+    coordinates: [99.3618, 20.0612],
+    collection_time: '2026-09-02T16:20:00+07:00',
+    gps_accuracy_meters: 3.9,
+    entry_type: 'realtime',
+    collector: {
+      id: 'VOL-0005',
+      name: 'นายนิพนธ์ ริมกก',
+      phone: '084-222-7711',
+      organization: 'กลุ่มอนุรักษ์น้ำกก'
+    },
+    sample_nature: {
+      water_source: 'ริมน้ำกก สะพานท่าตอน',
+      notes: 'ตรวจวัดต้นเดือนกันยายน พบสีเหลืองสดระดับ 5 (50 ppb) เฝ้าระวังสูงสุด'
+    },
+    measurements: {
+      arsenic: {
+        value: 50,
+        unit: 'ppb',
+        status: 'watch',
+        method: 'ชุดทดสอบภาคสนาม (Arsenic Field Test Kit)',
+        instrument: 'แถบเทียบสีระดับ 5 (50 ppb)',
+        level: 5,
+        label: '50 ppb',
+        desc: 'สีเหลืองสด',
+        color: '#DE9922'
+      }
+    },
+    images: [
+      {
+        id: 'img-012',
+        title: 'ภาพที่ 1: แถบเทียบสี 50 ppb',
+        url: 'https://images.unsplash.com/photo-1579154204601-01588f351e67?w=800&auto=format&fit=crop&q=80',
+        size_kb: 440
+      }
+    ],
+    status: 'COMPLETED',
+    sync_stage: 'INDEXED'
+  },
+  {
+    record_id: 'rec-011-init',
+    sample_code: 'KOK-20260815-0011',
+    schema_version: '2.0',
+    station_name: 'จุดตรวจบ้านใหม่หมอกจ๋าม (ฝั่งวัด)',
+    coordinates: [99.4352, 20.0325],
+    collection_time: '2026-08-15T11:00:00+07:00',
+    gps_accuracy_meters: 4.8,
+    entry_type: 'realtime',
+    collector: {
+      id: 'VOL-0006',
+      name: 'นายชาญชัย มิ่งขวัญ',
+      phone: '086-333-5544',
+      organization: 'อาสาสมัครหมอกจ๋าม'
+    },
+    sample_nature: {
+      water_source: 'แม่น้ำกกตอนล่าง ช่วงกลางเดือนสิงหาคม',
+      notes: 'ตรวจพบระดับ 3 (10 ppb) อยู่ในเกณฑ์มาตรฐาน'
+    },
+    measurements: {
+      arsenic: {
+        value: 10,
+        unit: 'ppb',
+        status: 'normal',
+        method: 'ชุดทดสอบภาคสนาม (Arsenic Field Test Kit)',
+        instrument: 'แถบเทียบสีระดับ 3 (10 ppb)',
+        level: 3,
+        label: '10 ppb',
+        desc: 'สีเหลืองมะนาว',
+        color: '#F7E752'
+      }
+    },
+    images: [
+      {
+        id: 'img-013',
+        title: 'ภาพที่ 1: แถบเทียบสี 10 ppb',
+        url: 'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=800&auto=format&fit=crop&q=80',
+        size_kb: 420
+      }
+    ],
+    status: 'COMPLETED',
+    sync_stage: 'INDEXED'
+  },
+  {
+    record_id: 'rec-012-init',
+    sample_code: 'KOK-20260710-0012',
+    schema_version: '2.0',
+    station_name: 'จุดสะพานท่าตอน (ช่วงน้ำหลากฤดูฝน)',
+    coordinates: [99.3610, 20.0605],
+    collection_time: '2026-07-10T08:50:00+07:00',
+    gps_accuracy_meters: 5.2,
+    entry_type: 'realtime',
+    collector: {
+      id: 'VOL-0001',
+      name: 'นายกิตติศักดิ์ เจริญสุข',
+      phone: '081-992-4521',
+      organization: 'ทีมอาสาสมัครลุ่มน้ำกก มฟล.'
+    },
+    sample_nature: {
+      water_source: 'แม่น้ำกก ท่าตอน ฤดูฝน',
+      notes: 'ช่วงน้ำหลากต้นฤดูฝน ก.ค. 2026 วัดได้ระดับ 6 (100 ppb) สีส้ม เกินเกณฑ์มาตรฐาน'
+    },
+    measurements: {
+      arsenic: {
+        value: 100,
+        unit: 'ppb',
+        status: 'danger',
+        method: 'ชุดทดสอบภาคสนาม (Arsenic Field Test Kit)',
+        instrument: 'แถบเทียบสีระดับ 6 (100 ppb)',
+        level: 6,
+        label: '100 ppb',
+        desc: 'สีน้ำตาลอ่อน/ส้ม',
+        color: '#C07128'
+      }
+    },
+    images: [
+      {
+        id: 'img-014',
+        title: 'ภาพที่ 1: แถบเทียบสี 100 ppb',
+        url: 'https://images.unsplash.com/photo-1544644181-1484b3fdfc62?w=800&auto=format&fit=crop&q=80',
+        size_kb: 470
+      }
+    ],
+    status: 'COMPLETED',
+    sync_stage: 'INDEXED'
+  },
+  {
+    record_id: 'rec-013-init',
+    sample_code: 'KOK-20251120-0013',
+    schema_version: '2.0',
+    station_name: 'จุดริมน้ำเหนือสะพานท่าตอน (ปลายปี 2025)',
+    coordinates: [99.3582, 20.0658],
+    collection_time: '2025-11-20T13:40:00+07:00',
+    gps_accuracy_meters: 4.4,
+    entry_type: 'realtime',
+    collector: {
+      id: 'VOL-0003',
+      name: 'นางสาวพิมลดา สุริยันต์',
+      phone: '089-773-1890',
+      organization: 'ศูนย์สิ่งแวดล้อมชุมชนท่าตอน'
+    },
+    sample_nature: {
+      water_source: 'แม่น้ำกก ฤดูหนาว พ.ย. 2025',
+      notes: 'ตรวจวัดปลายปี 2025 น้ำใส ตรวจพบระดับ 2 (5 ppb) ปลอดภัย'
+    },
+    measurements: {
+      arsenic: {
+        value: 5,
+        unit: 'ppb',
+        status: 'normal',
+        method: 'ชุดทดสอบภาคสนาม (Arsenic Field Test Kit)',
+        instrument: 'แถบเทียบสีระดับ 2 (5 ppb)',
+        level: 2,
+        label: '5 ppb',
+        desc: 'สีเหลืองอ่อน',
+        color: '#FEF3A9'
+      }
+    },
+    images: [
+      {
+        id: 'img-015',
+        title: 'ภาพที่ 1: แถบเทียบสี 5 ppb',
+        url: 'https://images.unsplash.com/photo-1579154204601-01588f351e67?w=800&auto=format&fit=crop&q=80',
+        size_kb: 400
+      }
+    ],
+    status: 'COMPLETED',
+    sync_stage: 'INDEXED'
+  },
+  {
+    record_id: 'rec-014-init',
+    sample_code: 'KOK-20250615-0014',
+    schema_version: '2.0',
+    station_name: 'จุดโค้งน้ำท่าตอนตะวันออก (กลางปี 2025)',
+    coordinates: [99.3860, 20.0540],
+    collection_time: '2025-06-15T15:10:00+07:00',
+    gps_accuracy_meters: 6.0,
+    entry_type: 'realtime',
+    collector: {
+      id: 'VOL-0004',
+      name: 'นายสมชาย ใจดี',
+      phone: '082-111-9876',
+      organization: 'ประชาชนท่าตอน'
+    },
+    sample_nature: {
+      water_source: 'แม่น้ำกก โค้งน้ำ มิ.ย. 2025',
+      notes: 'บันทึกประวัติศาสตร์กลางปี 2025 เทียบสีได้ระดับ 4 (30 ppb)'
+    },
+    measurements: {
+      arsenic: {
+        value: 30,
+        unit: 'ppb',
+        status: 'watch',
+        method: 'ชุดทดสอบภาคสนาม (Arsenic Field Test Kit)',
+        instrument: 'แถบเทียบสีระดับ 4 (30 ppb)',
+        level: 4,
+        label: '30 ppb',
+        desc: 'สีเหลืองทอง',
+        color: '#E8BE36'
+      }
+    },
+    images: [
+      {
+        id: 'img-016',
+        title: 'ภาพที่ 1: แถบเทียบสี 30 ppb',
+        url: 'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=800&auto=format&fit=crop&q=80',
+        size_kb: 380
+      }
+    ],
+    status: 'COMPLETED',
+    sync_stage: 'INDEXED'
   }
 ];
 
@@ -1013,7 +1357,11 @@ export function getStoredSubmissions() {
     if (raw) {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed) && parsed.length > 0) {
-        return parsed.map(it => normalizeSubmission(it)).filter(Boolean);
+        const storedCodes = new Set(parsed.map(p => p.sample_code));
+        const missingDefaults = INITIAL_SUBMISSIONS.filter(init => !storedCodes.has(init.sample_code));
+        const normalizedParsed = parsed.map(it => normalizeSubmission(it)).filter(Boolean);
+        const merged = [...normalizedParsed, ...missingDefaults];
+        return merged;
       }
     }
   } catch (e) {
