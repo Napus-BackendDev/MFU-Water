@@ -46,3 +46,9 @@ npm run dev
 # 3. สร้าง Production Build
 npm run build
 ```
+
+## ข้อมูลขอบเขตแผนที่
+
+ชั้นขอบเขตใน KOK Water Watch ใช้ GeoJSON จริงจาก geoBoundaries โดยอ้างอิง OpenStreetMap และแหล่งข้อมูลเขตการปกครองทางการ แบ่งเป็นประเทศ จังหวัด และอำเภอ/เมือง เลือกเปิดหรือปิดแต่ละระดับได้จากแผง `ขอบเขตพื้นที่` ข้อมูลอยู่ใน `public/data/boundaries/` เพื่อให้ MapLibre โหลดเป็น source โดยตรง
+
+Google Maps ยังเป็นแหล่งภาพแผนที่และภาพดาวเทียมของระบบ แต่ Google Maps JavaScript Boundary FeatureLayer ต้องใช้ API key และ map ID ที่เปิด data-driven styling จึงไม่สามารถนำมาเสียบเป็น GeoJSON source ใน MapLibre ได้โดยตรง รอบนี้จึงไม่นำขอบเขตตำบลหรือแปลงที่ดินปลอมมาแสดง จนกว่าจะมีข้อมูลภูมิศาสตร์จริงที่ได้รับอนุญาตให้ใช้งาน

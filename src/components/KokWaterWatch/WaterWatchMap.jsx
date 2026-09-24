@@ -22,10 +22,8 @@ import {
   Home,
   Landmark,
   Building2,
-  Grid,
   SlidersHorizontal,
-  Check,
-  MapPin
+  Check
 } from 'lucide-react';
 import { clusterSubmissions } from '../../data/waterWatchData';
 import PPBTrendChart from './PPBTrendChart';
@@ -681,7 +679,7 @@ export default function WaterWatchMap({
       // 1. เส้นพรมแดนประเทศ (Country)
       map.addSource('bnd-country-src', {
         type: 'geojson',
-        data: COUNTRY_BOUNDARY_GEOJSON
+        data: '/data/boundaries/thailand-adm0.geojson'
       });
       map.addLayer({
         id: 'bnd-country-layer',
@@ -700,7 +698,7 @@ export default function WaterWatchMap({
       // 2. เส้นแบ่งเขตจังหวัด (Province)
       map.addSource('bnd-province-src', {
         type: 'geojson',
-        data: PROVINCE_BOUNDARY_GEOJSON
+        data: '/data/boundaries/chiangrai-region-adm1.geojson'
       });
       map.addLayer({
         id: 'bnd-province-layer',
@@ -719,7 +717,7 @@ export default function WaterWatchMap({
       // 3. ขอบเขตอำเภอ (Locality)
       map.addSource('bnd-locality-src', {
         type: 'geojson',
-        data: LOCALITY_BOUNDARY_GEOJSON
+        data: '/data/boundaries/kok-region-adm2.geojson'
       });
       map.addLayer({
         id: 'bnd-locality-fill',
@@ -744,66 +742,6 @@ export default function WaterWatchMap({
           'line-color': '#2563eb',
           'line-width': 2,
           'line-dasharray': [3, 1.5]
-        }
-      });
-
-      // 4. ขอบเขตตำบล (Sublocality)
-      map.addSource('bnd-sublocality-src', {
-        type: 'geojson',
-        data: SUBLOCALITY_BOUNDARY_GEOJSON
-      });
-      map.addLayer({
-        id: 'bnd-sublocality-fill',
-        type: 'fill',
-        source: 'bnd-sublocality-src',
-        layout: {
-          visibility: curFilters.sublocality ? 'visible' : 'none'
-        },
-        paint: {
-          'fill-color': '#10b981',
-          'fill-opacity': 0.06
-        }
-      });
-      map.addLayer({
-        id: 'bnd-sublocality-layer',
-        type: 'line',
-        source: 'bnd-sublocality-src',
-        layout: {
-          visibility: curFilters.sublocality ? 'visible' : 'none'
-        },
-        paint: {
-          'line-color': '#059669',
-          'line-width': 1.6
-        }
-      });
-
-      // 5. แปลงที่ดิน (Land Parcel)
-      map.addSource('bnd-parcel-src', {
-        type: 'geojson',
-        data: LAND_PARCEL_BOUNDARY_GEOJSON
-      });
-      map.addLayer({
-        id: 'bnd-parcel-fill',
-        type: 'fill',
-        source: 'bnd-parcel-src',
-        layout: {
-          visibility: curFilters.parcel ? 'visible' : 'none'
-        },
-        paint: {
-          'fill-color': '#f59e0b',
-          'fill-opacity': 0.08
-        }
-      });
-      map.addLayer({
-        id: 'bnd-parcel-layer',
-        type: 'line',
-        source: 'bnd-parcel-src',
-        layout: {
-          visibility: curFilters.parcel ? 'visible' : 'none'
-        },
-        paint: {
-          'line-color': '#d97706',
-          'line-width': 1.4
         }
       });
 
@@ -1497,14 +1435,14 @@ export default function WaterWatchMap({
             <span className={`px-1.5 py-0.2 rounded-full font-mono text-[10px] font-bold ${
               isBoundaryFilterOpen ? 'bg-sky-500 text-white' : 'bg-slate-100 text-slate-700'
             }`}>
-              {Object.values(boundaryFilters).filter(Boolean).length}/5
+              {Object.values(boundaryFilters).filter(Boolean).length}/{BOUNDARY_ITEMS.length}
             </span>
             <span className="text-[10px] text-slate-400">
               {isBoundaryFilterOpen ? '▲' : '▼'}
             </span>
           </button>
 
-          {/* แผงตัวกรองขอบเขต 5 ระดับ (Icon + Label ย่อ ไม่รก เข้าใจง่าย) */}
+          {/* แผงตัวกรองขอบเขตจริง (Icon + Label ย่อ ไม่รก เข้าใจง่าย) */}
           {isBoundaryFilterOpen && (
             <div className="mt-1.5 p-2.5 sm:p-3 bg-white/95 backdrop-blur-md rounded-2xl shadow-2xl border border-slate-200/90 text-xs w-72 sm:w-80 space-y-2 animate-in fade-in slide-in-from-top-2 duration-150">
               <div className="flex items-center justify-between pb-1.5 border-b border-slate-100 text-[11px]">
@@ -1514,7 +1452,7 @@ export default function WaterWatchMap({
                 <div className="flex items-center gap-1.5 text-[10px]">
                   <button
                     type="button"
-                    onClick={() => setBoundaryFilters({ country: true, province: true, locality: true, sublocality: true, parcel: true })}
+                    onClick={() => setBoundaryFilters(DEFAULT_BOUNDARY_FILTERS)}
                     className="text-sky-600 hover:text-sky-800 font-bold cursor-pointer"
                   >
                     เปิดหมด
@@ -1522,7 +1460,7 @@ export default function WaterWatchMap({
                   <span className="text-slate-300">&bull;</span>
                   <button
                     type="button"
-                    onClick={() => setBoundaryFilters({ country: false, province: false, locality: false, sublocality: false, parcel: false })}
+                    onClick={() => setBoundaryFilters({ country: false, province: false, locality: false })}
                     className="text-slate-400 hover:text-slate-600 font-bold cursor-pointer"
                   >
                     ล้าง
@@ -1530,7 +1468,7 @@ export default function WaterWatchMap({
                 </div>
               </div>
 
-              {/* รายการตัวกรอง 5 ระดับ พร้อม Icon + Label ย่อ */}
+              {/* รายการตัวกรองระดับการปกครอง พร้อม Icon + Label ย่อ */}
               <div className="space-y-1">
                 {BOUNDARY_ITEMS.map((item) => {
                   const isActive = !!boundaryFilters[item.id];
