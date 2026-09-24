@@ -220,6 +220,21 @@ export default function WaterWatchMap({
     } catch {}
   }, [showLabels]);
 
+  const [showBoundaryLabels, setShowBoundaryLabels] = useState(() => {
+    try {
+      const saved = localStorage.getItem('kok_water_watch_show_boundary_labels');
+      return saved !== null ? saved === 'true' : true;
+    } catch {
+      return true;
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('kok_water_watch_show_boundary_labels', String(showBoundaryLabels));
+    } catch {}
+  }, [showBoundaryLabels]);
+
   // ขอบเขตการปกครองจาก geometry จริงของประเทศไทย
   // Source: geoBoundaries (OpenStreetMap / official administrative sources)
   // MapLibre ใช้ URL GeoJSON โดยตรง เพื่อไม่ฝัง polygon ที่วาดมือใน source code
@@ -301,9 +316,12 @@ export default function WaterWatchMap({
     };
 
     setVisibility('bnd-country-layer', !!filters.country);
+    setVisibility('bnd-country-labels', !!filters.country && showBoundaryLabels);
     setVisibility('bnd-province-layer', !!filters.province);
+    setVisibility('bnd-province-labels', !!filters.province && showBoundaryLabels);
     setVisibility('bnd-locality-fill', !!filters.locality);
     setVisibility('bnd-locality-layer', !!filters.locality);
+    setVisibility('bnd-locality-labels', !!filters.locality && showBoundaryLabels);
   };
 
   const toggleBoundary = (id) => {
@@ -694,6 +712,24 @@ export default function WaterWatchMap({
           'line-dasharray': [3, 2]
         }
       });
+      map.addLayer({
+        id: 'bnd-country-labels',
+        type: 'symbol',
+        source: 'bnd-country-src',
+        layout: {
+          visibility: curFilters.country && showBoundaryLabels ? 'visible' : 'none',
+          'symbol-placement': 'point',
+          'text-field': ['coalesce', ['get', 'shapeName'], ['get', 'name'], ''],
+          'text-size': 16,
+          'text-font': ['Open Sans Bold'],
+          'text-allow-overlap': false
+        },
+        paint: {
+          'text-color': '#b91c1c',
+          'text-halo-color': '#ffffff',
+          'text-halo-width': 2
+        }
+      });
 
       // 2. เส้นแบ่งเขตจังหวัด (Province)
       map.addSource('bnd-province-src', {
@@ -711,6 +747,24 @@ export default function WaterWatchMap({
           'line-color': '#8b5cf6',
           'line-width': 2.5,
           'line-dasharray': [4, 2]
+        }
+      });
+      map.addLayer({
+        id: 'bnd-province-labels',
+        type: 'symbol',
+        source: 'bnd-province-src',
+        layout: {
+          visibility: curFilters.province && showBoundaryLabels ? 'visible' : 'none',
+          'symbol-placement': 'point',
+          'text-field': ['coalesce', ['get', 'shapeName'], ['get', 'name'], ''],
+          'text-size': 13,
+          'text-font': ['Open Sans Bold'],
+          'text-allow-overlap': false
+        },
+        paint: {
+          'text-color': '#6d28d9',
+          'text-halo-color': '#ffffff',
+          'text-halo-width': 2
         }
       });
 
@@ -744,6 +798,24 @@ export default function WaterWatchMap({
           'line-dasharray': [3, 1.5]
         }
       });
+      map.addLayer({
+        id: 'bnd-locality-labels',
+        type: 'symbol',
+        source: 'bnd-locality-src',
+        layout: {
+          visibility: curFilters.locality && showBoundaryLabels ? 'visible' : 'none',
+          'symbol-placement': 'point',
+          'text-field': ['coalesce', ['get', 'shapeName'], ['get', 'name'], ''],
+          'text-size': 11,
+          'text-font': ['Open Sans Regular'],
+          'text-allow-overlap': false
+        },
+        paint: {
+          'text-color': '#1d4ed8',
+          'text-halo-color': '#ffffff',
+          'text-halo-width': 1.5
+        }
+      });
 
       setIsMapLoaded(true);
       applyBoundaryVisibility(curFilters);
@@ -774,7 +846,7 @@ export default function WaterWatchMap({
     if (isMapLoaded) {
       applyBoundaryVisibility(boundaryFilters);
     }
-  }, [boundaryFilters, isMapLoaded]);
+  }, [boundaryFilters, showBoundaryLabels, isMapLoaded]);
 
   // ปิด Popup Card ทันทีเมื่อชุดข้อมูลตัวอย่างเปลี่ยนจากการสลับ Time Filter
   useEffect(() => {
@@ -1467,6 +1539,29 @@ export default function WaterWatchMap({
                   </button>
                 </div>
               </div>
+
+              <button
+                type="button"
+                onClick={() => setShowBoundaryLabels(prev => !prev)}
+                className={`w-full px-2.5 py-2 rounded-xl border flex items-center justify-between gap-2 cursor-pointer transition-all ${
+                  showBoundaryLabels
+                    ? 'bg-sky-50 border-sky-200 text-sky-900'
+                    : 'bg-white/60 border-slate-200 text-slate-400'
+                }`}
+              >
+                <span className="flex items-center gap-2 text-left">
+                  <Layers className={`w-4 h-4 ${showBoundaryLabels ? 'text-sky-600' : 'text-slate-400'}`} />
+                  <span>
+                    <span className="block text-xs font-bold">ชื่อพื้นที่</span>
+                    <span className="block text-[10px] text-slate-400">แสดงชื่อประเทศ จังหวัด และอำเภอ</span>
+                  </span>
+                </span>
+                <span className={`w-4 h-4 rounded-md border flex items-center justify-center shrink-0 transition-colors ${
+                  showBoundaryLabels ? 'bg-[#182234] border-[#182234] text-white' : 'border-slate-300 bg-white'
+                }`}>
+                  {showBoundaryLabels && <Check className="w-3 h-3 stroke-[3]" />}
+                </span>
+              </button>
 
               {/* รายการตัวกรองระดับการปกครอง พร้อม Icon + Label ย่อ */}
               <div className="space-y-1">
