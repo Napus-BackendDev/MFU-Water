@@ -129,7 +129,7 @@ export default function WaterWatchMap({
         : 'bg-cyan-500/30';
 
       const el = document.createElement('div');
-      el.className = 'group cursor-pointer select-none';
+      el.className = 'station-waypoint-marker group cursor-pointer select-none';
       el.style.zIndex = isSelected ? '55' : '45';
 
       el.innerHTML = `
