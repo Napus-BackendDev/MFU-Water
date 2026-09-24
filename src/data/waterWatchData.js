@@ -1174,6 +1174,98 @@ export const INITIAL_SUBMISSIONS = [
     sync_stage: 'INDEXED'
   },
   {
+    record_id: 'rec-012b-init',
+    sample_code: 'KOK-20260412-0012b',
+    schema_version: '2.0',
+    station_name: 'จุดสะพานท่าตอน (ต้นฤดูร้อน เม.ย. 2026)',
+    coordinates: [99.3620, 20.0618],
+    collection_time: '2026-04-12T10:30:00+07:00',
+    gps_accuracy_meters: 4.2,
+    entry_type: 'realtime',
+    collector: {
+      id: 'VOL-0003',
+      name: 'นางสาวพิมลดา สุริยันต์',
+      phone: '089-773-1890',
+      organization: 'ศูนย์สิ่งแวดล้อมชุมชนท่าตอน'
+    },
+    sample_nature: {
+      water_source: 'แม่น้ำกก สะพานท่าตอน เมษายน 2026',
+      notes: 'ตรวจวัดช่วงต้นฤดูร้อน น้ำใสไหลช้า วัดได้ระดับ 3 (10 ppb) อยู่ในเกณฑ์ปลอดภัย WHO'
+    },
+    measurements: {
+      arsenic: {
+        value: 10,
+        unit: 'ppb',
+        status: 'normal',
+        method: 'ชุดทดสอบภาคสนาม (Arsenic Field Test Kit)',
+        instrument: 'แถบเทียบสีระดับ 3 (10 ppb)',
+        level: 3,
+        label: '10 ppb',
+        desc: 'สีเหลืองมะนาว',
+        color: '#F7E752'
+      }
+    },
+    images: [
+      {
+        id: 'img-014b',
+        title: 'ภาพที่ 1: แถบเทียบสี 10 ppb (เม.ย. 2026)',
+        url: 'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=800&auto=format&fit=crop&q=80',
+        size_kb: 410
+      },
+      {
+        id: 'img-014b2',
+        title: 'ภาพที่ 2: แม่น้ำกก ท่าตอน ฤดูร้อน',
+        url: 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=800&auto=format&fit=crop&q=80',
+        size_kb: 490
+      }
+    ],
+    status: 'COMPLETED',
+    sync_stage: 'INDEXED'
+  },
+  {
+    record_id: 'rec-012c-init',
+    sample_code: 'KOK-20260220-0012c',
+    schema_version: '2.0',
+    station_name: 'จุดโค้งน้ำท่าตอนตะวันออก (ก.พ. 2026)',
+    coordinates: [99.3855, 20.0538],
+    collection_time: '2026-02-20T14:00:00+07:00',
+    gps_accuracy_meters: 5.0,
+    entry_type: 'realtime',
+    collector: {
+      id: 'VOL-0004',
+      name: 'นายสมชาย ใจดี',
+      phone: '082-111-9876',
+      organization: 'ประชาชนท่าตอน'
+    },
+    sample_nature: {
+      water_source: 'แม่น้ำกก โค้งน้ำท่าตอน กุมภาพันธ์ 2026',
+      notes: 'ตรวจวัดช่วงปลายฤดูหนาว ก.พ. 2026 เทียบสีได้ระดับ 4 (30 ppb) เฝ้าระวัง'
+    },
+    measurements: {
+      arsenic: {
+        value: 30,
+        unit: 'ppb',
+        status: 'watch',
+        method: 'ชุดทดสอบภาคสนาม (Arsenic Field Test Kit)',
+        instrument: 'แถบเทียบสีระดับ 4 (30 ppb)',
+        level: 4,
+        label: '30 ppb',
+        desc: 'สีเหลืองทอง',
+        color: '#E8BE36'
+      }
+    },
+    images: [
+      {
+        id: 'img-014c',
+        title: 'ภาพที่ 1: แถบเทียบสี 30 ppb (ก.พ. 2026)',
+        url: 'https://images.unsplash.com/photo-1579154204601-01588f351e67?w=800&auto=format&fit=crop&q=80',
+        size_kb: 430
+      }
+    ],
+    status: 'COMPLETED',
+    sync_stage: 'INDEXED'
+  },
+  {
     record_id: 'rec-013-init',
     sample_code: 'KOK-20251120-0013',
     schema_version: '2.0',
@@ -1336,12 +1428,39 @@ export function normalizeSubmission(item) {
 // Helper functions สำหรับการดึงและบันทึกข้อมูลตัวอย่าง
 const LOCAL_STORAGE_KEY_V2 = 'kok_water_watch_submissions_v2';
 const LEGACY_STORAGE_KEY = 'kok_water_watch_submissions';
+export const DATA_VERSION = 'v5_kok_water_data';
+const VERSION_KEY = 'kok_water_watch_data_version';
 
 export function getStoredSubmissions() {
   try {
     if (typeof window === 'undefined' || typeof localStorage === 'undefined') {
       return INITIAL_SUBMISSIONS;
     }
+
+    // 1. Data Versioning Migration: หากผู้ใช้มีแคชเวอร์ชันเก่ากว่า v5 ให้ผสานข้อมูลประวัติชุดใหม่อัตโนมัติทันที
+    const currentVer = localStorage.getItem(VERSION_KEY);
+    if (currentVer !== DATA_VERSION) {
+      let userCreated = [];
+      const rawOld = localStorage.getItem(LOCAL_STORAGE_KEY_V2);
+      if (rawOld) {
+        try {
+          const parsedOld = JSON.parse(rawOld);
+          if (Array.isArray(parsedOld)) {
+            // เก็บเฉพาะข้อมูลที่ผู้ใช้สร้างเองจริงๆ (ที่ไม่ใช่ mock init เดิม)
+            userCreated = parsedOld
+              .filter(Boolean)
+              .filter(p => p.record_id && !String(p.record_id).includes('-init'))
+              .map(it => normalizeSubmission(it))
+              .filter(Boolean);
+          }
+        } catch (e) {}
+      }
+      const migrated = [...userCreated, ...INITIAL_SUBMISSIONS];
+      localStorage.setItem(LOCAL_STORAGE_KEY_V2, JSON.stringify(migrated));
+      localStorage.setItem(VERSION_KEY, DATA_VERSION);
+      return migrated;
+    }
+
     let raw = localStorage.getItem(LOCAL_STORAGE_KEY_V2);
     if (!raw) {
       // ตรวจสอบข้อมูลเก่าใน LocalStorage และ Migrate ให้เป็น Schema 2.0
@@ -1352,11 +1471,16 @@ export function getStoredSubmissions() {
           if (Array.isArray(legacyItems) && legacyItems.length > 0) {
             const migrated = legacyItems.filter(Boolean).map(it => normalizeSubmission(it)).filter(Boolean);
             localStorage.setItem(LOCAL_STORAGE_KEY_V2, JSON.stringify(migrated));
+            localStorage.setItem(VERSION_KEY, DATA_VERSION);
             return migrated;
           }
         } catch (e) {}
       }
+      localStorage.setItem(LOCAL_STORAGE_KEY_V2, JSON.stringify(INITIAL_SUBMISSIONS));
+      localStorage.setItem(VERSION_KEY, DATA_VERSION);
+      return INITIAL_SUBMISSIONS;
     }
+
     if (raw) {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed) && parsed.length > 0) {
@@ -1389,6 +1513,7 @@ export function saveNewSubmission(submission) {
 export function resetStoredSubmissions() {
   try {
     localStorage.setItem(LOCAL_STORAGE_KEY_V2, JSON.stringify(INITIAL_SUBMISSIONS));
+    localStorage.setItem(VERSION_KEY, DATA_VERSION);
     localStorage.removeItem(LEGACY_STORAGE_KEY);
   } catch (e) {}
   return INITIAL_SUBMISSIONS;

@@ -27,7 +27,8 @@ import {
   getStoredSubmissions, 
   saveNewSubmission, 
   INITIAL_SUBMISSIONS,
-  resetStoredSubmissions
+  resetStoredSubmissions,
+  normalizeSubmission
 } from '../../data/waterWatchData';
 import { 
   fetchSamplesFromSupabase, 
@@ -54,7 +55,8 @@ function isWithinTimeRange(dateStr, filter, customStart, customEnd, allSubmissio
   try {
     if (!filter || filter === 'all') return true;
     if (!dateStr) return true;
-    const targetTime = new Date(dateStr).getTime();
+    const targetDate = new Date(dateStr);
+    const targetTime = targetDate.getTime();
     if (isNaN(targetTime)) return true;
 
     // หา Reference Time: วันที่บันทึกล่าสุดในชุดข้อมูล หรือเวลาปัจจุบัน
@@ -68,22 +70,32 @@ function isWithinTimeRange(dateStr, filter, customStart, customEnd, allSubmissio
       }
     }
     const refTime = maxDataTime;
+    const refDate = new Date(refTime);
 
     const ONE_HOUR = 3600 * 1000;
     const ONE_DAY = 24 * ONE_HOUR;
 
     switch (filter) {
-      case 'today':
-        return targetTime >= (refTime - ONE_DAY);
+      case 'today': {
+        const isSameDay = 
+          targetDate.getFullYear() === refDate.getFullYear() &&
+          targetDate.getMonth() === refDate.getMonth() &&
+          targetDate.getDate() === refDate.getDate();
+        return isSameDay || targetTime >= (refTime - ONE_DAY);
+      }
       case '7days':
         return targetTime >= (refTime - 7 * ONE_DAY);
-      case 'month':
-        return targetTime >= (refTime - 30 * ONE_DAY);
+      case 'month': {
+        const isSameMonth = 
+          targetDate.getFullYear() === refDate.getFullYear() &&
+          targetDate.getMonth() === refDate.getMonth();
+        return isSameMonth || targetTime >= (refTime - 30 * ONE_DAY);
+      }
       case '3months':
         return targetTime >= (refTime - 90 * ONE_DAY);
       case 'year': {
-        const refYear = new Date(refTime).getFullYear();
-        const targetYear = new Date(targetTime).getFullYear();
+        const refYear = refDate.getFullYear();
+        const targetYear = targetDate.getFullYear();
         return targetYear === refYear;
       }
       case '1year':
@@ -95,7 +107,7 @@ function isWithinTimeRange(dateStr, filter, customStart, customEnd, allSubmissio
           if (!isNaN(startT) && targetTime < startT) valid = false;
         }
         if (customEnd) {
-          const endT = new Date(customEnd + 'T23:59:59').getTime();
+          const endT = new Date(customEnd + 'T23:59:59.999').getTime();
           if (!isNaN(endT) && targetTime > endT) valid = false;
         }
         return valid;
@@ -158,8 +170,9 @@ export default function KokWaterWatchView({ onBackToFloodSim }) {
         setIsSyncing(true);
         const data = await fetchSamplesFromSupabase();
         if (data && Array.isArray(data)) {
-          const realCodes = new Set(data.map(d => d.sample_code));
-          const merged = [...data, ...INITIAL_SUBMISSIONS.filter(init => !realCodes.has(init.sample_code))];
+          const normalizedData = data.map(d => normalizeSubmission(d)).filter(Boolean);
+          const realCodes = new Set(normalizedData.map(d => d.sample_code));
+          const merged = [...normalizedData, ...INITIAL_SUBMISSIONS.filter(init => !realCodes.has(init.sample_code))];
           setSubmissions(merged);
         }
         setIsSyncing(false);
@@ -167,6 +180,28 @@ export default function KokWaterWatchView({ onBackToFloodSim }) {
     }
     loadRemoteSamples();
   }, [spConnected]);
+
+  // ฟังก์ชันสลับตัวกรองช่วงเวลา พร้อมล้างสถานะหมุดที่เลือกค้างไว้
+  const handleSelectTimeFilter = (filterId) => {
+    setTimeFilter(filterId);
+    setSelectedSample(null);
+    setSelectedHotspot(null);
+    setIsTimeFilterOpen(false);
+  };
+
+  // รีเซ็ตข้อมูลตัวอย่างทั้งหมดกลับเป็นชุดเริ่มต้นล่าสุด
+  const handleResetAllData = () => {
+    if (window.confirm('คุณต้องการรีเซ็ตข้อมูลตัวอย่างคุณภาพน้ำกลับเป็นชุดเริ่มต้นล่าสุด 16 จุดหรือไม่?')) {
+      const fresh = resetStoredSubmissions();
+      setSubmissions(fresh);
+      setTimeFilter('all');
+      setCustomStartDate('');
+      setCustomEndDate('');
+      setSelectedSample(null);
+      setSelectedHotspot(null);
+      setIsTimeFilterOpen(false);
+    }
+  };
 
   // Realtime Listener สำหรับดักจับข้อมูลใหม่ที่อาสาสมัครกรอกเข้ามาแบบสดๆ
   useEffect(() => {
@@ -565,10 +600,7 @@ export default function KokWaterWatchView({ onBackToFloodSim }) {
                   <div>
                     <button
                       type="button"
-                      onClick={() => {
-                        setTimeFilter('all');
-                        setIsTimeFilterOpen(false);
-                      }}
+                      onClick={() => handleSelectTimeFilter('all')}
                       className={`w-full p-2 rounded-xl text-left transition-all flex items-center justify-between border cursor-pointer ${
                         timeFilter === 'all'
                           ? 'bg-[#A6192E] text-white border-[#A6192E] shadow-sm'
@@ -605,10 +637,7 @@ export default function KokWaterWatchView({ onBackToFloodSim }) {
                           <button
                             key={opt.id}
                             type="button"
-                            onClick={() => {
-                              setTimeFilter(opt.id);
-                              setIsTimeFilterOpen(false);
-                            }}
+                            onClick={() => handleSelectTimeFilter(opt.id)}
                             className={`p-2 rounded-xl text-left transition-all border flex flex-col justify-between cursor-pointer ${
                               isSelected
                                 ? 'bg-[#A6192E] text-white border-[#A6192E] shadow-sm'
@@ -645,10 +674,7 @@ export default function KokWaterWatchView({ onBackToFloodSim }) {
                           <button
                             key={opt.id}
                             type="button"
-                            onClick={() => {
-                              setTimeFilter(opt.id);
-                              setIsTimeFilterOpen(false);
-                            }}
+                            onClick={() => handleSelectTimeFilter(opt.id)}
                             className={`p-2 rounded-xl text-left transition-all border flex flex-col justify-between cursor-pointer ${
                               isSelected
                                 ? 'bg-[#A6192E] text-white border-[#A6192E] shadow-sm'
@@ -685,10 +711,7 @@ export default function KokWaterWatchView({ onBackToFloodSim }) {
                           <button
                             key={opt.id}
                             type="button"
-                            onClick={() => {
-                              setTimeFilter(opt.id);
-                              setIsTimeFilterOpen(false);
-                            }}
+                            onClick={() => handleSelectTimeFilter(opt.id)}
                             className={`p-2 rounded-xl text-left transition-all border flex flex-col justify-between cursor-pointer ${
                               isSelected
                                 ? 'bg-[#A6192E] text-white border-[#A6192E] shadow-sm'
@@ -749,10 +772,7 @@ export default function KokWaterWatchView({ onBackToFloodSim }) {
 
                     <button
                       type="button"
-                      onClick={() => {
-                        setTimeFilter('custom');
-                        setIsTimeFilterOpen(false);
-                      }}
+                      onClick={() => handleSelectTimeFilter('custom')}
                       className="w-full py-1.5 bg-[#A6192E] hover:bg-[#851424] text-white rounded-lg text-xs font-bold transition-all shadow-xs cursor-pointer flex items-center justify-center gap-1"
                     >
                       <Check className="w-3.5 h-3.5" />
@@ -762,25 +782,38 @@ export default function KokWaterWatchView({ onBackToFloodSim }) {
                 </div>
 
                 {/* Footer Info & Reset */}
-                <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between text-[11px]">
-                  <span className="text-slate-500 font-medium">
-                    แสดงผล <strong className="text-[#A6192E]">{timeFilteredSubmissions.length}</strong> จาก {totalSamples} จุด
-                  </span>
-                  {timeFilter !== 'all' && (
+                <div className="mt-3 pt-2.5 border-t border-slate-100 space-y-1.5 text-[11px]">
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-500 font-medium">
+                      แสดงผล <strong className="text-[#A6192E]">{timeFilteredSubmissions.length}</strong> จาก {totalSamples} จุด
+                    </span>
+                    {timeFilter !== 'all' && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          handleSelectTimeFilter('all');
+                          setCustomStartDate('');
+                          setCustomEndDate('');
+                        }}
+                        className="text-xs text-[#A6192E] hover:underline font-bold flex items-center gap-1 cursor-pointer"
+                      >
+                        <RotateCcw className="w-3 h-3" />
+                        <span>รีเซ็ตเป็นทั้งหมด</span>
+                      </button>
+                    )}
+                  </div>
+                  <div className="pt-1.5 border-t border-slate-100 flex items-center justify-between text-[10px] text-slate-400">
+                    <span>ข้อมูลอัปเดตตอบสนองแผนที่ทันที</span>
                     <button
                       type="button"
-                      onClick={() => {
-                        setTimeFilter('all');
-                        setCustomStartDate('');
-                        setCustomEndDate('');
-                        setIsTimeFilterOpen(false);
-                      }}
-                      className="text-xs text-[#A6192E] hover:underline font-bold flex items-center gap-1 cursor-pointer"
+                      onClick={handleResetAllData}
+                      className="text-slate-400 hover:text-[#A6192E] font-medium transition-colors cursor-pointer flex items-center gap-1"
+                      title="รีเซ็ตข้อมูลตัวอย่างกลับเป็นชุดเริ่มต้นล่าสุด"
                     >
-                      <RotateCcw className="w-3 h-3" />
-                      <span>รีเซ็ตเป็นทั้งหมด</span>
+                      <RotateCcw className="w-2.5 h-2.5" />
+                      <span>รีเซ็ตข้อมูลตัวอย่างทั้งหมด</span>
                     </button>
-                  )}
+                  </div>
                 </div>
               </div>
             )}
@@ -1086,7 +1119,7 @@ export default function KokWaterWatchView({ onBackToFloodSim }) {
       {selectedHotspot && !isFormOpen && (
         <StationDetailModal
           hotspot={selectedHotspot}
-          submissions={submissions}
+          submissions={timeFilteredSubmissions}
           onClose={() => setSelectedHotspot(null)}
           onSelectSample={(sample) => {
             setSelectedHotspot(null);

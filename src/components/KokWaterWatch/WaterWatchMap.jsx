@@ -267,12 +267,42 @@ export default function WaterWatchMap({
   });
 
   const [isBoundaryFilterOpen, setIsBoundaryFilterOpen] = useState(false);
+  const [isMapLoaded, setIsMapLoaded] = useState(false);
+  const boundaryFiltersRef = useRef(boundaryFilters);
+
+  useEffect(() => {
+    boundaryFiltersRef.current = boundaryFilters;
+  }, [boundaryFilters]);
 
   useEffect(() => {
     try {
       localStorage.setItem('kok_boundary_filters', JSON.stringify(boundaryFilters));
     } catch {}
   }, [boundaryFilters]);
+
+  const applyBoundaryVisibility = (filters) => {
+    if (!mapRef.current) return;
+    const map = mapRef.current;
+
+    const setVisibility = (layerId, isVisible) => {
+      try {
+        if (map.getLayer(layerId)) {
+          map.setLayoutProperty(layerId, 'visibility', isVisible ? 'visible' : 'none');
+        }
+      } catch (err) {
+        console.warn('Failed to set boundary visibility:', layerId, err);
+      }
+    };
+
+    setVisibility('bnd-country-layer', !!filters.country);
+    setVisibility('bnd-province-layer', !!filters.province);
+    setVisibility('bnd-locality-fill', !!filters.locality);
+    setVisibility('bnd-locality-layer', !!filters.locality);
+    setVisibility('bnd-sublocality-fill', !!filters.sublocality);
+    setVisibility('bnd-sublocality-layer', !!filters.sublocality);
+    setVisibility('bnd-parcel-fill', !!filters.parcel);
+    setVisibility('bnd-parcel-layer', !!filters.parcel);
+  };
 
   const toggleBoundary = (id) => {
     setBoundaryFilters(prev => ({
@@ -531,6 +561,8 @@ export default function WaterWatchMap({
     });
 
     map.on('load', () => {
+      const curFilters = boundaryFiltersRef.current || {};
+
       // 1. เส้นพรมแดนประเทศ (Country)
       map.addSource('bnd-country-src', {
         type: 'geojson',
@@ -540,6 +572,9 @@ export default function WaterWatchMap({
         id: 'bnd-country-layer',
         type: 'line',
         source: 'bnd-country-src',
+        layout: {
+          visibility: curFilters.country ? 'visible' : 'none'
+        },
         paint: {
           'line-color': '#ef4444',
           'line-width': 3,
@@ -556,6 +591,9 @@ export default function WaterWatchMap({
         id: 'bnd-province-layer',
         type: 'line',
         source: 'bnd-province-src',
+        layout: {
+          visibility: curFilters.province ? 'visible' : 'none'
+        },
         paint: {
           'line-color': '#8b5cf6',
           'line-width': 2.5,
@@ -572,6 +610,9 @@ export default function WaterWatchMap({
         id: 'bnd-locality-fill',
         type: 'fill',
         source: 'bnd-locality-src',
+        layout: {
+          visibility: curFilters.locality ? 'visible' : 'none'
+        },
         paint: {
           'fill-color': '#3b82f6',
           'fill-opacity': 0.05
@@ -581,6 +622,9 @@ export default function WaterWatchMap({
         id: 'bnd-locality-layer',
         type: 'line',
         source: 'bnd-locality-src',
+        layout: {
+          visibility: curFilters.locality ? 'visible' : 'none'
+        },
         paint: {
           'line-color': '#2563eb',
           'line-width': 2,
@@ -597,6 +641,9 @@ export default function WaterWatchMap({
         id: 'bnd-sublocality-fill',
         type: 'fill',
         source: 'bnd-sublocality-src',
+        layout: {
+          visibility: curFilters.sublocality ? 'visible' : 'none'
+        },
         paint: {
           'fill-color': '#10b981',
           'fill-opacity': 0.06
@@ -606,6 +653,9 @@ export default function WaterWatchMap({
         id: 'bnd-sublocality-layer',
         type: 'line',
         source: 'bnd-sublocality-src',
+        layout: {
+          visibility: curFilters.sublocality ? 'visible' : 'none'
+        },
         paint: {
           'line-color': '#059669',
           'line-width': 1.6
@@ -621,6 +671,9 @@ export default function WaterWatchMap({
         id: 'bnd-parcel-fill',
         type: 'fill',
         source: 'bnd-parcel-src',
+        layout: {
+          visibility: curFilters.parcel ? 'visible' : 'none'
+        },
         paint: {
           'fill-color': '#f59e0b',
           'fill-opacity': 0.08
@@ -630,11 +683,17 @@ export default function WaterWatchMap({
         id: 'bnd-parcel-layer',
         type: 'line',
         source: 'bnd-parcel-src',
+        layout: {
+          visibility: curFilters.parcel ? 'visible' : 'none'
+        },
         paint: {
           'line-color': '#d97706',
           'line-width': 1.4
         }
       });
+
+      setIsMapLoaded(true);
+      applyBoundaryVisibility(curFilters);
     });
 
     map.on('click', () => {
@@ -650,29 +709,22 @@ export default function WaterWatchMap({
       }
       map.remove();
       mapRef.current = null;
+      setIsMapLoaded(false);
     };
   }, []);
 
-  // ควบคุมการแสดงผล/ซ่อนเลเยอร์ขอบเขตตาม boundaryFilters
+  // ควบคุมการแสดงผล/ซ่อนเลเยอร์ขอบเขตตาม boundaryFilters ทันที 100%
   useEffect(() => {
-    if (!mapRef.current) return;
-    const map = mapRef.current;
+    if (isMapLoaded) {
+      applyBoundaryVisibility(boundaryFilters);
+    }
+  }, [boundaryFilters, isMapLoaded]);
 
-    const setVisibility = (layerId, isVisible) => {
-      if (map.getLayer(layerId)) {
-        map.setLayoutProperty(layerId, 'visibility', isVisible ? 'visible' : 'none');
-      }
-    };
-
-    setVisibility('bnd-country-layer', boundaryFilters.country);
-    setVisibility('bnd-province-layer', boundaryFilters.province);
-    setVisibility('bnd-locality-fill', boundaryFilters.locality);
-    setVisibility('bnd-locality-layer', boundaryFilters.locality);
-    setVisibility('bnd-sublocality-fill', boundaryFilters.sublocality);
-    setVisibility('bnd-sublocality-layer', boundaryFilters.sublocality);
-    setVisibility('bnd-parcel-fill', boundaryFilters.parcel);
-    setVisibility('bnd-parcel-layer', boundaryFilters.parcel);
-  }, [boundaryFilters]);
+  // ปิด Popup Card ทันทีเมื่อชุดข้อมูลตัวอย่างเปลี่ยนจากการสลับ Time Filter
+  useEffect(() => {
+    setIsPinned(false);
+    updatePopupHotspot(null);
+  }, [submissions]);
 
   // สลับการแสดงผลระหว่าง แผนที่สถานที่ & พื้นที่ดาวเทียม
   useEffect(() => {
