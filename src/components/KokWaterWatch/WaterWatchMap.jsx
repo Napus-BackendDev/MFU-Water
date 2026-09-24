@@ -19,9 +19,21 @@ import {
   AlertTriangle,
   Plus,
   Minus,
-  Home
+  Home,
+  Landmark,
+  Building2,
+  Grid,
+  SlidersHorizontal,
+  Check
 } from 'lucide-react';
 import { clusterSubmissions } from '../../data/waterWatchData';
+import {
+  COUNTRY_BOUNDARY_GEOJSON,
+  PROVINCE_BOUNDARY_GEOJSON,
+  LOCALITY_BOUNDARY_GEOJSON,
+  SUBLOCALITY_BOUNDARY_GEOJSON,
+  LAND_PARCEL_BOUNDARY_GEOJSON
+} from '../../data/boundaryGeoJSON';
 import PPBTrendChart from './PPBTrendChart';
 
 // คอมโพเนนต์แสดงรูปภาพถ่ายหลักฐานของการตรวจล่าสุด พร้อมระบบสลับรูปและ Loading Skeleton
@@ -188,6 +200,85 @@ export default function WaterWatchMap({
       localStorage.setItem('kok_water_watch_show_labels', String(showLabels));
     } catch {}
   }, [showLabels]);
+
+  // 5 ระดับขอบเขตการปกครองและพื้นที่ (Administrative / Boundaries)
+  // Country, Province, Locality, Sublocality, Land Parcel
+  const BOUNDARY_ITEMS = [
+    {
+      id: 'country',
+      shortLabel: 'ประเทศ',
+      fullLabel: 'Country (ประเทศ)',
+      desc: 'เส้นพรมแดนระหว่างประเทศ',
+      icon: Globe,
+      color: '#ef4444',
+      activeColor: '#ef4444'
+    },
+    {
+      id: 'province',
+      shortLabel: 'จังหวัด',
+      fullLabel: 'Province (จังหวัด / รัฐ)',
+      desc: 'เส้นแบ่งเขตการปกครองระดับที่ 1',
+      icon: Landmark,
+      color: '#8b5cf6',
+      activeColor: '#8b5cf6'
+    },
+    {
+      id: 'locality',
+      shortLabel: 'อำเภอ',
+      fullLabel: 'Locality (อำเภอ / เขต / เมือง)',
+      desc: 'ขอบเขตของเทศบาล เมือง หรือเขตอำเภอ',
+      icon: Building2,
+      color: '#2563eb',
+      activeColor: '#2563eb'
+    },
+    {
+      id: 'sublocality',
+      shortLabel: 'ตำบล',
+      fullLabel: 'Sublocality (ตำบล / ชุมชน)',
+      desc: 'ขอบเขตย่อยระดับตำบลหรือย่านที่อยู่อาศัย',
+      icon: MapPin,
+      color: '#059669',
+      activeColor: '#059669'
+    },
+    {
+      id: 'parcel',
+      shortLabel: 'แปลงที่ดิน',
+      fullLabel: 'Land Parcel (แปลงที่ดิน)',
+      desc: 'ขอบเขตโฉนดหรือแปลงที่ดินส่วนบุคคล',
+      icon: Grid,
+      color: '#d97706',
+      activeColor: '#d97706'
+    }
+  ];
+
+  const [boundaryFilters, setBoundaryFilters] = useState(() => {
+    try {
+      const saved = localStorage.getItem('kok_boundary_filters');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return {
+      country: true,
+      province: true,
+      locality: true,
+      sublocality: true,
+      parcel: true
+    };
+  });
+
+  const [isBoundaryFilterOpen, setIsBoundaryFilterOpen] = useState(false);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('kok_boundary_filters', JSON.stringify(boundaryFilters));
+    } catch {}
+  }, [boundaryFilters]);
+
+  const toggleBoundary = (id) => {
+    setBoundaryFilters(prev => ({
+      ...prev,
+      [id]: !prev[id]
+    }));
+  };
 
   // State สำหรับ Hover / Click Hotspot Popup Card
   const [popupHotspot, setPopupHotspot] = useState(null);
@@ -438,6 +529,113 @@ export default function WaterWatchMap({
       attributionControl: false
     });
 
+    map.on('load', () => {
+      // 1. เส้นพรมแดนประเทศ (Country)
+      map.addSource('bnd-country-src', {
+        type: 'geojson',
+        data: COUNTRY_BOUNDARY_GEOJSON
+      });
+      map.addLayer({
+        id: 'bnd-country-layer',
+        type: 'line',
+        source: 'bnd-country-src',
+        paint: {
+          'line-color': '#ef4444',
+          'line-width': 3,
+          'line-dasharray': [3, 2]
+        }
+      });
+
+      // 2. เส้นแบ่งเขตจังหวัด (Province)
+      map.addSource('bnd-province-src', {
+        type: 'geojson',
+        data: PROVINCE_BOUNDARY_GEOJSON
+      });
+      map.addLayer({
+        id: 'bnd-province-layer',
+        type: 'line',
+        source: 'bnd-province-src',
+        paint: {
+          'line-color': '#8b5cf6',
+          'line-width': 2.5,
+          'line-dasharray': [4, 2]
+        }
+      });
+
+      // 3. ขอบเขตอำเภอ (Locality)
+      map.addSource('bnd-locality-src', {
+        type: 'geojson',
+        data: LOCALITY_BOUNDARY_GEOJSON
+      });
+      map.addLayer({
+        id: 'bnd-locality-fill',
+        type: 'fill',
+        source: 'bnd-locality-src',
+        paint: {
+          'fill-color': '#3b82f6',
+          'fill-opacity': 0.05
+        }
+      });
+      map.addLayer({
+        id: 'bnd-locality-layer',
+        type: 'line',
+        source: 'bnd-locality-src',
+        paint: {
+          'line-color': '#2563eb',
+          'line-width': 2,
+          'line-dasharray': [3, 1.5]
+        }
+      });
+
+      // 4. ขอบเขตตำบล (Sublocality)
+      map.addSource('bnd-sublocality-src', {
+        type: 'geojson',
+        data: SUBLOCALITY_BOUNDARY_GEOJSON
+      });
+      map.addLayer({
+        id: 'bnd-sublocality-fill',
+        type: 'fill',
+        source: 'bnd-sublocality-src',
+        paint: {
+          'fill-color': '#10b981',
+          'fill-opacity': 0.06
+        }
+      });
+      map.addLayer({
+        id: 'bnd-sublocality-layer',
+        type: 'line',
+        source: 'bnd-sublocality-src',
+        paint: {
+          'line-color': '#059669',
+          'line-width': 1.6
+        }
+      });
+
+      // 5. แปลงที่ดิน (Land Parcel)
+      map.addSource('bnd-parcel-src', {
+        type: 'geojson',
+        data: LAND_PARCEL_BOUNDARY_GEOJSON
+      });
+      map.addLayer({
+        id: 'bnd-parcel-fill',
+        type: 'fill',
+        source: 'bnd-parcel-src',
+        paint: {
+          'fill-color': '#f59e0b',
+          'fill-opacity': 0.08
+        }
+      });
+      map.addLayer({
+        id: 'bnd-parcel-layer',
+        type: 'line',
+        source: 'bnd-parcel-src',
+        paint: {
+          'line-color': '#d97706',
+          'line-width': 1.4
+        }
+      });
+    });
+
     map.on('click', () => {
       setIsPinned(false);
       updatePopupHotspot(null);
@@ -453,6 +651,27 @@ export default function WaterWatchMap({
       mapRef.current = null;
     };
   }, []);
+
+  // ควบคุมการแสดงผล/ซ่อนเลเยอร์ขอบเขตตาม boundaryFilters
+  useEffect(() => {
+    if (!mapRef.current) return;
+    const map = mapRef.current;
+
+    const setVisibility = (layerId, isVisible) => {
+      if (map.getLayer(layerId)) {
+        map.setLayoutProperty(layerId, 'visibility', isVisible ? 'visible' : 'none');
+      }
+    };
+
+    setVisibility('bnd-country-layer', boundaryFilters.country);
+    setVisibility('bnd-province-layer', boundaryFilters.province);
+    setVisibility('bnd-locality-fill', boundaryFilters.locality);
+    setVisibility('bnd-locality-layer', boundaryFilters.locality);
+    setVisibility('bnd-sublocality-fill', boundaryFilters.sublocality);
+    setVisibility('bnd-sublocality-layer', boundaryFilters.sublocality);
+    setVisibility('bnd-parcel-fill', boundaryFilters.parcel);
+    setVisibility('bnd-parcel-layer', boundaryFilters.parcel);
+  }, [boundaryFilters]);
 
   // สลับการแสดงผลระหว่าง แผนที่สถานที่ & พื้นที่ดาวเทียม
   useEffect(() => {
@@ -1039,56 +1258,163 @@ export default function WaterWatchMap({
         </div>
       )}
 
-      {/* Floating Map Controls: สลับแผนที่สถานที่ / ดาวเทียม & เปิด/ปิดตัวอักษร (ชิดขวาบน ใต้แถบบาร์) */}
-      <div className="absolute top-2 right-2 sm:top-3 sm:right-4 z-20 pointer-events-auto flex flex-col items-end gap-1.5 select-none">
-        <div className="p-1 sm:p-1.5 rounded-2xl bg-white/95 backdrop-blur-md shadow-xl border border-[#B4975A]/40 flex items-center gap-1">
+      {/* 1. Floating Map Controls & Boundaries Filter (ชิดขวาบน ใต้แถบบาร์) */}
+      <div className="absolute top-2 right-2 sm:top-3 sm:right-4 z-20 pointer-events-auto flex flex-col items-end gap-2 select-none max-w-[calc(100vw-24px)]">
+        {/* แถวที่ 1: สลับแผนที่สถานที่ / ดาวเทียม & แสดง/ซ่อนตัวอักษร */}
+        <div className="flex items-center gap-1.5 flex-wrap justify-end">
+          <div className="p-1 sm:p-1.5 rounded-2xl bg-white/95 backdrop-blur-md shadow-xl border border-[#B4975A]/40 flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => setMapType('street')}
+              className={`px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer ${
+                mapType === 'street'
+                  ? 'bg-[#A6192E] text-white shadow-md'
+                  : 'text-slate-700 hover:text-slate-900 hover:bg-slate-100'
+              }`}
+              title="แผนที่สถานที่และชื่อสถานที่ภาษาไทย"
+            >
+              <Map className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">แผนที่สถานที่</span>
+              <span className="sm:hidden">สถานที่</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setMapType('satellite')}
+              className={`px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer ${
+                mapType === 'satellite'
+                  ? 'bg-sky-600 text-white shadow-md'
+                  : 'text-slate-700 hover:text-slate-900 hover:bg-slate-100'
+              }`}
+              title="พื้นที่ดาวเทียมความละเอียดสูง (Satellite Hybrid)"
+            >
+              <Globe className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">พื้นที่ดาวเทียม</span>
+              <span className="sm:hidden">ดาวเทียม</span>
+            </button>
+          </div>
+
           <button
             type="button"
-            onClick={() => setMapType('street')}
-            className={`px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer ${
-              mapType === 'street'
-                ? 'bg-[#A6192E] text-white shadow-md'
-                : 'text-slate-700 hover:text-slate-900 hover:bg-slate-100'
+            onClick={() => setShowLabels(prev => !prev)}
+            className={`px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-xl backdrop-blur-md shadow-lg border text-[11px] sm:text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+              showLabels
+                ? 'bg-amber-50/95 text-amber-950 border-amber-300 ring-1 ring-amber-400/40'
+                : 'bg-white/90 text-slate-500 border-slate-200 hover:bg-slate-50'
             }`}
-            title="แผนที่สถานที่และชื่อสถานที่ภาษาไทย"
+            title="เปิด/ปิด การแสดงตัวอักษรและชื่อสถานที่บนแผนที่"
           >
-            <Map className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">แผนที่สถานที่</span>
-            <span className="sm:hidden">สถานที่</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setMapType('satellite')}
-            className={`px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer ${
-              mapType === 'satellite'
-                ? 'bg-sky-600 text-white shadow-md'
-                : 'text-slate-700 hover:text-slate-900 hover:bg-slate-100'
-            }`}
-            title="พื้นที่ดาวเทียมความละเอียดสูง (Satellite Hybrid)"
-          >
-            <Globe className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">พื้นที่ดาวเทียม</span>
-            <span className="sm:hidden">ดาวเทียม</span>
+            <Layers className={`w-3.5 h-3.5 ${showLabels ? 'text-amber-600' : 'text-slate-400'}`} />
+            <span className="hidden sm:inline">{showLabels ? 'แสดงตัวอักษร' : 'ซ่อนตัวอักษร'}</span>
           </button>
         </div>
 
-        <button
-          type="button"
-          onClick={() => setShowLabels(prev => !prev)}
-          className={`px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-xl backdrop-blur-md shadow-lg border text-[11px] sm:text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
-            showLabels
-              ? 'bg-amber-50/95 text-amber-950 border-amber-300 ring-1 ring-amber-400/40'
-              : 'bg-white/90 text-slate-500 border-slate-200 hover:bg-slate-50'
-          }`}
-          title="เปิด/ปิด การแสดงตัวอักษรและชื่อสถานที่บนแผนที่"
-        >
-          <Layers className={`w-3.5 h-3.5 ${showLabels ? 'text-amber-600' : 'text-slate-400'}`} />
-          <span>{showLabels ? 'แสดงตัวอักษร' : 'ซ่อนตัวอักษร'}</span>
-        </button>
+        {/* แถวที่ 2: ตัวกรองขอบเขตการปกครองและพื้นที่ (Administrative Boundaries Filter) */}
+        <div className="flex flex-col items-end">
+          {/* ปุ่มเปิด/ปิด แผงตัวกรองขอบเขต */}
+          <button
+            type="button"
+            onClick={() => setIsBoundaryFilterOpen(prev => !prev)}
+            className={`px-3 py-1.5 rounded-xl backdrop-blur-md shadow-lg border text-xs font-bold flex items-center gap-2 transition-all cursor-pointer ${
+              isBoundaryFilterOpen
+                ? 'bg-[#182234] text-white border-white/20 shadow-xl ring-2 ring-sky-400/40'
+                : 'bg-white/95 text-slate-800 border-slate-300 hover:bg-slate-50'
+            }`}
+            title="เปิด/ปิด แผงตัวกรองเส้นขอบเขตการปกครองและพื้นที่"
+          >
+            <SlidersHorizontal className="w-3.5 h-3.5 text-sky-500" />
+            <span>ขอบเขตพื้นที่</span>
+            <span className={`px-1.5 py-0.2 rounded-full font-mono text-[10px] font-bold ${
+              isBoundaryFilterOpen ? 'bg-sky-500 text-white' : 'bg-slate-100 text-slate-700'
+            }`}>
+              {Object.values(boundaryFilters).filter(Boolean).length}/5
+            </span>
+            <span className="text-[10px] text-slate-400">
+              {isBoundaryFilterOpen ? '▲' : '▼'}
+            </span>
+          </button>
+
+          {/* แผงตัวกรองขอบเขต 5 ระดับ (Icon + Label ย่อ ไม่รก เข้าใจง่าย) */}
+          {isBoundaryFilterOpen && (
+            <div className="mt-1.5 p-2.5 sm:p-3 bg-white/95 backdrop-blur-md rounded-2xl shadow-2xl border border-slate-200/90 text-xs w-72 sm:w-80 space-y-2 animate-in fade-in slide-in-from-top-2 duration-150">
+              <div className="flex items-center justify-between pb-1.5 border-b border-slate-100 text-[11px]">
+                <span className="font-bold text-slate-800 flex items-center gap-1.5">
+                  <span>เส้นขอบเขตการปกครอง (Boundaries)</span>
+                </span>
+                <div className="flex items-center gap-1.5 text-[10px]">
+                  <button
+                    type="button"
+                    onClick={() => setBoundaryFilters({ country: true, province: true, locality: true, sublocality: true, parcel: true })}
+                    className="text-sky-600 hover:text-sky-800 font-bold cursor-pointer"
+                  >
+                    เปิดหมด
+                  </button>
+                  <span className="text-slate-300">&bull;</span>
+                  <button
+                    type="button"
+                    onClick={() => setBoundaryFilters({ country: false, province: false, locality: false, sublocality: false, parcel: false })}
+                    className="text-slate-400 hover:text-slate-600 font-bold cursor-pointer"
+                  >
+                    ล้าง
+                  </button>
+                </div>
+              </div>
+
+              {/* รายการตัวกรอง 5 ระดับ พร้อม Icon + Label ย่อ */}
+              <div className="space-y-1">
+                {BOUNDARY_ITEMS.map((item) => {
+                  const isActive = !!boundaryFilters[item.id];
+                  const Icon = item.icon;
+                  return (
+                    <div
+                      key={item.id}
+                      onClick={() => toggleBoundary(item.id)}
+                      className={`px-2.5 py-1.5 rounded-xl border flex items-center justify-between gap-2 cursor-pointer transition-all ${
+                        isActive
+                          ? 'bg-slate-50 border-slate-300/80 shadow-2xs'
+                          : 'bg-white/60 border-slate-200 text-slate-400 opacity-60 hover:opacity-90'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span
+                          className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0 shadow-2xs text-white"
+                          style={{ backgroundColor: isActive ? item.activeColor : '#94a3b8' }}
+                        >
+                          <Icon className="w-3.5 h-3.5" />
+                        </span>
+                        <div className="min-w-0 text-left">
+                          <div className="flex items-center gap-1.5 leading-tight">
+                            <span className={`text-xs font-bold truncate ${isActive ? 'text-slate-800' : 'text-slate-500'}`}>
+                              {item.shortLabel}
+                            </span>
+                            <span className="text-[10px] text-slate-400 font-normal">
+                              ({item.id})
+                            </span>
+                          </div>
+                          <div className="text-[10px] text-slate-400 truncate leading-none mt-0.5">
+                            {item.desc}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Toggle Checkbox / Indicator */}
+                      <span className={`w-4 h-4 rounded-md border flex items-center justify-center shrink-0 transition-colors ${
+                        isActive ? 'bg-[#182234] border-[#182234] text-white' : 'border-slate-300 bg-white'
+                      }`}>
+                        {isActive && <Check className="w-3 h-3 stroke-[3]" />}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* Floating Vertical Toolstrip (ทางขวา: แคปซูล + / - และ ปุ่มรูปบ้าน ที่ตั้งปัจจุบัน) */}
-      <div className="absolute top-28 sm:top-28 right-2 sm:right-4 z-20 pointer-events-auto flex flex-col items-center gap-2 select-none">
+      {/* 2. Floating Vertical Toolstrip (ทางขวา: แคปซูล + / - และ ปุ่มรูปบ้าน ที่ตั้งปัจจุบัน) */}
+      <div className={`absolute right-2 sm:right-4 z-20 pointer-events-auto flex flex-col items-center gap-2 select-none transition-all duration-200 ${
+        isBoundaryFilterOpen ? 'top-80 sm:top-84' : 'top-24 sm:top-24'
+      }`}>
         {/* Capsule: Zoom In (+) & Zoom Out (-) */}
         <div className="flex flex-col bg-[#182234]/95 backdrop-blur-md rounded-2xl border border-white/15 shadow-xl overflow-hidden text-white">
           <button
