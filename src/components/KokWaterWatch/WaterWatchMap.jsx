@@ -16,7 +16,10 @@ import {
   Users,
   ZoomIn,
   ShieldCheck,
-  AlertTriangle
+  AlertTriangle,
+  Plus,
+  Minus,
+  Home
 } from 'lucide-react';
 import { clusterSubmissions } from '../../data/waterWatchData';
 import PPBTrendChart from './PPBTrendChart';
@@ -202,6 +205,94 @@ export default function WaterWatchMap({
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  // State สำหรับปุ่มควบคุมทางขวา (Zoom In/Out, Current Location)
+  const [isLocating, setIsLocating] = useState(false);
+  const userLocationMarkerRef = useRef(null);
+
+  const handleZoomIn = () => {
+    if (mapRef.current) {
+      mapRef.current.zoomIn({ duration: 300 });
+    }
+  };
+
+  const handleZoomOut = () => {
+    if (mapRef.current) {
+      mapRef.current.zoomOut({ duration: 300 });
+    }
+  };
+
+  const handleGoToCurrentLocation = () => {
+    if (!mapRef.current) return;
+
+    if (!navigator.geolocation) {
+      mapRef.current.flyTo({
+        center: [99.3800, 20.0550],
+        zoom: 13.2,
+        pitch: 0,
+        bearing: 0,
+        essential: true,
+        duration: 1200
+      });
+      return;
+    }
+
+    setIsLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setIsLocating(false);
+        const { longitude, latitude, accuracy } = pos.coords;
+        if (mapRef.current) {
+          if (userLocationMarkerRef.current) {
+            userLocationMarkerRef.current.remove();
+          }
+
+          // จุดแสดงพิกัดที่ตั้งปัจจุบัน
+          const el = document.createElement('div');
+          el.className = 'current-location-marker relative flex items-center justify-center';
+          el.innerHTML = `
+            <div class="w-8 h-8 rounded-full bg-sky-500/30 animate-ping absolute"></div>
+            <div class="w-5 h-5 rounded-full bg-sky-500 border-2 border-white shadow-xl flex items-center justify-center relative z-10">
+              <div class="w-2 h-2 rounded-full bg-white"></div>
+            </div>
+          `;
+
+          const popup = new maplibregl.Popup({ offset: 15, closeButton: false })
+            .setHTML(`<div class="p-1.5 font-sans text-xs font-bold text-slate-800">📍 ที่ตั้งปัจจุบันของคุณ<div class="text-[10px] text-slate-500 font-normal">ความแม่นยำ ±${Math.round(accuracy || 10)} ม.</div></div>`);
+
+          const marker = new maplibregl.Marker({ element: el })
+            .setLngLat([longitude, latitude])
+            .setPopup(popup)
+            .addTo(mapRef.current);
+
+          userLocationMarkerRef.current = marker;
+
+          mapRef.current.flyTo({
+            center: [longitude, latitude],
+            zoom: 15.5,
+            pitch: 0,
+            essential: true,
+            duration: 1200
+          });
+        }
+      },
+      (err) => {
+        setIsLocating(false);
+        console.warn('Geolocation error, returning to default center:', err);
+        if (mapRef.current) {
+          mapRef.current.flyTo({
+            center: [99.3800, 20.0550],
+            zoom: 13.2,
+            pitch: 0,
+            bearing: 0,
+            essential: true,
+            duration: 1200
+          });
+        }
+      },
+      { enableHighAccuracy: true, timeout: 8000 }
+    );
+  };
+
   const hoverTimeoutRef = useRef(null);
   const isHoveringPopupRef = useRef(false);
   const isPinnedRef = useRef(false);
@@ -355,6 +446,9 @@ export default function WaterWatchMap({
     mapRef.current = map;
 
     return () => {
+      if (userLocationMarkerRef.current) {
+        userLocationMarkerRef.current.remove();
+      }
       map.remove();
       mapRef.current = null;
     };
@@ -990,6 +1084,42 @@ export default function WaterWatchMap({
         >
           <Layers className={`w-3.5 h-3.5 ${showLabels ? 'text-amber-600' : 'text-slate-400'}`} />
           <span>{showLabels ? 'แสดงตัวอักษร' : 'ซ่อนตัวอักษร'}</span>
+        </button>
+      </div>
+
+      {/* Floating Vertical Toolstrip (ทางขวา: แคปซูล + / - และ ปุ่มรูปบ้าน ที่ตั้งปัจจุบัน) */}
+      <div className="absolute top-28 sm:top-28 right-2 sm:right-4 z-20 pointer-events-auto flex flex-col items-center gap-2 select-none">
+        {/* Capsule: Zoom In (+) & Zoom Out (-) */}
+        <div className="flex flex-col bg-[#182234]/95 backdrop-blur-md rounded-2xl border border-white/15 shadow-xl overflow-hidden text-white">
+          <button
+            type="button"
+            onClick={handleZoomIn}
+            className="w-10 h-10 sm:w-11 sm:h-11 flex items-center justify-center text-white/90 hover:text-white hover:bg-white/15 active:bg-white/25 transition-all cursor-pointer border-b border-white/10"
+            title="ซูมเข้า (Zoom In)"
+          >
+            <Plus className="w-5 h-5 sm:w-5.5 sm:h-5.5 stroke-[2.2]" />
+          </button>
+          <button
+            type="button"
+            onClick={handleZoomOut}
+            className="w-10 h-10 sm:w-11 sm:h-11 flex items-center justify-center text-white/90 hover:text-white hover:bg-white/15 active:bg-white/25 transition-all cursor-pointer"
+            title="ซูมออก (Zoom Out)"
+          >
+            <Minus className="w-5 h-5 sm:w-5.5 sm:h-5.5 stroke-[2.2]" />
+          </button>
+        </div>
+
+        {/* Squircle: Home Icon (ที่ตั้งปัจจุบัน) */}
+        <button
+          type="button"
+          onClick={handleGoToCurrentLocation}
+          disabled={isLocating}
+          className={`w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-[#182234]/95 backdrop-blur-md border border-white/15 shadow-xl flex items-center justify-center text-white/90 hover:text-white hover:bg-white/15 active:bg-white/25 transition-all cursor-pointer group ${
+            isLocating ? 'ring-2 ring-sky-400' : ''
+          }`}
+          title="ที่ตั้งปัจจุบัน (ตำแหน่งปัจจุบัน)"
+        >
+          <Home className={`w-5 h-5 sm:w-5.5 sm:h-5.5 group-hover:scale-110 transition-transform ${isLocating ? 'animate-bounce text-sky-400' : ''}`} />
         </button>
       </div>
     </div>
