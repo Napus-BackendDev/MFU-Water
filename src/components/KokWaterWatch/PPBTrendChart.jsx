@@ -97,12 +97,12 @@ export default function PPBTrendChart({
   const trend = diffVal > 0 ? 'up' : diffVal < 0 ? 'down' : 'flat';
 
   // พารามิเตอร์พื้นที่วาดกราฟ (SVG ViewBox)
-  const svgWidth = isCompact ? 330 : 540;
-  const svgHeight = isCompact ? 135 : 180;
-  const paddingLeft = isCompact ? 34 : 45;
-  const paddingRight = isCompact ? 20 : 30;
-  const paddingTop = isCompact ? 20 : 25;
-  const paddingBottom = isCompact ? 28 : 34;
+  const svgWidth = isCompact ? 320 : 540;
+  const svgHeight = isCompact ? 95 : 180;
+  const paddingLeft = isCompact ? 30 : 45;
+  const paddingRight = isCompact ? 16 : 30;
+  const paddingTop = isCompact ? 16 : 25;
+  const paddingBottom = isCompact ? 22 : 34;
 
   const plotWidth = svgWidth - paddingLeft - paddingRight;
   const plotHeight = svgHeight - paddingTop - paddingBottom;
@@ -143,21 +143,22 @@ export default function PPBTrendChart({
   const whoY = getYCoord(10);
   const dangerY = getYCoord(50);
 
-  const selectedPoint = activeIdx !== null ? points[activeIdx] : points[points.length - 1];
+  // ในโหมด Compact จะแสดง selectedPoint เฉพาะเมื่อมีการแตะ/เลือกจุดเท่านั้น เพื่อประหยัดพื้นที่แนวตั้ง
+  const selectedPoint = activeIdx !== null ? points[activeIdx] : (!isCompact && series.length > 1 ? points[points.length - 1] : null);
 
   return (
-    <div className={`p-3 sm:p-3.5 rounded-2xl bg-gradient-to-b from-slate-50 to-white border border-slate-200/90 shadow-2xs space-y-2 select-none ${className}`}>
+    <div className={`p-2.5 sm:p-3 rounded-xl bg-gradient-to-b from-slate-50 to-white border border-slate-200/90 shadow-2xs space-y-1.5 select-none ${className}`}>
       {/* Header ของกราฟ */}
-      <div className="flex items-center justify-between border-b border-slate-200/70 pb-2">
-        <div className="flex items-center gap-2">
-          <div className="w-6 h-6 rounded-lg bg-[#A6192E]/10 flex items-center justify-center text-[#A6192E]">
-            <Activity className="w-3.5 h-3.5" />
+      <div className="flex items-center justify-between border-b border-slate-200/70 pb-1.5">
+        <div className="flex items-center gap-1.5">
+          <div className="w-5 h-5 rounded-md bg-[#A6192E]/10 flex items-center justify-center text-[#A6192E]">
+            <Activity className="w-3 h-3" />
           </div>
           <div>
-            <h4 className="text-xs sm:text-sm font-bold text-slate-800 leading-tight">
+            <h4 className="text-[11px] sm:text-xs font-bold text-slate-800 leading-tight">
               {title}
             </h4>
-            <span className="text-[10px] sm:text-xs text-slate-500 font-medium">
+            <span className="text-[9px] sm:text-[10px] text-slate-500 font-medium">
               ประวัติการตรวจวัด {series.length} ครั้ง (เรียงตามเวลา)
             </span>
           </div>
@@ -418,27 +419,29 @@ export default function PPBTrendChart({
         </div>
       )}
 
-      {/* สรุปสถิติ 3 ช่อง (ต่ำสุด / เฉลี่ย / สูงสุด) */}
-      <div className="grid grid-cols-3 gap-1.5 pt-1 text-center">
-        <div className="py-1 px-1.5 rounded-lg bg-emerald-50/70 border border-emerald-200/60">
-          <span className="text-[10px] text-emerald-800 block font-semibold">ต่ำสุด (Min)</span>
-          <span className="text-xs sm:text-sm font-bold font-mono text-emerald-900">{minVal} ppb</span>
+      {/* สรุปสถิติ 3 ช่อง (ต่ำสุด / เฉลี่ย / สูงสุด) - แสดงเมื่อมีประวัติมากกว่า 1 ครั้ง */}
+      {series.length > 1 && (
+        <div className="grid grid-cols-3 gap-1 pt-0.5 text-center">
+          <div className="py-0.5 px-1 rounded-md bg-emerald-50/70 border border-emerald-200/60">
+            <span className="text-[9px] text-emerald-800 block font-semibold">ต่ำสุด</span>
+            <span className="text-[11px] sm:text-xs font-bold font-mono text-emerald-900">{minVal} ppb</span>
+          </div>
+          <div className="py-0.5 px-1 rounded-md bg-slate-100 border border-slate-200">
+            <span className="text-[9px] text-slate-600 block font-semibold">เฉลี่ย</span>
+            <span className="text-[11px] sm:text-xs font-bold font-mono text-slate-800">{avgVal} ppb</span>
+          </div>
+          <div className={`py-0.5 px-1 rounded-md border ${
+            maxVal > 50
+              ? 'bg-rose-50 border-rose-200 text-rose-900'
+              : maxVal > 10
+              ? 'bg-amber-50 border-amber-200 text-amber-900'
+              : 'bg-emerald-50 border-emerald-200 text-emerald-900'
+          }`}>
+            <span className="text-[9px] block font-semibold opacity-80">สูงสุด</span>
+            <span className="text-[11px] sm:text-xs font-bold font-mono">{maxVal} ppb</span>
+          </div>
         </div>
-        <div className="py-1 px-1.5 rounded-lg bg-slate-100 border border-slate-200">
-          <span className="text-[10px] text-slate-600 block font-semibold">เฉลี่ย (Avg)</span>
-          <span className="text-xs sm:text-sm font-bold font-mono text-slate-800">{avgVal} ppb</span>
-        </div>
-        <div className={`py-1 px-1.5 rounded-lg border ${
-          maxVal > 50
-            ? 'bg-rose-50 border-rose-200 text-rose-900'
-            : maxVal > 10
-            ? 'bg-amber-50 border-amber-200 text-amber-900'
-            : 'bg-emerald-50 border-emerald-200 text-emerald-900'
-        }`}>
-          <span className="text-[10px] block font-semibold opacity-80">สูงสุด (Max)</span>
-          <span className="text-xs sm:text-sm font-bold font-mono">{maxVal} ppb</span>
-        </div>
-      </div>
+      )}
     </div>
   );
 }

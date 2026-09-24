@@ -50,7 +50,7 @@ function EvidencePhotoBox({
   return (
     <div className="flex flex-col shrink-0">
       <div
-        className="relative w-full h-40 sm:h-44 bg-slate-900 overflow-hidden group cursor-pointer"
+        className="relative w-full h-28 sm:h-36 bg-slate-900 overflow-hidden group cursor-pointer"
         onClick={() => onExpand(activeIdx)}
         title="คลิกเพื่อขยายภาพถ่ายหลักฐานล่าสุด"
       >
@@ -84,7 +84,7 @@ function EvidencePhotoBox({
         )}
 
         {/* Overlay Badge: ภาพถ่ายหลักฐานล่าสุด */}
-        <div className="absolute top-2.5 left-2.5 flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-black/70 backdrop-blur-xs text-xs font-semibold text-white shadow-sm pointer-events-none z-10">
+        <div className="absolute top-2 left-2 flex items-center gap-1 px-2 py-0.5 rounded-md bg-black/70 backdrop-blur-xs text-[11px] font-semibold text-white shadow-sm pointer-events-none z-10">
           <Camera className="w-3.5 h-3.5 text-sky-400" />
           <span>ภาพถ่ายหลักฐานล่าสุด</span>
         </div>
@@ -192,6 +192,16 @@ export default function WaterWatchMap({
   const [isPinned, setIsPinned] = useState(false);
   const [activePhotoIdx, setActivePhotoIdx] = useState(0);
   const [previewImage, setPreviewImage] = useState(null);
+  const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' ? window.innerWidth < 640 : false);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 640);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   const hoverTimeoutRef = useRef(null);
   const isHoveringPopupRef = useRef(false);
   const isPinnedRef = useRef(false);
@@ -591,11 +601,11 @@ export default function WaterWatchMap({
   }, []);
 
   // ป้องกันไม่ให้การ์ดล้นขอบจอซ้าย-ขวา หรือชนขอบบน
-  const isFlippedBelow = popupPos.y < 490;
-  const cardHalfWidth = 195;
+  const isFlippedBelow = popupPos.y < 460;
+  const cardHalfWidth = 180;
   const screenWidth = typeof window !== 'undefined' ? window.innerWidth : 1000;
   const clampedX = Math.max(cardHalfWidth + 12, Math.min(screenWidth - cardHalfWidth - 12, popupPos.x));
-  const pointerOffset = Math.max(-130, Math.min(130, popupPos.x - clampedX));
+  const pointerOffset = Math.max(-120, Math.min(120, popupPos.x - clampedX));
 
   const formatThaiDateTime = (isoStr) => {
     if (!isoStr) return '-';
@@ -617,16 +627,22 @@ export default function WaterWatchMap({
       {/* Hover / Click Hotspot Popup Card */}
       {popupHotspot && (
         <div
-          className="absolute z-50 pointer-events-auto transition-all duration-200"
-          style={{
+          className={`z-50 pointer-events-auto transition-all duration-200 ${
+            isMobile
+              ? 'fixed inset-x-3 bottom-3 flex justify-center items-end'
+              : 'absolute'
+          }`}
+          style={isMobile ? undefined : {
             left: `${clampedX}px`,
-            top: isFlippedBelow ? `${popupPos.y + 16}px` : `${popupPos.y - 14}px`,
+            top: isFlippedBelow ? `${popupPos.y + 14}px` : `${popupPos.y - 14}px`,
             transform: isFlippedBelow ? 'translate(-50%, 0)' : 'translate(-50%, -100%)'
           }}
           onClick={(e) => {
             e.stopPropagation();
             setIsPinned(true);
           }}
+          onTouchStart={(e) => e.stopPropagation()}
+          onTouchMove={(e) => e.stopPropagation()}
           onMouseEnter={() => {
             isHoveringPopupRef.current = true;
             if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
@@ -642,28 +658,28 @@ export default function WaterWatchMap({
             }
           }}
         >
-          <div className="w-[330px] sm:w-[385px] max-h-[88vh] bg-white rounded-2xl sm:rounded-3xl shadow-2xl border border-slate-200/90 overflow-hidden text-slate-800 relative flex flex-col">
+          <div className="w-full sm:w-[350px] max-w-[360px] max-h-[68vh] sm:max-h-[540px] bg-white rounded-2xl shadow-2xl border border-slate-200/90 overflow-hidden text-slate-800 relative flex flex-col">
             {/* Header */}
-            <div className={`px-4 py-3 text-white flex items-start justify-between shrink-0 ${
+            <div className={`px-3.5 py-2.5 text-white flex items-start justify-between shrink-0 ${
               popupHotspot.latestIsDanger
                 ? 'bg-gradient-to-r from-rose-700 to-rose-900'
                 : popupHotspot.latestIsWatch
                 ? 'bg-gradient-to-r from-amber-600 to-amber-800'
                 : 'bg-gradient-to-r from-[#A6192E] to-[#8c1527]'
             }`}>
-              <div className="flex items-center gap-2.5 min-w-0 pr-1">
-                <span className="text-xl shrink-0">{popupHotspot.isHotspot ? '🔥' : '📍'}</span>
+              <div className="flex items-center gap-2 min-w-0 pr-1">
+                <span className="text-lg shrink-0">{popupHotspot.isHotspot ? '🔥' : '📍'}</span>
                 <div className="min-w-0">
-                  <h3 className="font-bold text-sm sm:text-base text-white leading-tight truncate">
+                  <h3 className="font-bold text-xs sm:text-sm text-white leading-tight truncate">
                     {popupHotspot.locationName || popupHotspot.title}
                   </h3>
-                  <div className="flex items-center gap-2 mt-1">
+                  <div className="flex items-center gap-1.5 mt-0.5">
                     {popupHotspot.isHotspot && (
-                      <span className="px-2 py-0.5 rounded-md bg-black/35 font-mono text-[11px] font-bold text-amber-200">
+                      <span className="px-1.5 py-0.5 rounded-md bg-black/35 font-mono text-[10px] font-bold text-amber-200">
                         {popupHotspot.count} รายการ
                       </span>
                     )}
-                    <span className="text-xs text-white/90 font-mono truncate">
+                    <span className="text-[11px] text-white/90 font-mono truncate">
                       {popupHotspot.latestSampleCode ? `รหัส ${popupHotspot.latestSampleCode}` : (popupHotspot.isHotspot ? 'ก้อน Hotspot' : 'จุดตรวจวัดเดี่ยว')}
                     </span>
                   </div>
@@ -676,10 +692,10 @@ export default function WaterWatchMap({
                   setIsPinned(false);
                   updatePopupHotspot(null);
                 }}
-                className="p-1.5 rounded-xl text-white/80 hover:text-white hover:bg-white/15 transition-colors cursor-pointer shrink-0 ml-1"
+                className="p-1 rounded-lg text-white/80 hover:text-white hover:bg-white/15 transition-colors cursor-pointer shrink-0 ml-1"
                 title="ปิด"
               >
-                <X className="w-5 h-5" />
+                <X className="w-4 h-4" />
               </button>
             </div>
 
@@ -699,25 +715,25 @@ export default function WaterWatchMap({
               }}
             />
 
-            {/* Popup Body: แสดงเฉพาะข้อมูลการตรวจวัดล่าสุด (Latest Only) - ขนาดตัวหนังสือใหญ่ อ่านง่ายสำหรับผู้สูงอายุ */}
-            <div className="p-3.5 sm:p-4 space-y-2.5 overflow-y-auto">
+            {/* Popup Body: แสดงเฉพาะข้อมูลการตรวจวัดล่าสุด (Latest Only) - รองรับ scroll ได้ 100% */}
+            <div className="p-3 space-y-2 overflow-y-auto flex-1 min-h-0 overscroll-contain touch-pan-y">
               {/* Highlight Card: ค่าตรวจวัดสารหนูล่าสุด (Latest Record) */}
-              <div className={`p-3 rounded-2xl border ${
+              <div className={`p-2.5 rounded-xl border ${
                 popupHotspot.latestIsDanger
                   ? 'bg-rose-50/95 border-rose-200 text-rose-950'
                   : popupHotspot.latestIsWatch
                   ? 'bg-amber-50/95 border-amber-200 text-amber-950'
                   : 'bg-emerald-50/95 border-emerald-200 text-emerald-950'
               }`}>
-                <div className="flex items-center justify-between mb-1.5">
-                  <span className="text-xs sm:text-sm font-bold tracking-wide flex items-center gap-1.5">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-xs font-bold tracking-wide flex items-center gap-1.5">
                     <span
-                      className="inline-block w-3 h-3 rounded-full ring-2 ring-white shadow-xs shrink-0"
+                      className="inline-block w-2.5 h-2.5 rounded-full ring-2 ring-white shadow-xs shrink-0"
                       style={{ backgroundColor: popupHotspot.latestLevelCfg?.color || (popupHotspot.latestIsDanger ? '#e11d48' : popupHotspot.latestIsWatch ? '#f59e0b' : '#059669') }}
                     />
                     ผลตรวจวัดล่าสุด
                   </span>
-                  <span className={`text-xs font-bold px-2.5 py-0.5 rounded-full ${
+                  <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${
                     popupHotspot.latestIsDanger
                       ? 'bg-rose-600 text-white'
                       : popupHotspot.latestIsWatch
@@ -728,14 +744,14 @@ export default function WaterWatchMap({
                   </span>
                 </div>
 
-                <div className="flex items-baseline justify-between mt-1">
-                  <div className="flex items-baseline gap-1.5">
-                    <span className="text-3xl sm:text-4xl font-black font-mono leading-none tracking-tight">
+                <div className="flex items-baseline justify-between mt-0.5">
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-2xl sm:text-3xl font-black font-mono leading-none tracking-tight">
                       {popupHotspot.latestAs}
                     </span>
-                    <span className="text-sm font-bold font-mono opacity-80">ppb</span>
+                    <span className="text-xs font-bold font-mono opacity-80">ppb</span>
                   </div>
-                  <div className="text-xs sm:text-sm font-bold text-right opacity-90">
+                  <div className="text-[11px] font-bold text-right opacity-90">
                     <span>ระดับที่ {popupHotspot.latestLevelCfg?.level || '-'}: {popupHotspot.latestLevelCfg?.desc || ''}</span>
                   </div>
                 </div>
@@ -748,27 +764,27 @@ export default function WaterWatchMap({
                 isCompact={true}
               />
 
-              {/* Time & Collector Information (ข้อมูลเฉพาะของการตรวจวัดล่าสุด) - ตัวหนังสือใหญ่ อ่านชัดเจน */}
-              <div className="space-y-1.5 text-xs sm:text-sm">
+              {/* Time & Collector Information (ข้อมูลเฉพาะของการตรวจวัดล่าสุด) */}
+              <div className="space-y-1.5 text-xs">
                 {/* เวลาที่ตรวจวัดล่าสุด */}
-                <div className="flex items-center justify-between py-2 px-3 rounded-xl bg-slate-50 border border-slate-100">
+                <div className="flex items-center justify-between py-1.5 px-2.5 rounded-lg bg-slate-50 border border-slate-100">
                   <span className="text-slate-500 flex items-center gap-1.5 shrink-0 font-medium">
-                    <Clock className="w-4 h-4 text-[#A6192E] shrink-0" />
+                    <Clock className="w-3.5 h-3.5 text-[#A6192E] shrink-0" />
                     <span>เวลาตรวจล่าสุด:</span>
                   </span>
-                  <span className="font-mono text-slate-800 font-bold text-xs sm:text-sm text-right truncate ml-2">
+                  <span className="font-mono text-slate-800 font-bold text-xs text-right truncate ml-2">
                     {formatThaiDateTime(popupHotspot.latestCollectionTime)}
                   </span>
                 </div>
 
                 {/* ผู้ตรวจวัดล่าสุด */}
                 {(popupHotspot.latestCollector?.name || popupHotspot.sample?.collector?.name) && (
-                  <div className="flex items-center justify-between py-2 px-3 rounded-xl bg-slate-50 border border-slate-100">
+                  <div className="flex items-center justify-between py-1.5 px-2.5 rounded-lg bg-slate-50 border border-slate-100">
                     <span className="text-slate-500 flex items-center gap-1.5 shrink-0 font-medium">
-                      <Users className="w-4 h-4 text-slate-600 shrink-0" />
+                      <Users className="w-3.5 h-3.5 text-slate-600 shrink-0" />
                       <span>ผู้ตรวจล่าสุด:</span>
                     </span>
-                    <span className="font-bold text-slate-800 text-xs sm:text-sm text-right truncate ml-2 max-w-[200px]" title={popupHotspot.latestCollector?.name || popupHotspot.sample?.collector?.name}>
+                    <span className="font-bold text-slate-800 text-xs text-right truncate ml-2 max-w-[180px]" title={popupHotspot.latestCollector?.name || popupHotspot.sample?.collector?.name}>
                       {popupHotspot.latestCollector?.name || popupHotspot.sample?.collector?.name}
                       {popupHotspot.latestCollector?.organization ? ` (${popupHotspot.latestCollector.organization})` : ''}
                     </span>
@@ -777,7 +793,7 @@ export default function WaterWatchMap({
 
                 {/* แหล่งน้ำ / ตำแหน่งเก็บ */}
                 {popupHotspot.latestWaterSource && (
-                  <div className="flex items-start justify-between py-1.5 px-3 text-xs sm:text-sm text-slate-600">
+                  <div className="flex items-center justify-between py-1 px-2.5 text-xs text-slate-600">
                     <span className="shrink-0 text-slate-400 font-medium">แหล่งน้ำ:</span>
                     <span className="text-right truncate ml-2 text-slate-800 font-bold">
                       {popupHotspot.latestWaterSource}
@@ -787,7 +803,7 @@ export default function WaterWatchMap({
 
                 {/* บันทึกเฉพาะข้อมูลล่าสุด ไม่เอาข้อมูลเก่ามาโชว์ */}
                 {popupHotspot.isHotspot && popupHotspot.count > 1 && (
-                  <div className="flex items-center justify-between px-3 pt-0.5 text-xs text-slate-500 font-mono font-medium">
+                  <div className="flex items-center justify-between px-2.5 pt-0.5 text-[11px] text-slate-500 font-mono font-medium">
                     <span>ประวัติตรวจวัดสะสม:</span>
                     <span>{popupHotspot.count} รายการ (แสดงผลตรวจล่าสุด)</span>
                   </div>
@@ -810,15 +826,15 @@ export default function WaterWatchMap({
                     onSelectHotspot(target);
                   }
                 }}
-                className="w-full py-3 px-4 rounded-xl bg-[#A6192E] hover:bg-[#851424] text-white font-bold text-sm sm:text-base shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer mt-1 active:scale-[0.98]"
+                className="w-full py-2.5 px-3 rounded-xl bg-[#A6192E] hover:bg-[#851424] text-white font-bold text-xs sm:text-sm shadow-md transition-all flex items-center justify-center gap-1.5 cursor-pointer mt-1 active:scale-[0.98]"
               >
                 <span>{popupHotspot.isHotspot ? `เปิดดูประวัติในก้อนนี้ (${popupHotspot.count} รายการ)` : 'เปิดดูผลตรวจวัดฉบับเต็ม'}</span>
-                <ChevronRight className="w-5 h-5" />
+                <ChevronRight className="w-4 h-4" />
               </button>
             </div>
 
             {/* Speech Bubble Pointer */}
-            {isFlippedBelow ? (
+            {!isMobile && (isFlippedBelow ? (
               <div 
                 className="absolute -top-2 w-0 h-0 border-x-8 border-x-transparent border-b-8 border-b-white drop-shadow-xs -translate-x-1/2 pointer-events-none"
                 style={{ left: `calc(50% + ${pointerOffset}px)` }}
@@ -828,7 +844,7 @@ export default function WaterWatchMap({
                 className="absolute -bottom-2 w-0 h-0 border-x-8 border-x-transparent border-t-8 border-t-white drop-shadow-xs -translate-x-1/2 pointer-events-none"
                 style={{ left: `calc(50% + ${pointerOffset}px)` }}
               />
-            )}
+            ))}
           </div>
         </div>
       )}
