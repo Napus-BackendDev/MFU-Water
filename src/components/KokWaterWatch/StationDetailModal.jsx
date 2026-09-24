@@ -238,10 +238,11 @@ export default function StationDetailModal({
               </span>
             </div>
 
-            {/* Filter & Search Bar */}
+            {/* Filter & Search Bar - Clean & Proportional Design */}
             {stationLogs.length > 0 && (
-              <div className="bg-slate-50 p-3 rounded-2xl border border-slate-200 space-y-2.5">
-                <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2">
+              <div className="bg-[#F8F7F5] p-3 rounded-2xl border border-slate-200/90 shadow-2xs space-y-2.5">
+                {/* Search & Sort Row */}
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                   {/* Search Input */}
                   <div className="relative flex-1">
                     <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -249,120 +250,125 @@ export default function StationDetailModal({
                       type="text"
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      placeholder="ค้นหาชื่อผู้ตรวจวัด / รหัสตัวอย่าง / สังกัด..."
-                      className="w-full pl-8.5 pr-8 py-1.5 text-xs bg-white rounded-xl border border-slate-300 focus:outline-hidden focus:border-[#A6192E] text-slate-800 placeholder-slate-400"
+                      placeholder="ค้นหาชื่อผู้ตรวจ, รหัสตัวอย่าง หรือหน่วยงาน..."
+                      className="w-full pl-8.5 pr-8 py-2 text-xs bg-white rounded-xl border border-slate-200 shadow-2xs focus:outline-hidden focus:border-[#A6192E] focus:ring-1 focus:ring-[#A6192E] text-slate-800 placeholder-slate-400"
                     />
                     {searchQuery && (
                       <button
                         onClick={() => setSearchQuery('')}
-                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs"
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs p-1"
+                        title="ล้างคำค้นหา"
                       >
                         ✕
                       </button>
                     )}
                   </div>
 
-                  {/* Sort Order */}
+                  {/* Sort Control */}
                   <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-auto">
-                    <span className="text-[10px] text-slate-500 font-medium">เรียง:</span>
+                    <span className="text-[11px] text-slate-500 font-medium whitespace-nowrap">เรียงลำดับ:</span>
                     <select
                       value={sortOrder}
                       onChange={(e) => setSortOrder(e.target.value)}
-                      className="text-xs bg-white border border-slate-300 rounded-lg px-2 py-1 text-slate-700 font-medium focus:outline-hidden focus:border-[#A6192E]"
+                      className="text-xs bg-white border border-slate-200 shadow-2xs rounded-xl px-2.5 py-1.5 text-slate-700 font-medium focus:outline-hidden focus:border-[#A6192E] cursor-pointer"
                     >
-                      <option value="newest">ล่าสุดก่อน</option>
-                      <option value="oldest">เก่าสุดก่อน</option>
+                      <option value="newest">🕒 ล่าสุดก่อน</option>
+                      <option value="oldest">⏳ เก่าสุดก่อน</option>
                     </select>
                   </div>
                 </div>
 
-                {/* Filter Chips */}
-                <div className="flex flex-wrap items-center gap-1.5 text-xs">
-                  <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mr-1">
-                    ตัวกรอง:
-                  </span>
-                  
-                  <button
-                    type="button"
-                    onClick={() => setRiskFilter('all')}
-                    className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
-                      riskFilter === 'all'
-                        ? 'bg-slate-800 text-white shadow-xs'
-                        : 'bg-white border border-slate-300 text-slate-600 hover:bg-slate-100'
-                    }`}
-                  >
-                    ทั้งหมด ({stationLogs.length})
-                  </button>
+                {/* Filter Chips Row */}
+                <div className="flex flex-wrap items-center justify-between gap-1.5 pt-1 border-t border-slate-200/60">
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => setRiskFilter('all')}
+                      className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer border ${
+                        riskFilter === 'all'
+                          ? 'bg-[#A6192E] text-white border-[#A6192E] shadow-xs'
+                          : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                      }`}
+                    >
+                      ทั้งหมด ({stationLogs.length})
+                    </button>
 
-                  <button
-                    type="button"
-                    onClick={() => setRiskFilter('safe')}
-                    className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1 ${
-                      riskFilter === 'safe'
-                        ? 'bg-emerald-600 text-white shadow-xs'
-                        : 'bg-white border border-emerald-300 text-emerald-700 hover:bg-emerald-50'
-                    }`}
-                  >
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-                    ปลอดภัย (&le; 10 µg)
-                  </button>
+                    <button
+                      type="button"
+                      onClick={() => setRiskFilter('safe')}
+                      className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1.5 border ${
+                        riskFilter === 'safe'
+                          ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
+                          : 'bg-white border-emerald-200 text-emerald-700 hover:bg-emerald-50/50'
+                      }`}
+                    >
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                      <span>ปลอดภัย (&le; 10 µg)</span>
+                    </button>
 
-                  <button
-                    type="button"
-                    onClick={() => setRiskFilter('watch')}
-                    className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1 ${
-                      riskFilter === 'watch'
-                        ? 'bg-amber-500 text-white shadow-xs'
-                        : 'bg-white border border-amber-300 text-amber-700 hover:bg-amber-50'
-                    }`}
-                  >
-                    <span className="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
-                    เฝ้าระวัง (10.1-20 µg)
-                  </button>
+                    <button
+                      type="button"
+                      onClick={() => setRiskFilter('watch')}
+                      className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1.5 border ${
+                        riskFilter === 'watch'
+                          ? 'bg-amber-500 text-white border-amber-500 shadow-xs'
+                          : 'bg-white border-amber-200 text-amber-700 hover:bg-amber-50/50'
+                      }`}
+                    >
+                      <span className="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
+                      <span>เฝ้าระวัง (10.1-20 µg)</span>
+                    </button>
 
-                  <button
-                    type="button"
-                    onClick={() => setRiskFilter('danger')}
-                    className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1 ${
-                      riskFilter === 'danger'
-                        ? 'bg-rose-600 text-white shadow-xs'
-                        : 'bg-white border border-rose-300 text-rose-700 hover:bg-rose-50'
-                    }`}
-                  >
-                    <span className="w-1.5 h-1.5 rounded-full bg-rose-400"></span>
-                    เกินเกณฑ์ (&gt; 20 µg)
-                  </button>
+                    <button
+                      type="button"
+                      onClick={() => setRiskFilter('danger')}
+                      className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1.5 border ${
+                        riskFilter === 'danger'
+                          ? 'bg-rose-600 text-white border-rose-600 shadow-xs'
+                          : 'bg-white border-rose-200 text-rose-700 hover:bg-rose-50/50'
+                      }`}
+                    >
+                      <span className="w-1.5 h-1.5 rounded-full bg-rose-400"></span>
+                      <span>เกินเกณฑ์ (&gt; 20 µg)</span>
+                    </button>
 
-                  <button
-                    type="button"
-                    onClick={() => setPhotoOnly(prev => !prev)}
-                    className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1 ${
-                      photoOnly
-                        ? 'bg-[#B4975A] text-white shadow-xs'
-                        : 'bg-white border border-slate-300 text-slate-600 hover:bg-slate-100'
-                    }`}
-                  >
-                    <span>📷 มีรูปถ่าย</span>
-                  </button>
-                </div>
+                    <button
+                      type="button"
+                      onClick={() => setPhotoOnly(prev => !prev)}
+                      className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1.5 border ${
+                        photoOnly
+                          ? 'bg-[#B4975A] text-white border-[#B4975A] shadow-xs'
+                          : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                      }`}
+                    >
+                      <span>📷 มีรูปถ่าย</span>
+                    </button>
+                  </div>
 
-                {/* Active filters reset bar */}
-                {(searchQuery || riskFilter !== 'all' || photoOnly) && (
-                  <div className="flex items-center justify-between text-[11px] pt-1 text-slate-500 border-t border-slate-200">
-                    <span>พบ <strong>{filteredLogs.length}</strong> จาก {stationLogs.length} รายการ</span>
+                  {/* Reset Button if filter active */}
+                  {(searchQuery || riskFilter !== 'all' || photoOnly) && (
                     <button
                       onClick={() => {
                         setSearchQuery('');
                         setRiskFilter('all');
                         setPhotoOnly(false);
                       }}
-                      className="text-[#A6192E] hover:underline font-bold cursor-pointer flex items-center gap-1"
+                      className="text-[11px] text-[#A6192E] hover:underline font-bold cursor-pointer flex items-center gap-1 px-1.5 py-1"
+                      title="คืนค่าตัวกรองทั้งหมด"
                     >
                       <RotateCcw className="w-3 h-3" />
-                      ล้างตัวกรองทั้งหมด
+                      <span>ล้างตัวกรอง</span>
                     </button>
-                  </div>
-                )}
+                  )}
+                </div>
+
+                {/* Counter Footer */}
+                <div className="flex items-center justify-between text-[10px] text-slate-500 pt-0.5">
+                  <span>กำลังแสดง <strong>{filteredLogs.length}</strong> จากทั้งหมด {stationLogs.length} รายการ</span>
+                  {filteredLogs.length === 0 && (
+                    <span className="text-rose-600 font-semibold">ไม่พบข้อมูลที่ตรงกับเงื่อนไข</span>
+                  )}
+                </div>
               </div>
             )}
 
