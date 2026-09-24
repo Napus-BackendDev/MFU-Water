@@ -28,11 +28,12 @@ export default function App() {
   const [activePage, setActivePage] = useState(() => {
     if (typeof window !== 'undefined') {
       if (window.location.hash === '#sentinel-compare') return 'sentinel-compare';
-      if (window.location.hash === '#water-watch') return 'water-watch';
+      if (window.location.hash === '#flood-sim') return 'flood-sim';
       if (window.location.hash === '#google-3d') return 'google-3d';
+      if (window.location.hash === '#water-watch') return 'water-watch';
     }
-    // ค่าเริ่มต้นเป็นโมเดลจำลอง 3 มิติ (3D Diorama) ที่มีฟังก์ชันวิเคราะห์ดาวเทียมครบครัน
-    return 'flood-sim';
+    // ค่าเริ่มต้นเป็น KOK Water Watch ตามที่ผู้ใช้ระบุ
+    return 'water-watch';
   });
 
   const [selectedLocation, setSelectedLocation] = useState(null); // Default full overview of Thaton & Thadoi
@@ -55,12 +56,13 @@ export default function App() {
     const handleHash = () => {
       if (window.location.hash === '#sentinel-compare') {
         setActivePage('sentinel-compare');
-      } else if (window.location.hash === '#water-watch') {
-        setActivePage('water-watch');
+      } else if (window.location.hash === '#flood-sim') {
+        setActivePage('flood-sim');
       } else if (window.location.hash === '#google-3d') {
         setActivePage('google-3d');
       } else {
-        setActivePage('flood-sim');
+        // เมื่อไม่มี hash หรือเป็น #water-watch ให้หน้าเริ่มต้นเป็น KOK Water Watch
+        setActivePage('water-watch');
       }
     };
     window.addEventListener('hashchange', handleHash);
@@ -150,7 +152,7 @@ export default function App() {
         <KokWaterWatchView
           onBackToFloodSim={() => {
             setActivePage('flood-sim');
-            window.location.hash = '';
+            window.location.hash = '#flood-sim';
           }}
         />
       </Suspense>
@@ -170,7 +172,7 @@ export default function App() {
         <GoogleMaps3DView
           onBack={() => {
             setActivePage('flood-sim');
-            window.location.hash = '';
+            window.location.hash = '#flood-sim';
           }}
           floodStage={floodStage}
         />

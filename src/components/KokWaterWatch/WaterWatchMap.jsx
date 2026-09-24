@@ -1,8 +1,184 @@
 import React, { useState, useEffect, useRef } from 'react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
-import { X, ChevronRight, TrendingUp, TrendingDown, Minus, Droplets, Camera, Edit3 } from 'lucide-react';
+import { 
+  X, 
+  ChevronRight, 
+  TrendingUp, 
+  TrendingDown, 
+  Minus, 
+  Droplets, 
+  Camera, 
+  Edit3,
+  Map,
+  Globe,
+  Layers,
+  Compass
+} from 'lucide-react';
 import { WATER_WATCH_STATIONS, getStationTelemetry } from '../../data/waterWatchData';
+
+// 1. เส้นพรมแดนไทย - เมียนมา (Thailand - Myanmar International Border Line)
+const THAILAND_MYANMAR_BORDER_GEOJSON = {
+  type: 'FeatureCollection',
+  features: [
+    {
+      type: 'Feature',
+      properties: {
+        name: 'เส้นพรมแดนไทย - เมียนมา (Thailand - Myanmar Border)',
+        type: 'international-border'
+      },
+      geometry: {
+        type: 'LineString',
+        coordinates: [
+          [99.1200, 20.3200],
+          [99.1650, 20.2750],
+          [99.2150, 20.2200],
+          [99.2550, 20.1700],
+          [99.2880, 20.1250],
+          [99.3120, 20.0980],
+          [99.3300, 20.0750], // จุดแม่น้ำกกไหลข้ามพรมแดนเข้าประเทศไทย
+          [99.3420, 20.0480],
+          [99.3380, 20.0100],
+          [99.3180, 19.9650],
+          [99.3000, 19.9150]
+        ]
+      }
+    }
+  ]
+};
+
+// 2. เส้นแบ่งเขตจังหวัด เชียงใหม่ - เชียงราย (Chiang Mai - Chiang Rai Provincial Boundary Line)
+const PROVINCE_BORDER_GEOJSON = {
+  type: 'FeatureCollection',
+  features: [
+    {
+      type: 'Feature',
+      properties: {
+        name: 'เส้นแบ่งเขตจังหวัด เชียงใหม่ - เชียงราย',
+        type: 'province-border'
+      },
+      geometry: {
+        type: 'LineString',
+        coordinates: [
+          [99.5300, 20.2600],
+          [99.5420, 20.2000],
+          [99.5520, 20.1400],
+          [99.5580, 20.0800],
+          [99.5600, 20.0200], // จุดรอยต่อแม่น้ำกกข้ามจังหวัด
+          [99.5650, 19.9600],
+          [99.5750, 19.9000],
+          [99.5850, 19.8400]
+        ]
+      }
+    }
+  ]
+};
+
+// 3. เส้นแบ่งเขตอำเภอสำคัญ (District Boundary Lines)
+const DISTRICT_BORDER_GEOJSON = {
+  type: 'FeatureCollection',
+  features: [
+    {
+      type: 'Feature',
+      properties: {
+        name: 'แนวแบ่งเขต อ.แม่อาย - อ.ฝาง (เชียงใหม่)',
+        type: 'district'
+      },
+      geometry: {
+        type: 'LineString',
+        coordinates: [
+          [99.2500, 19.9800],
+          [99.3300, 19.9850],
+          [99.4100, 19.9750],
+          [99.4900, 19.9600]
+        ]
+      }
+    },
+    {
+      type: 'Feature',
+      properties: {
+        name: 'แนวแบ่งเขต อ.แม่ฟ้าหลวง - อ.เมืองเชียงราย',
+        type: 'district'
+      },
+      geometry: {
+        type: 'LineString',
+        coordinates: [
+          [99.5600, 20.1200],
+          [99.6500, 20.1000],
+          [99.7400, 20.0700]
+        ]
+      }
+    }
+  ]
+};
+
+// 4. ป้ายกำกับเขตการปกครองและประเทศ (Administrative & Territory Badges)
+const ADMINISTRATIVE_BADGES = [
+  {
+    id: 'badge-myanmar',
+    coords: [99.2700, 20.1300],
+    title: '🇲🇲 ประเทศเมียนมา (Myanmar)',
+    subtitle: 'รัฐฉาน (Shan State) · ต้นกำเนิดแม่น้ำกก',
+    type: 'country',
+    bgClass: 'bg-amber-600/95 text-white border-amber-300 ring-2 ring-amber-400/50'
+  },
+  {
+    id: 'badge-thailand',
+    coords: [99.4400, 20.0900],
+    title: '🇹🇭 ประเทศไทย (Thailand)',
+    subtitle: 'ลุ่มน้ำกกตอนบน · ภาคเหนือ',
+    type: 'country',
+    bgClass: 'bg-blue-600/95 text-white border-blue-300 ring-2 ring-blue-400/50'
+  },
+  {
+    id: 'badge-border-point',
+    coords: [99.3300, 20.0750],
+    title: '🚧 ชายแดนไทย - เมียนมา',
+    subtitle: 'จุดแม่น้ำกกไหลข้ามพรมแดนสู่ไทย (กม.0)',
+    type: 'border',
+    bgClass: 'bg-rose-700/95 text-white border-rose-300 ring-2 ring-rose-400/50'
+  },
+  {
+    id: 'badge-mae-ai',
+    coords: [99.3650, 20.0350],
+    title: '🏛️ อ.แม่อาย (จ.เชียงใหม่)',
+    subtitle: 'ต.ท่าตอน / ต.แม่อาย / ต.มะลิกา',
+    type: 'district',
+    bgClass: 'bg-slate-900/95 text-white border-cyan-400 ring-1 ring-cyan-400/40'
+  },
+  {
+    id: 'badge-fang',
+    coords: [99.2200, 19.9200],
+    title: '🏛️ อ.ฝาง (จ.เชียงใหม่)',
+    subtitle: 'พื้นที่เกษตรกรรมและลุ่มน้ำสาขา',
+    type: 'district',
+    bgClass: 'bg-slate-900/95 text-white border-slate-300 ring-1 ring-slate-400/40'
+  },
+  {
+    id: 'badge-cm-cr-border',
+    coords: [99.5600, 20.0200],
+    title: '📍 รอยต่อ จ.เชียงใหม่ - เชียงราย',
+    subtitle: 'แนวแบ่งเขตจังหวัดริมแม่น้ำกก',
+    type: 'province',
+    bgClass: 'bg-purple-800/95 text-white border-purple-300 ring-2 ring-purple-400/50'
+  },
+  {
+    id: 'badge-mae-fah-luang',
+    coords: [99.6500, 20.1400],
+    title: '🏛️ อ.แม่ฟ้าหลวง (จ.เชียงราย)',
+    subtitle: 'แนวเทือกเขาดอยตุงและต้นน้ำสาขา',
+    type: 'district',
+    bgClass: 'bg-slate-900/95 text-white border-emerald-400 ring-1 ring-emerald-400/40'
+  },
+  {
+    id: 'badge-mueang-cr',
+    coords: [99.8250, 19.9100],
+    title: '🏛️ อ.เมืองเชียงราย (จ.เชียงราย)',
+    subtitle: 'พื้นที่ลุ่มน้ำกกตอนกลาง · ตัวเมือง',
+    type: 'district',
+    bgClass: 'bg-slate-900/95 text-white border-sky-400 ring-1 ring-sky-400/40'
+  }
+];
 
 export default function WaterWatchMap({
   submissions = [],
@@ -23,7 +199,13 @@ export default function WaterWatchMap({
   const mapContainer = useRef(null);
   const mapRef = useRef(null);
   const markersRef = useRef([]);
+  const boundaryMarkersRef = useRef([]);
   const pickedMarkerRef = useRef(null);
+
+  // โหมดแสดงผลแผนที่: 'street' (ถนนและการปกครอง) | 'satellite' (ภาพถ่ายดาวเทียมไฮบริด)
+  const [mapType, setMapType] = useState('street');
+  // สถานะเปิด/ปิดเส้นเขตแดนประเทศ เขตจังหวัด และเขตอำเภอ
+  const [showBoundaries, setShowBoundaries] = useState(true);
 
   const isPickingCoordinatesRef = useRef(isPickingCoordinates);
   const onPickCoordinatesRef = useRef(onPickCoordinates);
@@ -52,36 +234,57 @@ export default function WaterWatchMap({
     onPopupChangeRef.current?.(st);
   };
 
-  // Initialize Map
+  // Initialize Map with Google Street & Google Satellite Hybrid tiles + Administrative Boundary Layers
   useEffect(() => {
     if (mapRef.current) return;
 
     const styleDefinition = {
       version: 8,
       sources: {
+        // 1. Google Maps ถนน & เขตการปกครอง (ภาษาไทย & เปิดเส้นเขตแดน/เขตอำเภอครบถ้วน)
         googleStreet: {
           type: 'raster',
           tiles: [
-            'https://mt0.google.com/vt/lyrs=m&apistyle=s.t:2|p.v:off&x={x}&y={y}&z={z}',
-            'https://mt1.google.com/vt/lyrs=m&apistyle=s.t:2|p.v:off&x={x}&y={y}&z={z}',
-            'https://mt2.google.com/vt/lyrs=m&apistyle=s.t:2|p.v:off&x={x}&y={y}&z={z}',
-            'https://mt3.google.com/vt/lyrs=m&apistyle=s.t:2|p.v:off&x={x}&y={y}&z={z}'
+            'https://mt0.google.com/vt/lyrs=m&hl=th&x={x}&y={y}&z={z}',
+            'https://mt1.google.com/vt/lyrs=m&hl=th&x={x}&y={y}&z={z}',
+            'https://mt2.google.com/vt/lyrs=m&hl=th&x={x}&y={y}&z={z}',
+            'https://mt3.google.com/vt/lyrs=m&hl=th&x={x}&y={y}&z={z}'
+          ],
+          tileSize: 256
+        },
+        // 2. Google Maps ภาพถ่ายดาวเทียมแบบไฮบริด (Satellite + Roads + Borders + Thai labels)
+        googleSatellite: {
+          type: 'raster',
+          tiles: [
+            'https://mt0.google.com/vt/lyrs=y&hl=th&x={x}&y={y}&z={z}',
+            'https://mt1.google.com/vt/lyrs=y&hl=th&x={x}&y={y}&z={z}',
+            'https://mt2.google.com/vt/lyrs=y&hl=th&x={x}&y={y}&z={z}',
+            'https://mt3.google.com/vt/lyrs=y&hl=th&x={x}&y={y}&z={z}'
           ],
           tileSize: 256
         }
       },
       layers: [
         {
-          id: 'background-white',
+          id: 'background-base',
           type: 'background',
-          paint: { 'background-color': '#F8F7F5' }
+          paint: { 'background-color': '#0f172a' }
         },
         {
-          id: 'google-layer',
+          id: 'google-street-layer',
           type: 'raster',
           source: 'googleStreet',
           minzoom: 0,
-          maxzoom: 20
+          maxzoom: 21,
+          layout: { visibility: 'visible' }
+        },
+        {
+          id: 'google-satellite-layer',
+          type: 'raster',
+          source: 'googleSatellite',
+          minzoom: 0,
+          maxzoom: 21,
+          layout: { visibility: 'none' }
         }
       ]
     };
@@ -97,7 +300,98 @@ export default function WaterWatchMap({
     });
 
     map.on('load', () => {
-      // ใช้แนวลำน้ำธรรมชาติของแผนที่ Google Maps โดยไม่ต้องวาดเส้นสีฟ้าทับ
+      // 1. เพิ่ม Layer เส้นพรมแดนไทย - เมียนมา (เน้นสีแดงสะท้อนแสง + เส้นประคู่)
+      map.addSource('thailand-myanmar-border-src', {
+        type: 'geojson',
+        data: THAILAND_MYANMAR_BORDER_GEOJSON
+      });
+      map.addLayer({
+        id: 'border-line-glow',
+        type: 'line',
+        source: 'thailand-myanmar-border-src',
+        layout: {
+          'line-join': 'round',
+          'line-cap': 'round',
+          visibility: 'visible'
+        },
+        paint: {
+          'line-color': '#EF4444',
+          'line-width': 7,
+          'line-opacity': 0.4
+        }
+      });
+      map.addLayer({
+        id: 'border-line',
+        type: 'line',
+        source: 'thailand-myanmar-border-src',
+        layout: {
+          'line-join': 'round',
+          'line-cap': 'round',
+          visibility: 'visible'
+        },
+        paint: {
+          'line-color': '#DC2626',
+          'line-width': 3.5,
+          'line-dasharray': [3, 2]
+        }
+      });
+
+      // 2. เพิ่ม Layer เส้นแบ่งเขตจังหวัด เชียงใหม่ - เชียงราย (สีม่วง)
+      map.addSource('province-border-src', {
+        type: 'geojson',
+        data: PROVINCE_BORDER_GEOJSON
+      });
+      map.addLayer({
+        id: 'province-line-glow',
+        type: 'line',
+        source: 'province-border-src',
+        layout: {
+          'line-join': 'round',
+          'line-cap': 'round',
+          visibility: 'visible'
+        },
+        paint: {
+          'line-color': '#A855F7',
+          'line-width': 6,
+          'line-opacity': 0.35
+        }
+      });
+      map.addLayer({
+        id: 'province-line',
+        type: 'line',
+        source: 'province-border-src',
+        layout: {
+          'line-join': 'round',
+          'line-cap': 'round',
+          visibility: 'visible'
+        },
+        paint: {
+          'line-color': '#7C3AED',
+          'line-width': 2.5,
+          'line-dasharray': [4, 2]
+        }
+      });
+
+      // 3. เพิ่ม Layer เส้นแบ่งเขตอำเภอ (สีส้มทอง)
+      map.addSource('district-border-src', {
+        type: 'geojson',
+        data: DISTRICT_BORDER_GEOJSON
+      });
+      map.addLayer({
+        id: 'district-line',
+        type: 'line',
+        source: 'district-border-src',
+        layout: {
+          'line-join': 'round',
+          'line-cap': 'round',
+          visibility: 'visible'
+        },
+        paint: {
+          'line-color': '#F59E0B',
+          'line-width': 2,
+          'line-dasharray': [2, 3]
+        }
+      });
     });
 
     map.on('click', (e) => {
@@ -114,6 +408,88 @@ export default function WaterWatchMap({
     return () => {
       map.remove();
       mapRef.current = null;
+    };
+  }, []);
+
+  // สลับการแสดงผลระหว่าง แผนที่ถนน & ภาพถ่ายดาวเทียม
+  useEffect(() => {
+    if (!mapRef.current) return;
+    const map = mapRef.current;
+    if (map.getLayer('google-street-layer')) {
+      map.setLayoutProperty('google-street-layer', 'visibility', mapType === 'street' ? 'visible' : 'none');
+    }
+    if (map.getLayer('google-satellite-layer')) {
+      map.setLayoutProperty('google-satellite-layer', 'visibility', mapType === 'satellite' ? 'visible' : 'none');
+    }
+  }, [mapType]);
+
+  // สลับการเปิด/ปิดการแสดงผลเส้นขอบเขตการปกครอง
+  useEffect(() => {
+    if (!mapRef.current) return;
+    const map = mapRef.current;
+    const boundaryLayers = [
+      'border-line-glow',
+      'border-line',
+      'province-line-glow',
+      'province-line',
+      'district-line'
+    ];
+    boundaryLayers.forEach(id => {
+      if (map.getLayer(id)) {
+        map.setLayoutProperty(id, 'visibility', showBoundaries ? 'visible' : 'none');
+      }
+    });
+
+    // อัปเดตการแสดงผลของหมุดป้ายเขตแดน
+    boundaryMarkersRef.current.forEach(m => {
+      const el = m.getElement();
+      if (el) el.style.display = showBoundaries ? 'block' : 'none';
+    });
+  }, [showBoundaries]);
+
+  // สร้างหมุดป้ายชื่อระบุประเทศ จังหวัด และอำเภอ
+  useEffect(() => {
+    if (!mapRef.current) return;
+    const map = mapRef.current;
+
+    // เคลียร์หมุดเก่า
+    boundaryMarkersRef.current.forEach(m => m.remove());
+    boundaryMarkersRef.current = [];
+
+    ADMINISTRATIVE_BADGES.forEach(badge => {
+      const el = document.createElement('div');
+      el.className = 'territory-boundary-badge cursor-pointer select-none transition-all duration-200 hover:scale-105';
+      el.style.display = showBoundaries ? 'block' : 'none';
+      
+      el.innerHTML = `
+        <div class="px-2 py-1 rounded-xl text-[10px] sm:text-[11px] font-bold shadow-lg border backdrop-blur-md flex flex-col items-center whitespace-nowrap ${badge.bgClass}">
+          <div class="flex items-center gap-1">
+            <span>${badge.title}</span>
+          </div>
+          ${badge.subtitle ? `<span class="text-[9px] font-normal opacity-90">${badge.subtitle}</span>` : ''}
+        </div>
+      `;
+
+      el.addEventListener('click', (e) => {
+        e.stopPropagation();
+        map.flyTo({
+          center: badge.coords,
+          zoom: badge.type === 'country' ? 11.5 : (badge.type === 'province' ? 12.5 : 13.5),
+          duration: 1200,
+          essential: true
+        });
+      });
+
+      const marker = new maplibregl.Marker({ element: el, anchor: 'center' })
+        .setLngLat(badge.coords)
+        .addTo(map);
+
+      boundaryMarkersRef.current.push(marker);
+    });
+
+    return () => {
+      boundaryMarkersRef.current.forEach(m => m.remove());
+      boundaryMarkersRef.current = [];
     };
   }, []);
 
@@ -645,6 +1021,56 @@ export default function WaterWatchMap({
           </div>
         </div>
       )}
+
+      {/* Floating Map Controls: สลับแผนที่ถนน / ดาวเทียม & เปิด/ปิดเส้นเขตแดน */}
+      <div className="absolute top-16 right-3 sm:top-18 sm:right-6 z-20 pointer-events-auto flex flex-col items-end gap-1.5 select-none">
+        {/* Layer Mode Switcher: ถนน vs ภาพถ่ายดาวเทียม */}
+        <div className="p-1 sm:p-1.5 rounded-2xl bg-white/95 backdrop-blur-md shadow-xl border border-[#B4975A]/40 flex items-center gap-1">
+          <button
+            type="button"
+            onClick={() => setMapType('street')}
+            className={`px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer ${
+              mapType === 'street'
+                ? 'bg-[#A6192E] text-white shadow-md'
+                : 'text-slate-700 hover:text-slate-900 hover:bg-slate-100'
+            }`}
+            title="แผนที่ถนนและชื่อสถานที่ภาษาไทย"
+          >
+            <Map className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">แผนที่ถนน</span>
+            <span className="sm:hidden">ถนน</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setMapType('satellite')}
+            className={`px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer ${
+              mapType === 'satellite'
+                ? 'bg-sky-600 text-white shadow-md'
+                : 'text-slate-700 hover:text-slate-900 hover:bg-slate-100'
+            }`}
+            title="ภาพถ่ายดาวเทียมความละเอียดสูง (Satellite Hybrid)"
+          >
+            <Globe className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">ภาพถ่ายดาวเทียม</span>
+            <span className="sm:hidden">ดาวเทียม</span>
+          </button>
+        </div>
+
+        {/* Boundary & District Toggle Button */}
+        <button
+          type="button"
+          onClick={() => setShowBoundaries(prev => !prev)}
+          className={`px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-xl backdrop-blur-md shadow-lg border text-[11px] sm:text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+            showBoundaries
+              ? 'bg-amber-50/95 text-amber-950 border-amber-300 ring-1 ring-amber-400/40'
+              : 'bg-white/90 text-slate-500 border-slate-200 hover:bg-slate-50'
+          }`}
+          title="เปิด/ปิดการแสดงเส้นพรมแดนประเทศ เขตจังหวัด และเขตอำเภอ"
+        >
+          <Layers className={`w-3.5 h-3.5 ${showBoundaries ? 'text-amber-600' : 'text-slate-400'}`} />
+          <span>{showBoundaries ? '🏷️ เขตแดน & อำเภอ (เปิด)' : '🏷️ เขตแดน & อำเภอ (ปิด)'}</span>
+        </button>
+      </div>
 
       {/* Floating Banner สำหรับโหมดจิ้มเลือกพิกัดบนแผนที่ */}
       {isPickingCoordinates && (

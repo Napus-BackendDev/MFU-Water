@@ -391,7 +391,7 @@ export default function KokWaterWatchView({ onBackToFloodSim }) {
       </header>
 
       {/* 2. Interactive Map (Full Screen) */}
-      <div className={`absolute inset-0 pt-14 ${isMapPopupActive ? 'z-30' : 'z-0'}`}>
+      <div className="absolute inset-0 pt-14 z-0">
         <WaterWatchMap
           submissions={submissions}
           stations={stations}
@@ -406,7 +406,7 @@ export default function KokWaterWatchView({ onBackToFloodSim }) {
       </div>
 
       {/* 3. Floating Navigation & Legend (ซ้ายล่าง) */}
-      <div className={`absolute bottom-6 left-5 sm:bottom-6 sm:left-6 z-20 pointer-events-auto flex flex-col items-start gap-2.5 max-w-[260px] sm:max-w-xs transition-all duration-200 ${
+      <div className={`absolute bottom-6 left-5 sm:bottom-6 sm:left-6 z-40 pointer-events-auto flex flex-col items-start gap-2.5 max-w-[260px] sm:max-w-xs transition-all duration-200 ${
         isMapPopupActive 
           ? 'opacity-0 pointer-events-none translate-y-3 sm:opacity-100 sm:pointer-events-auto sm:translate-y-0' 
           : 'opacity-100 translate-y-0'
