@@ -28,14 +28,34 @@ import {
   MapPin
 } from 'lucide-react';
 import { clusterSubmissions } from '../../data/waterWatchData';
-import {
-  COUNTRY_BOUNDARY_GEOJSON,
-  PROVINCE_BOUNDARY_GEOJSON,
-  LOCALITY_BOUNDARY_GEOJSON,
-  SUBLOCALITY_BOUNDARY_GEOJSON,
-  LAND_PARCEL_BOUNDARY_GEOJSON
-} from '../../data/boundaryGeoJSON';
 import PPBTrendChart from './PPBTrendChart';
+
+// ฟังก์ชันสร้าง GeoJSON Polygon วงกลมเพื่อแสดงรัศมีความแม่นยำของ GPS อุปกรณ์
+function createGeoJSONCircle(center, radiusInMeters, points = 48) {
+  const [lng, lat] = center;
+  const coords = { latitude: lat, longitude: lng };
+  const km = (radiusInMeters || 30) / 1000;
+  const ret = [];
+  const distanceX = km / (111.320 * Math.cos((coords.latitude * Math.PI) / 180));
+  const distanceY = km / 110.574;
+
+  for (let i = 0; i < points; i++) {
+    const theta = (i / points) * (2 * Math.PI);
+    const x = distanceX * Math.cos(theta);
+    const y = distanceY * Math.sin(theta);
+    ret.push([coords.longitude + x, coords.latitude + y]);
+  }
+  ret.push(ret[0]);
+
+  return {
+    type: 'Feature',
+    geometry: {
+      type: 'Polygon',
+      coordinates: [ret]
+    },
+    properties: {}
+  };
+}
 
 // คอมโพเนนต์แสดงรูปภาพถ่ายหลักฐานของการตรวจล่าสุด พร้อมระบบสลับรูปและ Loading Skeleton
 function EvidencePhotoBox({ 
@@ -202,8 +222,9 @@ export default function WaterWatchMap({
     } catch {}
   }, [showLabels]);
 
-  // 5 ระดับขอบเขตการปกครองและพื้นที่ (Administrative / Boundaries)
-  // Country, Province, Locality, Sublocality, Land Parcel
+  // ขอบเขตการปกครองจาก geometry จริงของประเทศไทย
+  // Source: geoBoundaries (OpenStreetMap / official administrative sources)
+  // MapLibre ใช้ URL GeoJSON โดยตรง เพื่อไม่ฝัง polygon ที่วาดมือใน source code
   const BOUNDARY_ITEMS = [
     {
       id: 'country',
@@ -231,39 +252,26 @@ export default function WaterWatchMap({
       icon: Building2,
       color: '#2563eb',
       activeColor: '#2563eb'
-    },
-    {
-      id: 'sublocality',
-      shortLabel: 'ตำบล',
-      fullLabel: 'Sublocality (ตำบล / ชุมชน)',
-      desc: 'ขอบเขตย่อยระดับตำบลหรือย่านที่อยู่อาศัย',
-      icon: MapPin,
-      color: '#059669',
-      activeColor: '#059669'
-    },
-    {
-      id: 'parcel',
-      shortLabel: 'แปลงที่ดิน',
-      fullLabel: 'Land Parcel (แปลงที่ดิน)',
-      desc: 'ขอบเขตโฉนดหรือแปลงที่ดินส่วนบุคคล',
-      icon: Grid,
-      color: '#d97706',
-      activeColor: '#d97706'
     }
   ];
+
+  const DEFAULT_BOUNDARY_FILTERS = {
+    country: true,
+    province: true,
+    locality: true
+  };
 
   const [boundaryFilters, setBoundaryFilters] = useState(() => {
     try {
       const saved = localStorage.getItem('kok_boundary_filters');
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return Object.fromEntries(
+          Object.keys(DEFAULT_BOUNDARY_FILTERS).map((key) => [key, parsed[key] !== false])
+        );
+      }
     } catch {}
-    return {
-      country: true,
-      province: true,
-      locality: true,
-      sublocality: true,
-      parcel: true
-    };
+    return DEFAULT_BOUNDARY_FILTERS;
   });
 
   const [isBoundaryFilterOpen, setIsBoundaryFilterOpen] = useState(false);
@@ -298,10 +306,6 @@ export default function WaterWatchMap({
     setVisibility('bnd-province-layer', !!filters.province);
     setVisibility('bnd-locality-fill', !!filters.locality);
     setVisibility('bnd-locality-layer', !!filters.locality);
-    setVisibility('bnd-sublocality-fill', !!filters.sublocality);
-    setVisibility('bnd-sublocality-layer', !!filters.sublocality);
-    setVisibility('bnd-parcel-fill', !!filters.parcel);
-    setVisibility('bnd-parcel-layer', !!filters.parcel);
   };
 
   const toggleBoundary = (id) => {
@@ -329,7 +333,19 @@ export default function WaterWatchMap({
 
   // State สำหรับปุ่มควบคุมทางขวา (Zoom In/Out, Current Location)
   const [isLocating, setIsLocating] = useState(false);
+  const [locationStatus, setLocationStatus] = useState(null); // { type: 'loading' | 'success' | 'error', message: string }
+  const locationStatusTimeoutRef = useRef(null);
   const userLocationMarkerRef = useRef(null);
+
+  const showLocationStatus = (type, message, autoHideMs = 4500) => {
+    if (locationStatusTimeoutRef.current) clearTimeout(locationStatusTimeoutRef.current);
+    setLocationStatus({ type, message });
+    if (autoHideMs) {
+      locationStatusTimeoutRef.current = setTimeout(() => {
+        setLocationStatus(null);
+      }, autoHideMs);
+    }
+  };
 
   const handleZoomIn = () => {
     if (mapRef.current) {
@@ -343,75 +359,174 @@ export default function WaterWatchMap({
     }
   };
 
+  // ดึงตำแหน่งพิกัด GPS ปัจจุบันของเครื่องหรืออุปกรณ์ของผู้ใช้
   const handleGoToCurrentLocation = () => {
     if (!mapRef.current) return;
+    const map = mapRef.current;
 
-    if (!navigator.geolocation) {
-      mapRef.current.flyTo({
-        center: [99.3800, 20.0550],
-        zoom: 13.2,
+    setIsLocating(true);
+    showLocationStatus('loading', 'กำลังค้นหาตำแหน่งของเครื่อง / อุปกรณ์ของคุณ...', 0);
+
+    // วางหมุดตำแหน่งอุปกรณ์และวาดรัศมีความแม่นยำลงบนแผนที่
+    const placeUserLocationMarker = (longitude, latitude, accuracy, isEstimated = false) => {
+      setIsLocating(false);
+
+      if (userLocationMarkerRef.current) {
+        userLocationMarkerRef.current.remove();
+      }
+
+      // วาดวงกลมรัศมีความแม่นยำของอุปกรณ์
+      const circleRadius = Math.max(15, Math.min(accuracy || 30, 2000));
+      const circleGeoJSON = createGeoJSONCircle([longitude, latitude], circleRadius);
+
+      try {
+        if (map.getSource('user-accuracy-source')) {
+          map.getSource('user-accuracy-source').setData(circleGeoJSON);
+        } else {
+          map.addSource('user-accuracy-source', {
+            type: 'geojson',
+            data: circleGeoJSON
+          });
+          map.addLayer({
+            id: 'user-accuracy-fill',
+            type: 'fill',
+            source: 'user-accuracy-source',
+            paint: {
+              'fill-color': '#0284c7',
+              'fill-opacity': 0.15
+            }
+          });
+          map.addLayer({
+            id: 'user-accuracy-line',
+            type: 'line',
+            source: 'user-accuracy-source',
+            paint: {
+              'line-color': '#0284c7',
+              'line-width': 1.5,
+              'line-dasharray': [2, 2]
+            }
+          });
+        }
+      } catch (e) {
+        console.warn('Accuracy circle render notice:', e);
+      }
+
+      // หมุดพิกัดที่ตั้งปัจจุบันของอุปกรณ์
+      const el = document.createElement('div');
+      el.className = 'current-location-marker relative flex items-center justify-center cursor-pointer select-none';
+      el.innerHTML = `
+        <div class="w-10 h-10 rounded-full bg-sky-500/35 animate-ping absolute pointer-events-none"></div>
+        <div class="w-6 h-6 rounded-full bg-sky-600 border-2 border-white shadow-2xl flex items-center justify-center relative z-10 transition-transform hover:scale-115">
+          <div class="w-2.5 h-2.5 rounded-full bg-white shadow-xs"></div>
+        </div>
+      `;
+
+      const popupContent = `
+        <div class="p-2 font-['Prompt',sans-serif] text-xs text-slate-800 space-y-1.5 min-w-[190px]">
+          <div class="flex items-center gap-1.5 font-bold text-sky-800 text-sm">
+            <span>📍</span>
+            <span>ตำแหน่งอุปกรณ์ของคุณ</span>
+          </div>
+          <div class="text-[11px] font-mono text-slate-700 bg-sky-50/90 px-2 py-1 rounded-md border border-sky-200">
+            พิกัด: ${latitude.toFixed(5)}, ${longitude.toFixed(5)}
+          </div>
+          <div class="text-[10px] text-slate-500 flex items-center justify-between pt-0.5">
+            <span>ความแม่นยำ:</span>
+            <span class="font-bold text-sky-700 font-mono">±${Math.round(accuracy || 10)} เมตร</span>
+          </div>
+          ${isEstimated ? '<div class="text-[9px] text-amber-600 font-medium pt-0.5 leading-tight">* ตำแหน่งประมาณการจากเครือข่ายอินเทอร์เน็ต</div>' : ''}
+        </div>
+      `;
+
+      const popup = new maplibregl.Popup({ 
+        offset: 16, 
+        closeButton: true,
+        closeOnClick: false
+      }).setHTML(popupContent);
+
+      const marker = new maplibregl.Marker({ element: el })
+        .setLngLat([longitude, latitude])
+        .setPopup(popup)
+        .addTo(map);
+
+      userLocationMarkerRef.current = marker;
+      marker.togglePopup(); // เปิดแสดงป๊อปอัปพิกัดทันที
+
+      map.flyTo({
+        center: [longitude, latitude],
+        zoom: Math.max(map.getZoom(), 15),
         pitch: 0,
-        bearing: 0,
         essential: true,
         duration: 1200
       });
+
+      showLocationStatus(
+        'success', 
+        `พบตำแหน่งอุปกรณ์ของคุณแล้ว (${latitude.toFixed(4)}, ${longitude.toFixed(4)}) ความแม่นยำ ±${Math.round(accuracy || 10)}ม.`, 
+        4500
+      );
+    };
+
+    // Fallback: ดึงตำแหน่งจาก IP ในกรณีเครื่องไม่มีฮาร์ดแวร์ GPS หรือบล็อกสิทธิ์
+    const tryIPFallback = async () => {
+      try {
+        showLocationStatus('loading', 'กำลังค้นหาตำแหน่งอุปกรณ์ผ่านเครือข่ายอินเทอร์เน็ต...', 0);
+        const res = await fetch('https://ipapi.co/json/');
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.latitude && data.longitude) {
+            placeUserLocationMarker(Number(data.longitude), Number(data.latitude), 2000, true);
+            return;
+          }
+        }
+      } catch (e) {
+        console.warn('IP fallback failed:', e);
+      }
+
+      setIsLocating(false);
+      showLocationStatus(
+        'error', 
+        'ไม่สามารถระบุตำแหน่งของเครื่องได้ กรุณาเปิดสิทธิ์ GPS หรือ Wi-Fi บนอุปกรณ์ของคุณ', 
+        5000
+      );
+    };
+
+    if (!navigator.geolocation) {
+      tryIPFallback();
       return;
     }
 
-    setIsLocating(true);
+    // เรียก Geolocation ด้วย High Accuracy ก่อน
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        setIsLocating(false);
         const { longitude, latitude, accuracy } = pos.coords;
-        if (mapRef.current) {
-          if (userLocationMarkerRef.current) {
-            userLocationMarkerRef.current.remove();
-          }
-
-          // จุดแสดงพิกัดที่ตั้งปัจจุบัน
-          const el = document.createElement('div');
-          el.className = 'current-location-marker relative flex items-center justify-center';
-          el.innerHTML = `
-            <div class="w-8 h-8 rounded-full bg-sky-500/30 animate-ping absolute"></div>
-            <div class="w-5 h-5 rounded-full bg-sky-500 border-2 border-white shadow-xl flex items-center justify-center relative z-10">
-              <div class="w-2 h-2 rounded-full bg-white"></div>
-            </div>
-          `;
-
-          const popup = new maplibregl.Popup({ offset: 15, closeButton: false })
-            .setHTML(`<div class="p-1.5 font-sans text-xs font-bold text-slate-800">📍 ที่ตั้งปัจจุบันของคุณ<div class="text-[10px] text-slate-500 font-normal">ความแม่นยำ ±${Math.round(accuracy || 10)} ม.</div></div>`);
-
-          const marker = new maplibregl.Marker({ element: el })
-            .setLngLat([longitude, latitude])
-            .setPopup(popup)
-            .addTo(mapRef.current);
-
-          userLocationMarkerRef.current = marker;
-
-          mapRef.current.flyTo({
-            center: [longitude, latitude],
-            zoom: 15.5,
-            pitch: 0,
-            essential: true,
-            duration: 1200
-          });
-        }
+        placeUserLocationMarker(longitude, latitude, accuracy, false);
       },
       (err) => {
-        setIsLocating(false);
-        console.warn('Geolocation error, returning to default center:', err);
-        if (mapRef.current) {
-          mapRef.current.flyTo({
-            center: [99.3800, 20.0550],
-            zoom: 13.2,
-            pitch: 0,
-            bearing: 0,
-            essential: true,
-            duration: 1200
-          });
-        }
+        console.warn('High-accuracy geolocation failed, attempting low-accuracy fallback:', err);
+        // หาก High accuracy ล้มเหลว (เช่น timeout บนเดสก์ท็อป) ให้ลองแบบ Low Accuracy (Cell/Wi-Fi)
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            const { longitude, latitude, accuracy } = pos.coords;
+            placeUserLocationMarker(longitude, latitude, accuracy, false);
+          },
+          (err2) => {
+            console.warn('Low-accuracy geolocation failed, trying IP fallback:', err2);
+            if (err2.code === 1) { // PERMISSION_DENIED
+              setIsLocating(false);
+              showLocationStatus(
+                'error', 
+                '⚠️ เบราว์เซอร์ถูกบล็อกสิทธิ์ตำแหน่ง กรุณากดอนุญาตสิทธิ์ Location ในแถบที่อยู่เว็บ (URL)', 
+                6000
+              );
+            } else {
+              tryIPFallback();
+            }
+          },
+          { enableHighAccuracy: false, timeout: 8000, maximumAge: 60000 }
+        );
       },
-      { enableHighAccuracy: true, timeout: 8000 }
+      { enableHighAccuracy: true, timeout: 6000, maximumAge: 10000 }
     );
   };
 
@@ -706,6 +821,9 @@ export default function WaterWatchMap({
     return () => {
       if (userLocationMarkerRef.current) {
         userLocationMarkerRef.current.remove();
+      }
+      if (locationStatusTimeoutRef.current) {
+        clearTimeout(locationStatusTimeoutRef.current);
       }
       map.remove();
       mapRef.current = null;
@@ -1488,7 +1606,7 @@ export default function WaterWatchMap({
           </button>
         </div>
 
-        {/* Squircle: Home Icon (ที่ตั้งปัจจุบัน) */}
+        {/* Squircle: Home Icon (ตำแหน่งปัจจุบันของเครื่อง / อุปกรณ์) */}
         <button
           type="button"
           onClick={handleGoToCurrentLocation}
@@ -1496,11 +1614,39 @@ export default function WaterWatchMap({
           className={`w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-[#182234]/95 backdrop-blur-md border border-white/15 shadow-xl flex items-center justify-center text-white/90 hover:text-white hover:bg-white/15 active:bg-white/25 transition-all cursor-pointer group ${
             isLocating ? 'ring-2 ring-sky-400' : ''
           }`}
-          title="ที่ตั้งปัจจุบัน (ตำแหน่งปัจจุบัน)"
+          title="ตำแหน่งปัจจุบันของเครื่อง / อุปกรณ์ (GPS Current Location)"
         >
           <Home className={`w-5 h-5 sm:w-5.5 sm:h-5.5 group-hover:scale-110 transition-transform ${isLocating ? 'animate-bounce text-sky-400' : ''}`} />
         </button>
       </div>
+
+      {/* 3. Floating Location Feedback Toast (แสดงสถานะเมื่อกดปุ่มรูปบ้าน ดึงตำแหน่งเครื่อง) */}
+      {locationStatus && (
+        <div className="absolute top-3 left-1/2 -translate-x-1/2 z-40 animate-in fade-in slide-in-from-top-2 duration-200 pointer-events-auto max-w-[90vw]">
+          <div className={`px-3.5 py-2 rounded-2xl backdrop-blur-md shadow-2xl border flex items-center gap-2 text-xs font-semibold ${
+            locationStatus.type === 'loading'
+              ? 'bg-[#182234]/95 text-sky-200 border-sky-400/40 ring-2 ring-sky-500/20'
+              : locationStatus.type === 'success'
+              ? 'bg-[#0f291e]/95 text-emerald-200 border-emerald-400/40 ring-2 ring-emerald-500/20'
+              : 'bg-[#2d1216]/95 text-rose-200 border-rose-400/40 ring-2 ring-rose-500/20'
+          }`}>
+            {locationStatus.type === 'loading' && (
+              <span className="w-3.5 h-3.5 rounded-full border-2 border-sky-300 border-t-transparent animate-spin shrink-0"></span>
+            )}
+            {locationStatus.type === 'success' && <span className="text-sm">📍</span>}
+            {locationStatus.type === 'error' && <span className="text-sm">⚠️</span>}
+            <span className="truncate">{locationStatus.message}</span>
+            <button 
+              type="button" 
+              onClick={() => setLocationStatus(null)}
+              className="ml-1 p-0.5 text-white/60 hover:text-white rounded-md cursor-pointer shrink-0"
+              title="ปิดการแจ้งเตือน"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
