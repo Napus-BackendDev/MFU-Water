@@ -6,7 +6,6 @@ import {
   List,
   MapPin,
   Camera,
-  Activity,
   Calendar,
   Download,
   Check,
@@ -26,7 +25,6 @@ import {
   getStoredSubmissions, 
   saveNewSubmission, 
   INITIAL_SUBMISSIONS,
-  clusterSubmissions,
   resetStoredSubmissions
 } from '../../data/waterWatchData';
 import { 
@@ -196,12 +194,7 @@ export default function KokWaterWatchView({ onBackToFloodSim }) {
     }
   };
 
-  // Spatial clustering calculation
-  const { clusters, singlePoints } = clusterSubmissions(submissions, 250);
-  const totalHotspots = clusters.length;
-  const totalSinglePoints = singlePoints.length;
   const totalSamples = submissions.length;
-  const samplesWithPhotos = submissions.filter(s => s.images && s.images.length > 0).length;
 
   const filteredSubmissions = submissions.filter(sub => {
     if (!searchQuery.trim()) return true;
@@ -232,26 +225,6 @@ export default function KokWaterWatchView({ onBackToFloodSim }) {
                 ระบบเก็บข้อมูลและเฝ้าระวังคุณภาพน้ำแม่น้ำกก &bull; ทีมทดลองภาคสนาม
               </p>
             </div>
-          </div>
-        </div>
-
-        {/* Center: Live Stats Badges (Hotspot, Single Points, Total) */}
-        <div className="hidden lg:flex items-center gap-2">
-          <div className="px-3 py-1 bg-rose-50 rounded-xl border border-rose-200 text-xs flex items-center gap-1.5 font-bold text-rose-800 shadow-2xs">
-            <span className="text-xs">🔥</span>
-            <span>จุด Hotspot: <strong>{totalHotspots} ก้อน</strong></span>
-          </div>
-          <div className="px-3 py-1 bg-sky-50 rounded-xl border border-sky-200 text-xs flex items-center gap-1.5 font-bold text-sky-800 shadow-2xs">
-            <MapPin className="w-3.5 h-3.5 text-sky-600" />
-            <span>จุดตรวจเดี่ยว: <strong>{totalSinglePoints} จุด</strong></span>
-          </div>
-          <div className="px-3 py-1 bg-[#F8F7F5] rounded-xl border border-slate-200 text-xs flex items-center gap-1.5 font-medium text-slate-700">
-            <Activity className="w-3.5 h-3.5 text-emerald-600" />
-            <span>ผลตรวจทั้งหมด: <strong>{totalSamples} รายการ</strong></span>
-          </div>
-          <div className="px-3 py-1 bg-[#F8F7F5] rounded-xl border border-slate-200 text-xs flex items-center gap-1.5 font-medium text-slate-700">
-            <Camera className="w-3.5 h-3.5 text-slate-500" />
-            <span>มีรูปถ่ายแนบ: <strong>{samplesWithPhotos} จุด</strong></span>
           </div>
         </div>
 
