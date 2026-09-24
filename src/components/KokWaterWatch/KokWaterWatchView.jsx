@@ -213,19 +213,8 @@ export default function KokWaterWatchView({ onBackToFloodSim }) {
     <div className="relative w-screen h-screen overflow-hidden bg-[#F8F7F5] font-['Prompt',sans-serif] text-[#242424]">
       {/* 1. Top Navigation Bar (ขาว 80% • แดง 20% • แต่งขอบทอง) */}
       <header className="absolute top-0 left-0 right-0 z-30 bg-white/95 backdrop-blur-md border-b-2 border-[#B4975A]/40 shadow-sm px-4 py-2.5 flex items-center justify-between">
-        {/* Left: Brand & Back Switcher */}
+        {/* Left: Brand */}
         <div className="flex items-center gap-3">
-          <button
-            onClick={onBackToFloodSim}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-300 text-xs font-bold text-slate-700 hover:bg-[#A6192E] hover:text-white hover:border-[#A6192E] transition-all shadow-xs"
-            title="สลับกลับไปหน้าแบบจำลองน้ำท่วมแม่น้ำกก 3D"
-          >
-            <ArrowLeft className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">หน้าหลักจำลองน้ำท่วม 3D</span>
-          </button>
-
-          <div className="h-6 w-px bg-slate-200 hidden sm:block"></div>
-
           <div className="flex items-center gap-2.5">
             <div className="w-9 h-9 rounded-xl bg-[#A6192E] flex items-center justify-center text-white shadow-md border border-[#B4975A]">
               <Droplets className="w-5 h-5" />
@@ -295,12 +284,25 @@ export default function KokWaterWatchView({ onBackToFloodSim }) {
         />
       </div>
 
-      {/* 3. Floating Legend & River Info (ซ้ายล่าง - ปรับย่อได้บนมือถือ) */}
-      <div className="absolute bottom-6 left-5 sm:bottom-6 sm:left-6 z-20 pointer-events-auto bg-white/95 backdrop-blur-md p-3 sm:p-3.5 rounded-2xl shadow-xl border border-[#B4975A]/40 max-w-[260px] sm:max-w-xs text-xs space-y-2">
-        <div 
-          className="flex items-center justify-between border-b pb-1.5 cursor-pointer sm:cursor-default"
-          onClick={() => setIsLegendOpen(prev => !prev)}
+      {/* 3. Floating Navigation & Legend (ซ้ายล่าง) */}
+      <div className="absolute bottom-6 left-5 sm:bottom-6 sm:left-6 z-20 pointer-events-auto flex flex-col items-start gap-2.5 max-w-[260px] sm:max-w-xs">
+        {/* ปุ่มกลับหน้าหลักจำลองน้ำท่วม 3D */}
+        <button
+          type="button"
+          onClick={onBackToFloodSim}
+          className="group px-3.5 py-2 rounded-xl bg-white/95 backdrop-blur-md border border-slate-300 shadow-lg text-xs font-bold text-slate-700 hover:bg-[#A6192E] hover:text-white hover:border-[#A6192E] transition-all flex items-center gap-2 cursor-pointer active:scale-95"
+          title="สลับกลับไปหน้าแบบจำลองน้ำท่วมแม่น้ำกก 3D"
         >
+          <ArrowLeft className="w-4 h-4 text-[#A6192E] group-hover:text-white transition-colors" />
+          <span>หน้าหลักจำลองน้ำท่วม 3D</span>
+        </button>
+
+        {/* Floating Legend & River Info (ปรับย่อได้บนมือถือ) */}
+        <div className="w-full bg-white/95 backdrop-blur-md p-3 sm:p-3.5 rounded-2xl shadow-xl border border-[#B4975A]/40 text-xs space-y-2">
+          <div 
+            className="flex items-center justify-between border-b pb-1.5 cursor-pointer sm:cursor-default"
+            onClick={() => setIsLegendOpen(prev => !prev)}
+          >
           <span className="font-bold text-slate-900 flex items-center gap-1.5 text-xs">
             <Droplets className="w-4 h-4 text-[#A6192E]" />
             เกณฑ์คุณภาพน้ำ (สารหนู: As)
@@ -342,6 +344,7 @@ export default function KokWaterWatchView({ onBackToFloodSim }) {
           </div>
         </div>
       </div>
+    </div>
 
       {/* 4. Action Button: บันทึกข้อมูลน้ำใหม่ (ขวาล่าง - เป็น icon + บนมือถือ / เต็มรูปแบบบน Desktop) */}
       <div className="absolute bottom-6 right-5 sm:bottom-6 sm:right-6 z-30 pointer-events-auto">
