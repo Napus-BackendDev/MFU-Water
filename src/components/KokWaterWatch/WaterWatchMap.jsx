@@ -409,7 +409,10 @@ export default function WaterWatchMap({
   hideDefaultControls = false,
   riverFlowPlaying = true,
   riverVisible = true,
-  boundaryVisibility = null
+  boundaryVisibility = null,
+  mapType: propMapType,
+  showLabels: propShowLabels,
+  showBoundaryLabels: propShowBoundaryLabels
 }) {
   const mapContainer = useRef(null);
   const mapRef = useRef(null);
@@ -418,6 +421,7 @@ export default function WaterWatchMap({
 
   // โหมดแสดงผลแผนที่: ค่าเริ่มต้นเป็น 'satellite' (พื้นที่ดาวเทียม) และ ซ่อนตัวอักษร (showLabels = false)
   const [mapType, setMapType] = useState(() => {
+    if (propMapType) return propMapType;
     try {
       const saved = localStorage.getItem('kok_water_watch_map_type');
       return saved === 'street' || saved === 'streets' ? 'street' : saved === 'terrain' ? 'terrain' : 'satellite';
@@ -426,6 +430,7 @@ export default function WaterWatchMap({
     }
   });
   const [showLabels, setShowLabels] = useState(() => {
+    if (typeof propShowLabels === 'boolean') return propShowLabels;
     try {
       const saved = localStorage.getItem('kok_water_watch_show_labels');
       return saved !== null ? saved === 'true' : false;
@@ -447,11 +452,12 @@ export default function WaterWatchMap({
   }, [showLabels]);
 
   const [showBoundaryLabels, setShowBoundaryLabels] = useState(() => {
+    if (typeof propShowBoundaryLabels === 'boolean') return propShowBoundaryLabels;
     try {
       const saved = localStorage.getItem('kok_water_watch_show_boundary_labels');
-      return saved !== null ? saved === 'true' : true;
+      return saved !== null ? saved === 'true' : false;
     } catch {
-      return true;
+      return false;
     }
   });
 
@@ -460,6 +466,24 @@ export default function WaterWatchMap({
       localStorage.setItem('kok_water_watch_show_boundary_labels', String(showBoundaryLabels));
     } catch {}
   }, [showBoundaryLabels]);
+
+  useEffect(() => {
+    if (propMapType && propMapType !== mapType) {
+      setMapType(propMapType);
+    }
+  }, [propMapType]);
+
+  useEffect(() => {
+    if (typeof propShowLabels === 'boolean' && propShowLabels !== showLabels) {
+      setShowLabels(propShowLabels);
+    }
+  }, [propShowLabels]);
+
+  useEffect(() => {
+    if (typeof propShowBoundaryLabels === 'boolean' && propShowBoundaryLabels !== showBoundaryLabels) {
+      setShowBoundaryLabels(propShowBoundaryLabels);
+    }
+  }, [propShowBoundaryLabels]);
 
   // ขอบเขตการปกครองจาก geometry จริงของประเทศไทย
   // Source: geoBoundaries (OpenStreetMap / official administrative sources)

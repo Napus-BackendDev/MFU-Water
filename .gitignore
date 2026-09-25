@@ -22,9 +22,11 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+vite.config.js.timestamp*
 
 # Scratch & Dev artifacts
 scratch/
+.playwright-cli/
 .agents/
 *.py
 tmp_*

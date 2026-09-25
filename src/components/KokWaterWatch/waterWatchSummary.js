@@ -45,6 +45,7 @@ export function summarizeWaterWatch(records, now = Date.now()) {
   const overall = emptyCounts();
   const recent = emptyCounts();
   const days = new Map();
+  const months = new Map();
   let undated = 0;
   const currentTime = Number.isFinite(now) ? now : Date.now();
   const dayInMilliseconds = 24 * 60 * 60 * 1000;
@@ -65,6 +66,9 @@ export function summarizeWaterWatch(records, now = Date.now()) {
     const key = bangkokDayKey(timestamp);
     if (!days.has(key)) days.set(key, emptyCounts());
     addRecord(days.get(key), value);
+    const monthKey = key.slice(0, 7);
+    if (!months.has(monthKey)) months.set(monthKey, emptyCounts());
+    addRecord(months.get(monthKey), value);
   }
 
   return {
@@ -73,6 +77,9 @@ export function summarizeWaterWatch(records, now = Date.now()) {
     daily: [...days.entries()]
       .sort(([left], [right]) => right.localeCompare(left))
       .map(([day, counts]) => ({ day, ...finishCounts(counts) })),
+    monthly: [...months.entries()]
+      .sort(([left], [right]) => right.localeCompare(left))
+      .map(([month, counts]) => ({ month, ...finishCounts(counts) })),
     undated
   };
 }

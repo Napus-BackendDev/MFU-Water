@@ -708,17 +708,31 @@
 .water-summary-section-title { display: flex; justify-content: space-between; align-items: end; margin: 24px 0 12px; }
 .water-summary-section-title h3 { margin: 0; color: #1a493b; font-size: 17px; }
 .water-summary-section-title p { margin-top: 2px; }
-.water-daily-list { display: grid; gap: 10px; }
-.water-daily-row { padding: 14px 16px; border: 1px solid #e5eee9; border-radius: 14px; background: #fff; }
-.water-daily-row-head { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; }
-.water-daily-row-head strong { color: #214b3f; font-size: 14px; }
-.water-daily-row-head span { color: #64776d; font-size: 12px; text-align: right; }
-.water-daily-bar { display: flex; width: 100%; height: 9px; margin-top: 11px; overflow: hidden; border-radius: 99px; background: #e9edf0; }
-.water-daily-bar .is-critical { background: #c7655c; }
-.water-daily-bar .is-watch { background: #dcad57; }
-.water-daily-bar .is-normal { background: #5aaa7c; }
-.water-daily-bar .is-unknown { background: #a9b4bc; }
-.water-daily-counts { display: flex; flex-wrap: wrap; column-gap: 17px; row-gap: 3px; margin-top: 9px; color: #5e7067; font-size: 11px; }
+.water-health-chart-heading { gap: 12px; }
+.water-health-chart-filter { display: inline-flex; flex: 0 0 auto; gap: 3px; padding: 3px; border-radius: 11px; background: #edf4f0; }
+.water-health-chart-filter button { padding: 7px 12px; border: 0; border-radius: 8px; background: transparent; color: #527064; font-size: 12px; font-weight: 700; cursor: pointer; }
+.water-health-chart-filter button.is-active { background: #fff; color: #145342; box-shadow: 0 1px 4px #214d3922; }
+.water-health-chart-filter button:focus-visible, .water-health-chart-column:focus-visible { outline: 3px solid #176b94; outline-offset: 2px; }
+.water-health-chart { display: flex; min-width: 0; padding: 12px 10px 8px; border: 1px solid #e1ebe5; border-radius: 16px; background: #fbfdfc; }
+.water-health-chart-scale { display: flex; flex: 0 0 28px; flex-direction: column; justify-content: space-between; height: 184px; padding: 2px 0 24px; color: #799084; font-size: 11px; text-align: right; }
+.water-health-chart-scroll { min-width: 0; flex: 1; overflow-x: auto; }
+.water-health-chart-columns { box-sizing: border-box; display: flex; min-width: 100%; width: max-content; align-items: end; justify-content: space-around; gap: 8px; height: 184px; padding: 0 8px; border-bottom: 1px solid #cbdad1; background: repeating-linear-gradient(to top, transparent 0, transparent 39px, #e8f0eb 40px); }
+.water-health-chart-column { display: flex; flex: 0 0 62px; min-width: 62px; height: 184px; flex-direction: column; align-items: center; justify-content: flex-end; gap: 4px; padding: 4px 2px 0; border: 0; border-radius: 9px 9px 0 0; background: transparent; color: #416154; cursor: pointer; }
+.water-health-chart-column:hover, .water-health-chart-column.is-selected { background: #e8f5ef; }
+.water-health-chart-count { font-size: 11px; font-weight: 800; }
+.water-health-chart-bar { display: flex; width: min(36px, 80%); flex: 0 0 auto; flex-direction: column-reverse; overflow: hidden; border-radius: 5px 5px 0 0; }
+.water-health-chart-bar .is-critical, .water-health-chart-legend .is-critical { background: #c7655c; }
+.water-health-chart-bar .is-watch, .water-health-chart-legend .is-watch { background: #dcad57; }
+.water-health-chart-bar .is-normal, .water-health-chart-legend .is-normal { background: #5aaa7c; }
+.water-health-chart-bar .is-unknown, .water-health-chart-legend .is-unknown { background: #a9b4bc; }
+.water-health-chart-date { min-height: 24px; color: #4b6258; font-size: 10px; white-space: nowrap; }
+.water-health-chart-legend { display: flex; flex-wrap: wrap; gap: 8px 16px; margin-top: 12px; color: #53685d; font-size: 12px; }
+.water-health-chart-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.water-health-chart-legend i { width: 9px; height: 9px; border-radius: 2px; }
+.water-health-chart-detail { margin-top: 14px; padding: 13px 16px; border-radius: 12px; background: #f1f8f4; }
+.water-health-chart-detail > div { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 5px 12px; color: #245444; font-size: 13px; }
+.water-health-chart-detail > div span { color: #526e61; }
+.water-health-chart-detail p { margin-top: 5px; }
 .water-summary-empty, .water-summary-caveat { padding: 14px; border-radius: 12px; background: #f7f9f8; }
 .water-summary-caveat { margin-top: 12px !important; }
 
@@ -1324,8 +1338,7 @@
   .water-summary-intro { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .water-summary-intro > div:last-child { grid-column: 1 / -1; }
   .water-summary-status { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .water-daily-row-head { align-items: flex-start; flex-direction: column; gap: 2px; }
-  .water-daily-row-head span { text-align: left; }
+  .water-health-chart-heading { align-items: flex-start; flex-direction: column; }
 
   .map-settings-panel {
     top: 12px;

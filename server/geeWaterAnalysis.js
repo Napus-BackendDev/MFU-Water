@@ -1,3 +1,5 @@
+import { thaTonGeometry } from './geeThaTonTimeline.js';
+
 const MODES = new Set(['s2-rgb', 'ndwi', 'mndwi', 's1-water', 's1-change', 'occurrence']);
 
 function parseDate(value, field) {
@@ -24,6 +26,7 @@ function parsePeriod(start, end, label) {
 export function parseGeeAnalysisQuery(query) {
   const mode = String(query.mode || 's2-rgb');
   if (!MODES.has(mode)) throw new Error('รูปแบบการวิเคราะห์ไม่รองรับ');
+  const region = query.region === 'tha-ton' ? 'tha-ton' : null;
 
   const bbox = String(query.bbox || '').split(',').map(Number);
   if (bbox.length !== 4 || bbox.some((value) => !Number.isFinite(value))) {
@@ -45,7 +48,7 @@ export function parseGeeAnalysisQuery(query) {
 
   const period = mode === 'occurrence' ? null : parsePeriod(query.start, query.end, 'ช่วงวิเคราะห์');
   const baseline = mode === 's1-change' ? parsePeriod(query.baselineStart, query.baselineEnd, 'ช่วงก่อนเหตุการณ์') : null;
-  return { mode, bbox, threshold, cloud, orbit, period, baseline };
+  return { mode, bbox, region, threshold, cloud, orbit, period, baseline };
 }
 
 const evaluate = (object) => new Promise((resolve, reject) => {
@@ -61,8 +64,8 @@ const getMap = (image, vis) => new Promise((resolve, reject) => {
 });
 
 export async function analyzeGeeWater(ee, params) {
-  const { mode, bbox, threshold, cloud, orbit, period, baseline } = params;
-  const roi = ee.Geometry.Rectangle(bbox);
+  const { mode, bbox, region, threshold, cloud, orbit, period, baseline } = params;
+  const roi = region === 'tha-ton' ? thaTonGeometry(ee) : ee.Geometry.Rectangle(bbox);
   let collection;
   let dataset;
   let image;
@@ -155,7 +158,7 @@ export async function analyzeGeeWater(ee, params) {
     }
   }
 
-  const tileUrl = await getMap(image, visualization);
+  const tileUrl = await getMap(image.clip(roi), visualization);
   let baseTileUrl = null;
   if (mode !== 's2-rgb') {
     const basePeriod = period || {
@@ -167,7 +170,7 @@ export async function analyzeGeeWater(ee, params) {
       if (await evaluate(baseCollection.size())) {
         const baseImage = baseCollection.median()
           .unmask(rawSentinel2(basePeriod).median()).select(['B4', 'B3', 'B2']);
-        baseTileUrl = await getMap(baseImage, {
+        baseTileUrl = await getMap(baseImage.clip(roi), {
           bands: ['B4', 'B3', 'B2'], min: 0, max: 3000, gamma: 1.1
         });
       }

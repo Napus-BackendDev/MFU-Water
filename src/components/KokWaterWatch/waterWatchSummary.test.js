@@ -21,6 +21,9 @@ test('daily summary uses Bangkok dates and does not mark missing measurements as
   assert.equal(summary.undated, 1);
   assert.deepEqual(summary.daily.map(({ day }) => day), ['2026-09-26', '2026-09-25', '2026-09-24']);
   assert.equal(summary.daily[1].critical, 1);
+  assert.deepEqual(summary.monthly.map(({ month }) => month), ['2026-09']);
+  assert.equal(summary.monthly[0].total, 5);
+  assert.equal(summary.monthly[0].unknown, 1);
   assert.equal(summary.recent.total, 2);
   assert.equal(summary.recent.critical, 1);
 });
@@ -34,4 +37,23 @@ test('empty and invalid values remain unclassified', () => {
   assert.equal(summary.overall.total, 0);
   assert.equal(summary.overall.average, null);
   assert.deepEqual(summary.daily, []);
+  assert.deepEqual(summary.monthly, []);
+});
+
+test('monthly summary groups by Bangkok calendar month and averages measured values only', () => {
+  const summary = summarizeWaterWatch([
+    { collection_time: '2026-08-31T16:30:00Z', arsenic_ppb: 2 },
+    { collection_time: '2026-08-31T17:30:00Z', arsenic_ppb: 12 },
+    { collection_time: '2026-09-02T10:00:00+07:00', arsenic_ppb: 8 },
+    { collection_time: '2026-09-02T11:00:00+07:00', arsenic_ppb: '' }
+  ]);
+
+  assert.deepEqual(summary.monthly.map(({ month }) => month), ['2026-09', '2026-08']);
+  assert.deepEqual(
+    [summary.monthly[0].total, summary.monthly[0].critical, summary.monthly[0].watch, summary.monthly[0].unknown],
+    [3, 1, 1, 1]
+  );
+  assert.equal(summary.monthly[0].average, 10);
+  assert.equal(summary.monthly[1].normal, 1);
+  assert.equal(summary.monthly.reduce((total, month) => total + month.total, 0), 4);
 });

@@ -38,6 +38,7 @@ import WaterWatchSampleDetail from './WaterWatchSampleDetail';
 import StationDetailModal from './StationDetailModal';
 import { downloadWaterWatchCSV } from './waterWatchExport';
 import { summarizeWaterWatch } from './waterWatchSummary';
+import WaterHealthChart from './WaterHealthChart';
 import './kokWaterWatchModern.css';
 import { 
   getStoredSubmissions, 
@@ -208,9 +209,7 @@ export default function KokWaterWatchView({ onBackToFloodSim }) {
     } catch {}
   }, [layerSettings]);
 
-  const [showBoundaryLabels, setShowBoundaryLabels] = useState(
-    () => localStorage.getItem('kok_water_watch_show_boundary_labels') !== 'false'
-  );
+  const [showBoundaryLabels, setShowBoundaryLabels] = useState(false);
 
   // Close search, time filter dropdown, and settings panel on click outside
   useEffect(() => {
@@ -486,6 +485,9 @@ export default function KokWaterWatchView({ onBackToFloodSim }) {
             onPopupChange={(hs) => setIsMapPopupActive(!!hs)}
             controllerRef={mapController}
             hideDefaultControls={true}
+            mapType={mapType}
+            showLabels={showLabels}
+            showBoundaryLabels={showBoundaryLabels}
             riverVisible={layerSettings.river}
             riverFlowPlaying={layerSettings.flowArrows}
             boundaryVisibility={{
@@ -742,8 +744,8 @@ export default function KokWaterWatchView({ onBackToFloodSim }) {
                   <p>กดตั้งค่าเพื่อสลับภาพดาวเทียม ถนน หรือภูมิประเทศ ดูแม่น้ำกกทั้งสาย เล่นหรือหยุดลูกศรทิศทางน้ำ และเน้นขอบเขตประเทศ จังหวัด หรืออำเภอ ลูกศรบอกทิศทางบนแผนที่ ไม่ใช่ความเร็วกระแสน้ำจริง</p>
                 </li>
                 <li>
-                  <strong>5. ตรวจแนวโน้มรายวัน</strong>
-                  <p>กดปุ่มปฏิทินด้านขวา สรุปจะแสดงยอดตามตัวกรอง พร้อมรายการแยกวันตามเวลาไทย เปรียบเทียบจำนวนปกติ เฝ้าระวัง เกินเกณฑ์ และรายการที่ไม่มีค่าตรวจ</p>
+                  <strong>5. ตรวจแนวโน้มสุขภาพน้ำ</strong>
+                  <p>กดปุ่มปฏิทินด้านขวา สรุปจะแสดงยอดตามช่วงเวลาที่เลือก สลับกราฟรายวันหรือรายเดือน แล้วกดแท่งกราฟเพื่อดูจำนวนปกติ เฝ้าระวัง เกินเกณฑ์ และรายการที่ไม่มีค่าตรวจ</p>
                 </li>
                 <li>
                   <strong>6. บันทึกและส่งออก</strong>
@@ -759,11 +761,11 @@ export default function KokWaterWatchView({ onBackToFloodSim }) {
           <section className="map-utility-panel map-utility-panel--detail" role="region" aria-labelledby="water-summary-title">
             <header className="utility-detail-header">
               <div>
-                <span className="utility-detail-kicker">DAILY WATER QUALITY</span>
-                <h2 id="water-summary-title">สรุปผลตรวจคุณภาพน้ำรายวัน</h2>
+                <span className="utility-detail-kicker">WATER QUALITY</span>
+                <h2 id="water-summary-title">สรุปผลตรวจคุณภาพน้ำ</h2>
                 <p>ช่วงเวลาที่เลือก: {activeFilterOption.fullLabel} · นับตามวันเก็บตัวอย่าง เวลาไทย</p>
               </div>
-              <button type="button" className="map-utility-close" aria-label="ปิดสรุปรายวัน" onClick={() => setSummaryOpen(false)}>
+              <button type="button" className="map-utility-close" aria-label="ปิดสรุปผลตรวจ" onClick={() => setSummaryOpen(false)}>
                 <X size={18} />
               </button>
             </header>
@@ -779,34 +781,8 @@ export default function KokWaterWatchView({ onBackToFloodSim }) {
                 <div className="is-normal"><strong>{summaryData.overall.normal}</strong><span>ปกติ<br />ต่ำกว่า 5 ppb</span></div>
                 <div className="is-unknown"><strong>{summaryData.overall.unknown}</strong><span>ไม่มีค่าตรวจ<br />ยังจัดระดับไม่ได้</span></div>
               </div>
-              <div className="water-summary-section-title">
-                <div>
-                  <h3>แนวโน้มแยกตามวัน</h3>
-                  <p>{summaryData.daily.length} วันที่มีเวลาเก็บตัวอย่างในช่วงที่เลือก · เรียงจากวันล่าสุด</p>
-                </div>
-              </div>
-              {summaryData.daily.length ? (
-                <div className="water-daily-list">
-                  {summaryData.daily.map((day) => (
-                    <article className="water-daily-row" key={day.day}>
-                      <div className="water-daily-row-head">
-                        <strong>{new Date(`${day.day}T12:00:00+07:00`).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Asia/Bangkok' })}</strong>
-                        <span>{day.total} รายการ · เฉลี่ย {day.average === null ? '—' : day.average.toFixed(1)} ppb</span>
-                      </div>
-                      <div className="water-daily-bar" role="img" aria-label={`เกินเกณฑ์ ${day.critical} เฝ้าระวัง ${day.watch} ปกติ ${day.normal} ไม่มีค่า ${day.unknown}`}>
-                        <span className="is-critical" style={{ width: `${day.critical / day.total * 100}%` }} />
-                        <span className="is-watch" style={{ width: `${day.watch / day.total * 100}%` }} />
-                        <span className="is-normal" style={{ width: `${day.normal / day.total * 100}%` }} />
-                        <span className="is-unknown" style={{ width: `${day.unknown / day.total * 100}%` }} />
-                      </div>
-                      <div className="water-daily-counts">
-                        <span>เกินเกณฑ์ {day.critical}</span><span>เฝ้าระวัง {day.watch}</span><span>ปกติ {day.normal}</span><span>ไม่มีค่า {day.unknown}</span>
-                      </div>
-                    </article>
-                  ))}
-                </div>
-              ) : <p className="water-summary-empty">ไม่มีรายการที่ระบุวันเวลาเก็บตัวอย่างในช่วงที่เลือก</p>}
-              {summaryData.undated > 0 && <p className="water-summary-caveat">อีก {summaryData.undated} รายการไม่มีวันเวลาที่ใช้ได้ จึงรวมในยอดช่วงที่เลือกแต่ไม่อยู่ในแถวรายวัน</p>}
+              <WaterHealthChart summary={summaryData} />
+              {summaryData.undated > 0 && <p className="water-summary-caveat">อีก {summaryData.undated} รายการไม่มีวันเวลาที่ใช้ได้ จึงรวมในยอดช่วงที่เลือกแต่ไม่อยู่ในกราฟ</p>}
               <div className="utility-detail-note">ผลสรุปเป็นจำนวนรายการ ไม่ใช่จำนวนสถานีที่ไม่ซ้ำ · 5 ppb เป็นระดับเตือนของระบบ ไม่ใช่เกณฑ์กฎหมาย · ค่าที่หายไม่ถูกนับเป็น “ปกติ”</div>
             </div>
           </section>
@@ -910,31 +886,13 @@ export default function KokWaterWatchView({ onBackToFloodSim }) {
                     aria-checked={layerSettings[id] !== false}
                     className={`ios-toggle ${layerSettings[id] !== false ? 'is-on' : 'is-off'}`}
                     onClick={() => {
-                      const turningOn = layerSettings[id] === false;
                       setLayerSettings(prev => ({ ...prev, [id]: prev[id] === false }));
-                      if (turningOn && !showBoundaryLabels) {
-                        setShowBoundaryLabels(true);
-                        mapController.current?.setBoundaryLabels?.(true);
-                      }
                     }}
                   >
                     <span className="ios-toggle-knob" />
                   </button>
                 </div>
               ))}
-
-              <label className="river-boundary-label-toggle">
-                <input
-                  type="checkbox"
-                  checked={showBoundaryLabels}
-                  onChange={(event) => {
-                    setShowBoundaryLabels(event.target.checked);
-                    mapController.current?.setBoundaryLabels?.(event.target.checked);
-                  }}
-                />
-                แสดงชื่อพื้นที่ภาษาไทย
-              </label>
-              <small className="river-boundary-hint">ปิดขอบเขตแล้วเส้นยังจางอยู่ · ข้อมูลเขตปัจจุบันครอบคลุมประเทศไทย เชียงใหม่ และเชียงราย</small>
 
               <div className="map-settings-divider" />
               <div className="river-flow-overview">
