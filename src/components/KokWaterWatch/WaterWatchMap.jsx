@@ -31,7 +31,7 @@ import {
 } from 'lucide-react';
 import { clusterSubmissions } from '../../data/waterWatchData';
 import PPBTrendChart from './PPBTrendChart';
-import { RIVER_BOUNDS, RIVER_COORDINATES, riverPointAt } from './riverFlow';
+import { RIVER_BOUNDS, RIVER_COORDINATES, riverPointAt, RIVER_FLOW_CYCLE_DURATION_MS } from './riverFlow';
 import { thaiBoundaryLabelExpression } from './boundaryThaiLabels';
 
 // ฟังก์ชันสร้าง GeoJSON Polygon วงกลมเพื่อแสดงรัศมีความแม่นยำของ GPS อุปกรณ์
@@ -1275,7 +1275,7 @@ export default function WaterWatchMap({
     };
     const animate = (time) => {
       if (startTime === undefined) startTime = time;
-      const cycle = ((time - startTime) % 18000) / 18000;
+      const cycle = ((time - startTime) % RIVER_FLOW_CYCLE_DURATION_MS) / RIVER_FLOW_CYCLE_DURATION_MS;
       markers.forEach((entry, index) => {
         placeArrow(entry, (cycle + index / markers.length) % 1);
       });

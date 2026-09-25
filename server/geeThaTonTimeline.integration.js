@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import ee from '@google/earthengine';
-import { getThaTonFrame, listThaTonFrames, THA_TON_PERIOD } from './geeThaTonTimeline.js';
+import { compareThaTonFrames, getThaTonFrame, listThaTonFrames, THA_TON_PERIOD } from './geeThaTonTimeline.js';
+import { selectDefaultPair } from '../src/utils/thaTonTimeline.js';
 
 const keyPath = new URL('./service-account.json', import.meta.url);
 if (!fs.existsSync(keyPath)) throw new Error('ไม่มี service-account.json สำหรับทดสอบ GEE');
@@ -22,4 +23,15 @@ for (let index = 0; index < listing.frames.length; index += 1) {
   }
   results.push({ date: frame.acquiredAt.slice(0, 10), orbit: frame.orbitPass, waterAreaKm2: frame.waterAreaKm2 });
 }
-console.log(JSON.stringify({ frames: results }));
+const pair = selectDefaultPair(listing.frames);
+if (!pair) throw new Error('ไม่มีคู่ภาพก่อน/หลังเหตุการณ์จากวงโคจรเดียวกัน');
+const comparison = await compareThaTonFrames(ee, pair.beforeIndex, pair.afterIndex);
+if (!comparison.addedTileUrl?.includes('{z}') || !comparison.recededTileUrl?.includes('{z}') ||
+    !Number.isFinite(comparison.metrics?.addedKm2) || !Number.isFinite(comparison.metrics?.recededKm2)) {
+  throw new Error('GEE ไม่คืนแผนที่หรือพื้นที่เปรียบเทียบครบ');
+}
+console.log(JSON.stringify({ frames: results, comparison: {
+  beforeDate: comparison.before.acquiredAt.slice(0, 10),
+  afterDate: comparison.after.acquiredAt.slice(0, 10),
+  metrics: comparison.metrics
+} }));

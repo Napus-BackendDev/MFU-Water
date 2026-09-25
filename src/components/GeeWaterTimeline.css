@@ -4,7 +4,7 @@
   top: 16px;
   left: 50%;
   transform: translateX(-50%);
-  width: min(520px, calc(100vw - 32px));
+  width: min(570px, calc(100vw - 32px));
   padding: 12px 16px;
   border: 1px solid #dbeafe;
   border-radius: 20px;
@@ -23,6 +23,37 @@
 .gee-timeline-meta { color: #0369a1; font-weight: 700; }
 .gee-timeline-caveat { color: #64748b; }
 .gee-timeline-error { color: #b91c1c; }
+.gee-period-controls { display: flex; align-items: end; gap: 7px; margin-top: 9px; }
+.gee-period-controls label { display: grid; flex: 1; gap: 2px; color: #475569; font-size: 10px; font-weight: 700; }
+.gee-period-controls input { width: 100%; min-width: 0; padding: 5px 7px; border: 1px solid #cbd5e1; border-radius: 8px; background: #fff; color: #0f172a; font-size: 11px; }
+.gee-period-controls button, .gee-timeline-footer button { flex-shrink: 0; border: 1px solid #7dd3fc; border-radius: 8px; background: #eff6ff; color: #075985; font-size: 11px; font-weight: 700; cursor: pointer; }
+.gee-period-controls button { padding: 6px 9px; }
+.gee-timeline-footer { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 5px; }
+.gee-timeline-footer button { padding: 5px 7px; white-space: nowrap; }
+.gee-compare-panel { position: absolute; z-index: 35; top: 16px; right: 76px; width: min(360px, calc(100vw - 88px)); max-height: min(78svh, 680px); overflow: auto; padding: 15px; border: 1px solid #dbeafe; border-radius: 20px; background: rgba(255,255,255,.98); box-shadow: 0 16px 40px rgba(15,23,42,.22); color: #334155; font-size: 11px; }
+.gee-compare-header, .gee-code-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: #0f172a; font-size: 13px; }
+.gee-compare-header button, .gee-code-header button { display: grid; place-items: center; border: 0; background: transparent; color: #475569; cursor: pointer; }
+.gee-compare-panel p { margin: 8px 0; line-height: 1.45; }
+.gee-compare-panel label { display: grid; gap: 4px; margin-top: 9px; color: #334155; font-weight: 700; }
+.gee-compare-panel select { width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 10px; background: #fff; color: #0f172a; font: inherit; }
+.gee-compare-run { width: 100%; margin-top: 12px; padding: 10px; border: 0; border-radius: 10px; background: #0369a1; color: #fff; font-weight: 700; cursor: pointer; }
+.gee-compare-run:disabled { opacity: .5; cursor: not-allowed; }
+.gee-compare-tabs { display: grid; grid-template-columns: repeat(3,1fr); gap: 5px; margin-top: 12px; }
+.gee-compare-tabs button { padding: 7px 4px; border: 1px solid #cbd5e1; border-radius: 8px; background: #f8fafc; cursor: pointer; }
+.gee-compare-tabs button[aria-pressed="true"] { border-color: #0284c7; background: #e0f2fe; color: #075985; font-weight: 700; }
+.gee-compare-metrics { display: grid; grid-template-columns: repeat(2,1fr); gap: 6px; margin-top: 10px; }
+.gee-compare-metrics span { padding: 8px; border-radius: 9px; background: #f1f5f9; }
+.gee-compare-metrics b { color: #0f172a; font-size: 14px; }
+.gee-compare-metrics .added { background: #fff7ed; color: #9a3412; }
+.gee-compare-metrics .receded { background: #f7fee7; color: #3f6212; }
+.gee-compare-warning { padding: 8px; border-radius: 9px; background: #fffbeb; color: #92400e; }
+.gee-code-dock { position: absolute; z-index: 45; right: 16px; bottom: 70px; display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
+.gee-code-toggle { display: flex; align-items: center; gap: 6px; padding: 9px 12px; border: 1px solid #bae6fd; border-radius: 12px; background: #fff; color: #075985; font-size: 11px; font-weight: 700; box-shadow: 0 8px 24px rgba(15,23,42,.2); cursor: pointer; }
+.gee-code-panel { width: min(430px, calc(100vw - 32px)); max-height: 62svh; overflow: auto; padding: 14px; border: 1px solid #dbeafe; border-radius: 17px; background: #fff; box-shadow: 0 14px 36px rgba(15,23,42,.25); color: #475569; font-size: 11px; }
+.gee-code-panel p { line-height: 1.5; }
+.gee-code-panel pre { margin: 9px 0; padding: 11px; overflow-x: auto; border-radius: 10px; background: #0f172a; color: #bae6fd; font-size: 10px; line-height: 1.5; white-space: pre; }
+.gee-code-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.gee-code-actions button, .gee-code-actions a { display: inline-flex; align-items: center; gap: 5px; border: 0; background: transparent; color: #0369a1; font-size: 11px; font-weight: 700; cursor: pointer; }
 .gee-left-sidebar { position: absolute; z-index: 25; top: 90px; bottom: 20px; left: 16px; width: 250px; display: none; flex-direction: column; border: 1px solid #e2e8f0; border-radius: 18px; background: rgba(255,255,255,.94); box-shadow: 0 10px 28px rgba(15,23,42,.16); overflow: hidden; }
 .gee-left-sidebar.is-open { display: flex; }
 .gee-left-sidebar-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; border-bottom: 1px solid #e2e8f0; font-size: 12px; font-weight: 700; }
@@ -31,5 +62,5 @@
 .gee-left-sidebar-blank { flex: 1; }
 .gee-sidebar-open { position: absolute; z-index: 25; top: 92px; left: 16px; width: 42px; height: 42px; border-radius: 12px; background: #fff; box-shadow: 0 8px 20px rgba(15,23,42,.18); }
 .gee-location-label { padding: 6px 9px; border: 1px solid #0891b2; border-radius: 999px; background: rgba(255,255,255,.94); color: #155e75; font-size: 11px; font-weight: 700; white-space: nowrap; box-shadow: 0 3px 12px rgba(15,23,42,.22); pointer-events: none; }
-@media (max-width: 1600px) { .gee-timeline-player { top: 88px; } .gee-left-sidebar { top: 195px; } .gee-sidebar-open { top: 195px; } }
-@media (max-width: 680px) { .gee-left-sidebar { width: min(250px, calc(100vw - 84px)); top: 175px; bottom: 76px; } .gee-sidebar-open { top: 175px; } .gee-timeline-player { top: 86px; padding: 10px 12px; } .gee-timeline-title { display: block; } .gee-timeline-title small { display: block; } }
+@media (max-width: 1600px) { .gee-timeline-player { top: 88px; } .gee-left-sidebar { top: 255px; } .gee-sidebar-open { top: 255px; } .gee-compare-panel { top: 285px; } }
+@media (max-width: 680px) { .gee-left-sidebar { width: min(250px, calc(100vw - 84px)); top: 245px; bottom: 76px; } .gee-sidebar-open { top: 245px; } .gee-timeline-player { top: 86px; padding: 10px 12px; } .gee-timeline-title { display: block; } .gee-timeline-title small { display: block; } .gee-period-controls { flex-wrap: wrap; } .gee-period-controls button { width: 100%; } .gee-compare-panel { top: auto; bottom: 75px; right: 12px; width: calc(100vw - 24px); max-height: 48svh; } .gee-code-panel { max-height: 47svh; } }

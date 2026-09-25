@@ -10,6 +10,9 @@ export const RIVER_BOUNDS = RIVER_COORDINATES.reduce(
   [[Infinity, Infinity], [-Infinity, -Infinity]]
 );
 
+// 90 seconds cycle: provides a calm, very slow, and realistic water flow animation
+export const RIVER_FLOW_CYCLE_DURATION_MS = 90000;
+
 // Distance-weighted playback keeps the visual pulse moving uniformly along the mapped channel.
 const distances = [0];
 for (let i = 1; i < RIVER_COORDINATES.length; i += 1) {

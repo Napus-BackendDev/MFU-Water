@@ -5,7 +5,7 @@ import express from 'express';
 import cors from 'cors';
 import ee from '@google/earthengine';
 import { analyzeGeeWater, parseGeeAnalysisQuery } from './geeWaterAnalysis.js';
-import { getThaTonFrame, listThaTonFrames } from './geeThaTonTimeline.js';
+import { compareThaTonFrames, getThaTonFrame, listThaTonFrames, parseThaTonPeriod } from './geeThaTonTimeline.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const keyPath = path.join(__dirname, 'service-account.json');
@@ -82,10 +82,12 @@ app.get('/api/gee/analyze', async (req, res) => {
 });
 
 app.get('/api/gee/tha-ton-timeline', async (req, res) => {
+  let period;
+  try { period = parseThaTonPeriod(req.query); } catch (error) { return res.status(400).json({ error: error.message }); }
   if (!isGEEReady) await geeInitialization;
   if (!isGEEReady) return res.status(503).json({ error: 'Google Earth Engine ยังไม่พร้อม' });
   try {
-    return res.json(await listThaTonFrames(ee));
+    return res.json(await listThaTonFrames(ee, period));
   } catch (error) {
     console.error('Tha Ton scene listing failed:', error);
     return res.status(502).json({ error: 'โหลดรายการภาพจาก Earth Engine ไม่สำเร็จ' });
@@ -93,14 +95,33 @@ app.get('/api/gee/tha-ton-timeline', async (req, res) => {
 });
 
 app.get('/api/gee/tha-ton-timeline/frame/:index', async (req, res) => {
+  let period;
+  try { period = parseThaTonPeriod(req.query); } catch (error) { return res.status(400).json({ error: error.message }); }
   if (!isGEEReady) await geeInitialization;
   if (!isGEEReady) return res.status(503).json({ error: 'Google Earth Engine ยังไม่พร้อม' });
   if (!/^\d+$/.test(req.params.index)) return res.status(400).json({ error: 'ลำดับภาพไม่ถูกต้อง' });
   try {
-    return res.json(await getThaTonFrame(ee, Number(req.params.index)));
+    return res.json(await getThaTonFrame(ee, Number(req.params.index), period));
   } catch (error) {
     console.error('Tha Ton frame failed:', error);
     return res.status(error.status || 502).json({ error: error.status === 404 ? error.message : 'โหลดภาพจาก Earth Engine ไม่สำเร็จ' });
+  }
+});
+
+app.get('/api/gee/tha-ton-compare', async (req, res) => {
+  let period;
+  try { period = parseThaTonPeriod(req.query); } catch (error) { return res.status(400).json({ error: error.message }); }
+  if (!/^\d+$/.test(String(req.query.before || '')) || !/^\d+$/.test(String(req.query.after || ''))) {
+    return res.status(400).json({ error: 'ระบุ before และ after เป็นลำดับภาพจำนวนเต็ม' });
+  }
+  if (!isGEEReady) await geeInitialization;
+  if (!isGEEReady) return res.status(503).json({ error: 'Google Earth Engine ยังไม่พร้อม' });
+  try {
+    return res.json(await compareThaTonFrames(ee, Number(req.query.before), Number(req.query.after), period));
+  } catch (error) {
+    if (error.status === 400) return res.status(400).json({ error: error.message });
+    console.error('Tha Ton comparison failed:', error);
+    return res.status(502).json({ error: 'เปรียบเทียบภาพจาก Earth Engine ไม่สำเร็จ' });
   }
 });
 
