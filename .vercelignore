@@ -1,0 +1,12 @@
+.env*
+!.env.example
+server/service-account*.json
+service-account*.json
+.codex*/
+.agents/
+*.approval.json*
+*.log
+scratch/
+tmp_*
+*-20260929.png
+province-*.png

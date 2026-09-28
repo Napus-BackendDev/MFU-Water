@@ -39,3 +39,9 @@ server/service-account.json
 !.env.example
 .vercel
 .npm-cache-production-ready/
+
+# Local agent previews, approval receipts and UI verification screenshots.
+.codex*/
+*.approval.json*
+/*-20260929.png
+/province-*.png

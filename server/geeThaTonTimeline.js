@@ -3,7 +3,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 export const THA_TON_PERIOD = Object.freeze({ start: '2024-09-05', end: '2024-10-05' });
-const boundaryPath = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../public/data/boundaries/tha-ton-adm3.geojson');
+const boundaryPath = path.resolve(path.dirname(fileURLToPath(import.meta.url)), './data/tha-ton-adm3.geojson');
 // DPM MapDX official subdistrict boundary, TAM_CODE 501005:
 // https://gis-portal.disaster.go.th/arcgis/rest/services/MapDX/DPM_TH_Boundary/FeatureServer/3
 const boundary = JSON.parse(fs.readFileSync(boundaryPath, 'utf8')).features[0];

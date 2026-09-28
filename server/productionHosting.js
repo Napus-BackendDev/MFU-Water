@@ -37,7 +37,9 @@ export function validateProductionConfig(env, dist) {
     if (url.protocol !== 'https:' || url.username || url.password || url.search || url.hash || url.pathname !== '/') throw new Error(`production_https_origin_required:${key}`);
   }
   if (env.ENABLE_ADMIN_INVITES === 'true') throw new Error('production_invites_require_verified_password_setup');
-  if (!existsSync(resolve(dist, 'index.html'))) throw new Error('production_build_required');
+  if (env.VERCEL === '1' && env.ENABLE_SMTP_DELIVERY === 'true') throw new Error('vercel_smtp_requires_durable_worker');
+  // Vercel serves the build from its CDN, not from the API function filesystem.
+  if (env.VERCEL !== '1' && !existsSync(resolve(dist, 'index.html'))) throw new Error('production_build_required');
 }
 export function configureHttp(app, { trustProxy = false } = {}) {
   app.disable('x-powered-by');
@@ -51,19 +53,21 @@ export function configureHttp(app, { trustProxy = false } = {}) {
   });
 }
 // Mount after API routes: API errors and missing chunks must never return HTML.
-export function mountWeb(app, dist) {
+export function mountWeb(app, dist, { serveStatic = true } = {}) {
   app.get('/healthz', (req, res) => res.set('Cache-Control', 'no-store').json({ status: 'alive', database: 'not_checked' }));
-  app.use(express.static(dist, {
-    dotfiles: 'deny', index: false,
-    setHeaders(res, file) {
-      const hashed = /[\\/]assets[\\/].+-[A-Za-z0-9_-]{8,}\.(?:js|css)$/.test(file);
-      res.set('Cache-Control', hashed ? 'public, max-age=31536000, immutable' : 'no-cache');
-    }
-  }));
-  app.use((req, res, next) => {
-    if (!['GET', 'HEAD'].includes(req.method) || req.path !== '/' && req.path !== '/index.html') return next();
-    res.set('Cache-Control', 'no-store').sendFile(resolve(dist, 'index.html'));
-  });
+  if (serveStatic) {
+    app.use(express.static(dist, {
+      dotfiles: 'deny', index: false,
+      setHeaders(res, file) {
+        const hashed = /[\\/]assets[\\/].+-[A-Za-z0-9_-]{8,}\.(?:js|css)$/.test(file);
+        res.set('Cache-Control', hashed ? 'public, max-age=31536000, immutable' : 'no-cache');
+      }
+    }));
+    app.use((req, res, next) => {
+      if (!['GET', 'HEAD'].includes(req.method) || req.path !== '/' && req.path !== '/index.html') return next();
+      res.set('Cache-Control', 'no-store').sendFile(resolve(dist, 'index.html'));
+    });
+  }
   app.use((req, res) => res.status(404).set('Cache-Control', 'no-store').end());
   app.use((error, req, res, next) => {
     if (res.headersSent) return next(error);

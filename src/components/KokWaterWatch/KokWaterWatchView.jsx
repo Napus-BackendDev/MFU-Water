@@ -72,6 +72,7 @@ export default function KokWaterWatchView({ onOpenAdmin }) {
   const [sessionUser, setSessionUser] = useState(false);
   const [submissions, setSubmissions] = useState([]);
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [hasPendingForm, setHasPendingForm] = useState(false);
   const [selectedSample, setSelectedSample] = useState(null);
   const [selectedHotspot, setSelectedHotspot] = useState(null);
   const [focusCoords, setFocusCoords] = useState(null);
@@ -1460,10 +1461,11 @@ export default function KokWaterWatchView({ onOpenAdmin }) {
       )}
 
       {/* 8. Form Modal (หน้าต่างกรอกบันทึกผลการตรวจพิกัด GPS) */}
-      {isFormOpen && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-2.5 sm:p-4 overflow-y-auto">
+      {(isFormOpen || hasPendingForm) && (
+        <div aria-hidden={!isFormOpen} style={{ display: isFormOpen ? undefined : 'none' }} className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-2.5 sm:p-4 overflow-y-auto">
           <WaterWatchForm
             onCancel={() => setIsFormOpen(false)}
+            onPendingAttemptChange={setHasPendingForm}
             onSubmitSuccess={(newSample) => handleCreateNewSample(newSample)}
           />
         </div>

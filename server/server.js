@@ -8,17 +8,20 @@ import { analyzeGeeWater, parseGeeAnalysisQuery } from './geeWaterAnalysis.js';
 import { compareThaTonFrames, getThaTonFrame, listThaTonFrames, parseThaTonPeriod } from './geeThaTonTimeline.js';
 import { createWaterWatchApi } from './waterWatchApi.js';
 import { configureHttp, mountWeb, validateProductionConfig } from './productionHosting.js';
+import { loadGeeCredential, initializeGee } from './geeInitialization.js';
+import { sendGeeFailure } from './geePublicErrors.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const keyPath = path.join(__dirname, 'service-account.json');
 
 const app = express();
 const distPath = path.resolve(__dirname, '../dist');
+const vercelRuntime = process.env.VERCEL === '1';
 validateProductionConfig(process.env, distPath);
 configureHttp(app, { trustProxy: process.env.TRUST_PROXY || false });
 if (process.env.NODE_ENV !== 'production') app.use(cors());
 app.use(express.json());
-app.use('/api', createWaterWatchApi());
+app.use('/api', createWaterWatchApi({ startWorker: !vercelRuntime && process.env.NODE_ENV === 'production' }));
 
 let isGEEReady = false;
 let geeClientEmail = '';
@@ -27,36 +30,13 @@ let cachedNdwiTileUrl = null;
 let cachedWaterTileUrl = null;
 
 // Keep the status request pending until the initial GEE connection finishes.
-const geeInitialization = new Promise((resolve) => {
-  if (!fs.existsSync(keyPath)) {
-    console.warn('⚠️ service-account.json not found in server directory');
-    resolve(false);
-    return;
-  }
-  const key = JSON.parse(fs.readFileSync(keyPath, 'utf8'));
-  geeClientEmail = key.client_email;
-  const timeout = setTimeout(() => resolve(false), 15000);
-  const finish = (ready) => {
-    clearTimeout(timeout);
-    resolve(ready);
-  };
-  ee.data.authenticateViaPrivateKey(
-    key,
-    () => {
-      ee.initialize(null, null, () => {
-        isGEEReady = true;
-        console.log('✅ Google Earth Engine connected');
-        finish(true);
-      }, (err) => {
-        console.error('GEE Initialize error:', err.message || err);
-        finish(false);
-      });
-    },
-    (err) => {
-      console.error('GEE Auth error:', err.message || err);
-      finish(false);
-    }
-  );
+const geeCredential = loadGeeCredential({ env: process.env,
+  readLocal: () => fs.existsSync(keyPath) ? fs.readFileSync(keyPath, 'utf8') : null });
+const geeInitialization = initializeGee(ee, geeCredential).then(result => {
+  isGEEReady = result.ready;
+  geeClientEmail = result.clientEmail;
+  console.log(result.ready ? 'GEE connected' : 'GEE unavailable');
+  return result.ready;
 });
 
 // 1. Health Status
@@ -82,8 +62,7 @@ app.get('/api/gee/analyze', async (req, res) => {
     const result = await analyzeGeeWater(ee, params);
     return res.json(result);
   } catch (error) {
-    console.error('GEE water analysis failed:', error);
-    return res.status(error.status || 502).json({ error: error.message || 'GEE วิเคราะห์ไม่สำเร็จ' });
+    return sendGeeFailure(res, error?.status);
   }
 });
 
@@ -95,8 +74,7 @@ app.get('/api/gee/tha-ton-timeline', async (req, res) => {
   try {
     return res.json(await listThaTonFrames(ee, period));
   } catch (error) {
-    console.error('Tha Ton scene listing failed:', error);
-    return res.status(502).json({ error: 'โหลดรายการภาพจาก Earth Engine ไม่สำเร็จ' });
+    return sendGeeFailure(res);
   }
 });
 
@@ -109,8 +87,7 @@ app.get('/api/gee/tha-ton-timeline/frame/:index', async (req, res) => {
   try {
     return res.json(await getThaTonFrame(ee, Number(req.params.index), period));
   } catch (error) {
-    console.error('Tha Ton frame failed:', error);
-    return res.status(error.status || 502).json({ error: error.status === 404 ? error.message : 'โหลดภาพจาก Earth Engine ไม่สำเร็จ' });
+    return sendGeeFailure(res, error?.status);
   }
 });
 
@@ -125,9 +102,7 @@ app.get('/api/gee/tha-ton-compare', async (req, res) => {
   try {
     return res.json(await compareThaTonFrames(ee, Number(req.query.before), Number(req.query.after), period));
   } catch (error) {
-    if (error.status === 400) return res.status(400).json({ error: error.message });
-    console.error('Tha Ton comparison failed:', error);
-    return res.status(502).json({ error: 'เปรียบเทียบภาพจาก Earth Engine ไม่สำเร็จ' });
+    return sendGeeFailure(res, error?.status === 400 ? 400 : 502);
   }
 });
 
@@ -158,16 +133,14 @@ app.get('/api/gee/water-tiles', (req, res) => {
 
     waterLayer.getMap(visParams, (mapObj, err) => {
       if (err) {
-        console.error('Error generating GEE Water tiles:', err);
-        return res.status(500).json({ error: err.message || err });
+        return sendGeeFailure(res, 500);
       }
 
       cachedWaterTileUrl = mapObj.urlFormat;
-      console.log('✅ Generated GEE Water Tiles from Satellite Data:', cachedWaterTileUrl);
       res.json({ tileUrl: cachedWaterTileUrl, cached: false });
     });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    sendGeeFailure(res, 500);
   }
 });
 
@@ -198,15 +171,14 @@ app.get('/api/gee/sentinel-tiles', (req, res) => {
 
     sentinel.getMap(visParams, (mapObj, err) => {
       if (err) {
-        console.error('Error generating Sentinel tiles:', err);
-        return res.status(500).json({ error: err.message || err });
+        return sendGeeFailure(res, 500);
       }
 
       cachedSentinelTileUrl = mapObj.urlFormat;
       res.json({ tileUrl: cachedSentinelTileUrl, cached: false });
     });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    sendGeeFailure(res, 500);
   }
 });
 
@@ -238,15 +210,14 @@ app.get('/api/gee/ndwi-tiles', (req, res) => {
 
     ndwi.getMap(ndwiParams, (mapObj, err) => {
       if (err) {
-        console.error('Error generating NDWI tiles:', err);
-        return res.status(500).json({ error: err.message || err });
+        return sendGeeFailure(res, 500);
       }
 
       cachedNdwiTileUrl = mapObj.urlFormat;
       res.json({ tileUrl: cachedNdwiTileUrl, cached: false });
     });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    sendGeeFailure(res, 500);
   }
 });
 
@@ -307,7 +278,7 @@ app.get('/api/gee/flood-comparison', async (req, res) => {
       max: 1,
       palette: ['#0284c7']
     }, (normalMap, normalErr) => {
-      if (normalErr) return res.status(500).json({ error: normalErr.message });
+      if (normalErr) return sendGeeFailure(res, 500);
       cachedNormalTileUrl = normalMap.urlFormat;
 
       floodWater.updateMask(floodWater).getMap({
@@ -315,7 +286,7 @@ app.get('/api/gee/flood-comparison', async (req, res) => {
         max: 1,
         palette: ['#38bdf8']
       }, (floodMap, floodErr) => {
-        if (floodErr) return res.status(500).json({ error: floodErr.message });
+        if (floodErr) return sendGeeFailure(res, 500);
         cachedFloodTileUrl = floodMap.urlFormat;
 
         res.json({
@@ -326,13 +297,13 @@ app.get('/api/gee/flood-comparison', async (req, res) => {
       });
     });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    sendGeeFailure(res, 500);
   }
 });
 
 
 app.use('/api', (req, res) => res.status(404).json({ error: 'ไม่พบ API นี้ กรุณาเริ่มเซิร์ฟเวอร์รุ่นล่าสุด' }));
-mountWeb(app, distPath);
+mountWeb(app, distPath, { serveStatic: !vercelRuntime });
 
 export default app;
 
