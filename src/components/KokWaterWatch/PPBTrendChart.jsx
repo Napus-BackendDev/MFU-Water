@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { publicPseudonym } from '../../lib/publicPseudonym.js';
 import { TrendingUp, TrendingDown, Minus, Activity, ShieldCheck, AlertTriangle } from 'lucide-react';
 import { ARSENIC_LEVELS } from '../../data/waterWatchData';
 
@@ -57,7 +58,7 @@ export function getPPBTimeSeries(items = []) {
       dateLabel,
       timeLabel,
       fullDateLabel,
-      collector: it.collector?.name || (typeof it.collector === 'string' ? it.collector : 'อาสาสมัคร'),
+      collector: publicPseudonym(it.sample_code),
       notes: it.sample_nature?.notes || '',
       isDanger,
       isWatch,

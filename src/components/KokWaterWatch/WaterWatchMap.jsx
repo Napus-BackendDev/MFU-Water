@@ -1,5 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
-import maplibregl from 'maplibre-gl';
+import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
+import { createPortal } from 'react-dom';
+import * as maplibregl from 'maplibre-gl';
+import { publicPseudonym } from '../../lib/publicPseudonym.js';
+import PublicEvidencePhotos from './PublicEvidencePhotos.jsx';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { 
   X, 
@@ -14,6 +17,7 @@ import {
   Calendar, 
   Camera, 
   Users,
+  User,
   ZoomIn,
   ShieldCheck,
   AlertTriangle,
@@ -30,9 +34,14 @@ import {
   RefreshCw
 } from 'lucide-react';
 import { clusterSubmissions } from '../../data/waterWatchData';
-import PPBTrendChart from './PPBTrendChart';
-import { RIVER_BOUNDS, RIVER_COORDINATES, riverPointAt, RIVER_FLOW_CYCLE_DURATION_MS } from './riverFlow';
-import { thaiBoundaryLabelExpression } from './boundaryThaiLabels';
+const PPBTrendChart = lazy(() => import('./PPBTrendChart'));
+import { RIVER_BOUNDS, RIVER_GEOMETRY } from './riverFlow';
+import { regionFillExpression, regionForProvince, provinceForCoordinates, boundsForGeometry, shouldShowAreaSamples } from './mapAreaNavigation.js';
+import { provinceLabelsForArea, districtLabelsForArea } from './provinceLabels.js';
+import { applySoftMapPalette, applyNaturalFeatureVisibility } from './softMapPalette.js';
+
+const EMPTY_PROVINCE_FEATURES = Object.freeze([]);
+const EMPTY_BOUNDARY = Object.freeze({ type: 'FeatureCollection', features: [] });
 
 // ฟังก์ชันสร้าง GeoJSON Polygon วงกลมเพื่อแสดงรัศมีความแม่นยำของ GPS อุปกรณ์
 function createGeoJSONCircle(center, radiusInMeters, points = 48) {
@@ -407,17 +416,29 @@ export default function WaterWatchMap({
   onPopupChange = null,
   controllerRef = null,
   hideDefaultControls = false,
-  riverFlowPlaying = true,
   riverVisible = true,
   boundaryVisibility = null,
   mapType: propMapType,
   showLabels: propShowLabels,
-  showBoundaryLabels: propShowBoundaryLabels
+  showBoundaryLabels: propShowBoundaryLabels,
+  selectedArea = { level: 'world' },
+  selectedAreaFeature = null,
+  provinceFeatures = EMPTY_PROVINCE_FEATURES,
+  boundaryData = null,
+  onAreaSelect = null
 }) {
   const mapContainer = useRef(null);
   const mapRef = useRef(null);
   const markersRef = useRef([]);
-  const flowMarkersRef = useRef([]);
+  const markerEntriesRef = useRef(new globalThis.Map());
+  const boundaryDataRef = useRef(boundaryData);
+  const sourceDataRef = useRef({});
+  boundaryDataRef.current = boundaryData;
+  const areaLabelMarkersRef = useRef([]);
+  const selectedAreaRef = useRef(selectedArea);
+  const onAreaSelectRef = useRef(onAreaSelect);
+  selectedAreaRef.current = selectedArea;
+  onAreaSelectRef.current = onAreaSelect;
 
   // โหมดแสดงผลแผนที่: ค่าเริ่มต้นเป็น 'satellite' (พื้นที่ดาวเทียม) และ ซ่อนตัวอักษร (showLabels = false)
   const [mapType, setMapType] = useState(() => {
@@ -433,9 +454,9 @@ export default function WaterWatchMap({
     if (typeof propShowLabels === 'boolean') return propShowLabels;
     try {
       const saved = localStorage.getItem('kok_water_watch_show_labels');
-      return saved !== null ? saved === 'true' : false;
+      return saved !== null ? saved === 'true' : true;
     } catch {
-      return false;
+      return true;
     }
   });
 
@@ -455,7 +476,7 @@ export default function WaterWatchMap({
     if (typeof propShowBoundaryLabels === 'boolean') return propShowBoundaryLabels;
     try {
       const saved = localStorage.getItem('kok_water_watch_show_boundary_labels');
-      return saved !== null ? saved === 'true' : false;
+      return saved !== null ? saved === 'true' : true;
     } catch {
       return false;
     }
@@ -509,9 +530,9 @@ export default function WaterWatchMap({
     },
     {
       id: 'locality',
-      shortLabel: 'อำเภอ',
-      fullLabel: 'Locality (อำเภอ / เขต / เมือง)',
-      desc: 'ขอบเขตของเทศบาล เมือง หรือเขตอำเภอ',
+      shortLabel: 'พื้นที่',
+      fullLabel: 'Locality (เขต / เมือง)',
+      desc: 'ขอบเขตของเทศบาล เมือง หรือเขตพื้นที่',
       icon: Building2,
       color: '#2563eb',
       activeColor: '#2563eb'
@@ -565,6 +586,10 @@ export default function WaterWatchMap({
   const applyBoundaryVisibility = (filters) => {
     if (!mapRef.current) return;
     const map = mapRef.current;
+    const area = selectedAreaRef.current || { level: 'world' };
+    const provinceDetailVisible = ['region', 'province', 'district'].includes(area.level);
+    const localityDetailVisible = ['province', 'district'].includes(area.level);
+    const regionPickerVisible = area.level === 'world' || (area.level === 'country' && area.countryIso === 'THA') || area.level === 'region';
 
     const setVisibility = (layerId, isVisible) => {
       try {
@@ -576,10 +601,10 @@ export default function WaterWatchMap({
       }
     };
 
-    const setLineEmphasis = (layerId, active, activeWidth) => {
+    const setLineEmphasis = (layerId, active, activeWidth, stageVisible = true) => {
       try {
         if (map.getLayer(layerId)) {
-          map.setLayoutProperty(layerId, 'visibility', 'visible');
+          map.setLayoutProperty(layerId, 'visibility', stageVisible ? 'visible' : 'none');
           map.setPaintProperty(layerId, 'line-opacity', active ? 0.86 : 0.17);
           map.setPaintProperty(layerId, 'line-width', active ? activeWidth : 1);
         }
@@ -588,13 +613,26 @@ export default function WaterWatchMap({
       }
     };
 
-    setLineEmphasis('bnd-country-layer', !!filters.country, 3);
-    setVisibility('bnd-country-labels', !!filters.country && showBoundaryLabels);
-    setLineEmphasis('bnd-province-layer', !!filters.province, 2.5);
-    setVisibility('bnd-province-labels', !!filters.province && showBoundaryLabels);
-    setVisibility('bnd-locality-fill', !!filters.locality);
-    setLineEmphasis('bnd-locality-layer', !!filters.locality, 2);
-    setVisibility('bnd-locality-labels', !!filters.locality && showBoundaryLabels);
+    // Keep OSM administrative borders as the basemap-aligned reference, and
+    // draw province borders from the very same GeoJSON used for region fill
+    // when the user drills into Thailand. This fallback remains available
+    // even when the remote vector tiles omit Thai admin_level=4 boundaries.
+    const countryBoundaryVisible = !!filters.country;
+    for (const id of ['boundary-country:outline', 'boundary-country']) {
+      setVisibility(id, countryBoundaryVisible);
+    }
+    for (const id of ['boundary-state:outline', 'boundary-state']) {
+      // One canonical province geometry, not a second vintage of tile boundaries.
+      setVisibility(id, false);
+    }
+    setVisibility('bnd-province-region-fill', regionPickerVisible);
+    setVisibility('bnd-region-fill', area.level === 'country' && area.countryIso === 'THA');
+    setVisibility('bnd-province-outline', !!filters.province && provinceDetailVisible);
+    setVisibility('bnd-province-outline-halo', !!filters.province && provinceDetailVisible);
+    setVisibility('bnd-locality-hit', area.level === 'province');
+    setVisibility('bnd-locality-fill', !!filters.locality && localityDetailVisible);
+    setLineEmphasis('bnd-locality-layer', !!filters.locality, 1, localityDetailVisible);
+    setVisibility('bnd-locality-halo', !!filters.locality && localityDetailVisible);
   };
 
   const toggleBoundary = (id) => {
@@ -812,6 +850,24 @@ export default function WaterWatchMap({
           }
         },
         setBoundaryLabels: (visible) => setShowBoundaryLabels(!!visible),
+        fitArea: (area, feature) => {
+          if (area?.level === 'country' && area.countryIso === 'THA') {
+            const bounds = boundsForGeometry(feature);
+            if (bounds) mapRef.current?.fitBounds(bounds, {
+              padding: { top: 75, right: 100, bottom: 90, left: Math.min(430, window.innerWidth * 0.35) },
+              duration: 850,
+              maxZoom: 6.4
+            });
+            return;
+          }
+          const bounds = boundsForGeometry(feature);
+          if (bounds) mapRef.current?.fitBounds(bounds, {
+            padding: { top: 100, right: 90, bottom: 90, left: Math.min(430, window.innerWidth * 0.35) },
+            duration: 850,
+            maxZoom: area?.level === 'district' ? 13 : area?.level === 'province' ? 10.5 : area?.level === 'region' ? 8.5 : 7
+          });
+          else if (area?.level === 'world') mapRef.current?.fitBounds([[92, 4], [112, 29]], { padding: { top: 65, right: 100, bottom: 90, left: 370 }, duration: 850, maxZoom: 5 });
+        },
         fitRiverOverview: () => {
           mapRef.current?.fitBounds(RIVER_BOUNDS, {
             padding: { top: 110, right: 100, bottom: 100, left: 100 },
@@ -884,149 +940,37 @@ export default function WaterWatchMap({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [previewImage, popupHotspot]);
 
-  // Initialize Map with Google Street & Google Satellite Hybrid tiles
+  // Street mode uses native OSM boundaries; imagery and terrain retain Google tiles.
   useEffect(() => {
     if (mapRef.current) return;
     if (!mapContainer.current) return;
-
-    const styleDefinition = {
-      version: 8,
-      glyphs: 'https://fonts.openmaptiles.org/{fontstack}/{range}.pbf',
-      sources: {
-        googleStreet: {
-          type: 'raster',
-          tiles: [
-            'https://mt0.google.com/vt/lyrs=m&hl=th&x={x}&y={y}&z={z}',
-            'https://mt1.google.com/vt/lyrs=m&hl=th&x={x}&y={y}&z={z}',
-            'https://mt2.google.com/vt/lyrs=m&hl=th&x={x}&y={y}&z={z}',
-            'https://mt3.google.com/vt/lyrs=m&hl=th&x={x}&y={y}&z={z}'
-          ],
-          tileSize: 256
-        },
-        googleSatellite: {
-          type: 'raster',
-          tiles: [
-            'https://mt0.google.com/vt/lyrs=y&hl=th&x={x}&y={y}&z={z}',
-            'https://mt1.google.com/vt/lyrs=y&hl=th&x={x}&y={y}&z={z}',
-            'https://mt2.google.com/vt/lyrs=y&hl=th&x={x}&y={y}&z={z}',
-            'https://mt3.google.com/vt/lyrs=y&hl=th&x={x}&y={y}&z={z}'
-          ],
-          tileSize: 256
-        },
-        googleStreetNoLabels: {
-          type: 'raster',
-          tiles: [
-            'https://mt0.google.com/vt/lyrs=m&hl=th&apistyle=s.t%3A0%7Cs.e%3Al%7Cp.v%3Aoff%2Cs.t%3A2%7Cp.v%3Aoff&x={x}&y={y}&z={z}',
-            'https://mt1.google.com/vt/lyrs=m&hl=th&apistyle=s.t%3A0%7Cs.e%3Al%7Cp.v%3Aoff%2Cs.t%3A2%7Cp.v%3Aoff&x={x}&y={y}&z={z}',
-            'https://mt2.google.com/vt/lyrs=m&hl=th&apistyle=s.t%3A0%7Cs.e%3Al%7Cp.v%3Aoff%2Cs.t%3A2%7Cp.v%3Aoff&x={x}&y={y}&z={z}',
-            'https://mt3.google.com/vt/lyrs=m&hl=th&apistyle=s.t%3A0%7Cs.e%3Al%7Cp.v%3Aoff%2Cs.t%3A2%7Cp.v%3Aoff&x={x}&y={y}&z={z}'
-          ],
-          tileSize: 256
-        },
-        googleSatelliteNoLabels: {
-          type: 'raster',
-          tiles: [
-            'https://mt0.google.com/vt/lyrs=s&hl=th&x={x}&y={y}&z={z}',
-            'https://mt1.google.com/vt/lyrs=s&hl=th&x={x}&y={y}&z={z}',
-            'https://mt2.google.com/vt/lyrs=s&hl=th&x={x}&y={y}&z={z}',
-            'https://mt3.google.com/vt/lyrs=s&hl=th&x={x}&y={y}&z={z}'
-          ],
-          tileSize: 256
-        },
-        googleTerrain: {
-          type: 'raster',
-          tiles: [
-            'https://mt0.google.com/vt/lyrs=p&hl=th&x={x}&y={y}&z={z}',
-            'https://mt1.google.com/vt/lyrs=p&hl=th&x={x}&y={y}&z={z}',
-            'https://mt2.google.com/vt/lyrs=p&hl=th&x={x}&y={y}&z={z}',
-            'https://mt3.google.com/vt/lyrs=p&hl=th&x={x}&y={y}&z={z}'
-          ],
-          tileSize: 256
-        },
-        googleTerrainNoLabels: {
-          type: 'raster',
-          tiles: [
-            'https://mt0.google.com/vt/lyrs=p&hl=th&apistyle=s.t%3A0%7Cs.e%3Al%7Cp.v%3Aoff%2Cs.t%3A2%7Cp.v%3Aoff&x={x}&y={y}&z={z}',
-            'https://mt1.google.com/vt/lyrs=p&hl=th&apistyle=s.t%3A0%7Cs.e%3Al%7Cp.v%3Aoff%2Cs.t%3A2%7Cp.v%3Aoff&x={x}&y={y}&z={z}',
-            'https://mt2.google.com/vt/lyrs=p&hl=th&apistyle=s.t%3A0%7Cs.e%3Al%7Cp.v%3Aoff%2Cs.t%3A2%7Cp.v%3Aoff&x={x}&y={y}&z={z}',
-            'https://mt3.google.com/vt/lyrs=p&hl=th&apistyle=s.t%3A0%7Cs.e%3Al%7Cp.v%3Aoff%2Cs.t%3A2%7Cp.v%3Aoff&x={x}&y={y}&z={z}'
-          ],
-          tileSize: 256
-        }
-      },
-      layers: [
-        {
-          id: 'background-base',
-          type: 'background',
-          paint: { 'background-color': '#0f172a' }
-        },
-        {
-          id: 'google-street-layer',
-          type: 'raster',
-          source: 'googleStreet',
-          minzoom: 0,
-          maxzoom: 21,
-          layout: { visibility: 'none' }
-        },
-        {
-          id: 'google-satellite-layer',
-          type: 'raster',
-          source: 'googleSatellite',
-          minzoom: 0,
-          maxzoom: 21,
-          layout: { visibility: 'none' }
-        },
-        {
-          id: 'google-street-no-labels-layer',
-          type: 'raster',
-          source: 'googleStreetNoLabels',
-          minzoom: 0,
-          maxzoom: 21,
-          layout: { visibility: 'none' }
-        },
-        {
-          id: 'google-satellite-no-labels-layer',
-          type: 'raster',
-          source: 'googleSatelliteNoLabels',
-          minzoom: 0,
-          maxzoom: 21,
-          layout: { visibility: 'visible' }
-        },
-        {
-          id: 'google-terrain-layer',
-          type: 'raster',
-          source: 'googleTerrain',
-          minzoom: 0,
-          maxzoom: 21,
-          layout: { visibility: 'none' }
-        },
-        {
-          id: 'google-terrain-no-labels-layer',
-          type: 'raster',
-          source: 'googleTerrainNoLabels',
-          minzoom: 0,
-          maxzoom: 21,
-          layout: { visibility: 'none' }
-        }
-      ]
-    };
 
     let map = null;
     try {
       map = new maplibregl.Map({
         container: mapContainer.current,
-        style: styleDefinition,
-        center: [99.713, 20.19], // ภาพรวมแนวแม่น้ำกกข้ามเชียงใหม่-เชียงราย
-        zoom: 9,
+        style: '/data/boundaries/shortbread-colorful.style.json',
+        center: [101.8, 17.2],
+        zoom: 4.2,
         pitch: 0,
+        maxPitch: 0,
         bearing: 0,
-        attributionControl: false
+        dragRotate: false,
+        pitchWithRotate: false,
+        touchPitch: false,
+        attributionControl: true
       });
     } catch (err) {
       console.error('[WaterWatchMap] Failed to initialize maplibregl.Map:', err);
       setWebglError(err.message || 'Failed to initialize WebGL');
       return;
     }
+
+    map.setMaxPitch(0);
+    map.setPitch(0);
+    map.setBearing(0);
+    map.dragRotate.disable();
+    map.touchZoomRotate.disableRotation();
 
     // Listen to MapLibre's context events; detach before remove() triggers an intentional context loss.
     const handleContextLost = () => setWebglError('WebGL context lost');
@@ -1037,172 +981,246 @@ export default function WaterWatchMap({
     map.on('webglcontextlost', handleContextLost);
     map.on('webglcontextrestored', handleContextRestored);
 
+    map.on('style.load', () => {
+      // Keep OSM's vector boundaries/roads, but remove its built-in place,
+      // province, street and POI labels. Thai area labels are added separately.
+      for (const layer of map.getStyle().layers || []) {
+        if (layer.type === 'symbol') map.setLayoutProperty(layer.id, 'visibility', 'none');
+      }
+      map.addSource('googleSatellite', {
+        type: 'raster', tileSize: 256,
+        tiles: ['https://mt0.google.com/vt/lyrs=y&hl=th&x={x}&y={y}&z={z}', 'https://mt1.google.com/vt/lyrs=y&hl=th&x={x}&y={y}&z={z}', 'https://mt2.google.com/vt/lyrs=y&hl=th&x={x}&y={y}&z={z}', 'https://mt3.google.com/vt/lyrs=y&hl=th&x={x}&y={y}&z={z}']
+      });
+      map.addSource('googleSatelliteNoLabels', {
+        type: 'raster', tileSize: 256,
+        tiles: ['https://mt0.google.com/vt/lyrs=s&hl=th&x={x}&y={y}&z={z}', 'https://mt1.google.com/vt/lyrs=s&hl=th&x={x}&y={y}&z={z}', 'https://mt2.google.com/vt/lyrs=s&hl=th&x={x}&y={y}&z={z}', 'https://mt3.google.com/vt/lyrs=s&hl=th&x={x}&y={y}&z={z}']
+      });
+      map.addSource('googleTerrain', {
+        type: 'raster', tileSize: 256,
+        tiles: ['https://mt0.google.com/vt/lyrs=p&hl=th&x={x}&y={y}&z={z}', 'https://mt1.google.com/vt/lyrs=p&hl=th&x={x}&y={y}&z={z}', 'https://mt2.google.com/vt/lyrs=p&hl=th&x={x}&y={y}&z={z}', 'https://mt3.google.com/vt/lyrs=p&hl=th&x={x}&y={y}&z={z}']
+      });
+      map.addSource('googleTerrainNoLabels', {
+        type: 'raster', tileSize: 256,
+        tiles: ['https://mt0.google.com/vt/lyrs=p&hl=th&apistyle=s.t%3A0%7Cs.e%3Al%7Cp.v%3Aoff%2Cs.t%3A2%7Cp.v%3Aoff&x={x}&y={y}&z={z}', 'https://mt1.google.com/vt/lyrs=p&hl=th&apistyle=s.t%3A0%7Cs.e%3Al%7Cp.v%3Aoff%2Cs.t%3A2%7Cp.v%3Aoff&x={x}&y={y}&z={z}', 'https://mt2.google.com/vt/lyrs=p&hl=th&apistyle=s.t%3A0%7Cs.e%3Al%7Cp.v%3Aoff%2Cs.t%3A2%7Cp.v%3Aoff&x={x}&y={y}&z={z}', 'https://mt3.google.com/vt/lyrs=p&hl=th&apistyle=s.t%3A0%7Cs.e%3Al%7Cp.v%3Aoff%2Cs.t%3A2%7Cp.v%3Aoff&x={x}&y={y}&z={z}']
+      });
+      for (const [id, source, visibility] of [
+        ['google-satellite-layer', 'googleSatellite', 'none'],
+        ['google-satellite-no-labels-layer', 'googleSatelliteNoLabels', 'visible'],
+        ['google-terrain-layer', 'googleTerrain', 'none'],
+        ['google-terrain-no-labels-layer', 'googleTerrainNoLabels', 'none']
+      ]) {
+        map.addLayer({ id, type: 'raster', source, minzoom: 0, maxzoom: 21, layout: { visibility } }, 'boundary-country:outline');
+      }
+
+      // Street natural features keep their styling; imagery modes hide them below.
+      const naturalFeatureLayers = [
+        ['land-forest', 'fill', 0.56],
+        ['land-grass', 'fill', 0.34],
+        ['land-wetland', 'fill', 0.48],
+        ['land-park', 'fill', 0.32],
+        ['water-area', 'fill', 0.76],
+        ['water-area-river', 'fill', 0.76],
+        ['water-area-small', 'fill', 0.76],
+        ['water-river', 'line', null],
+        ['water-canal', 'line', null],
+        ['water-stream', 'line', null]
+      ];
+      for (const [id, type, opacity] of naturalFeatureLayers) {
+        if (!map.getLayer(id)) continue;
+        if (type === 'fill') {
+          map.setPaintProperty(id, 'fill-opacity', opacity);
+        } else {
+          map.setPaintProperty(id, 'line-color', '#bdd6e3');
+          map.setPaintProperty(id, 'line-opacity', 0.9);
+          const width = id === 'water-river'
+            ? ['interpolate', ['linear'], ['zoom'], 3, 0.7, 6, 1.1, 10, 3, 15, 5]
+            : id === 'water-canal'
+              ? ['interpolate', ['linear'], ['zoom'], 5, 0.45, 8, 0.8, 12, 1.8]
+              : ['interpolate', ['linear'], ['zoom'], 8, 0.35, 12, 0.7, 15, 1.5];
+          map.setPaintProperty(id, 'line-width', width);
+        }
+        map.moveLayer(id, 'boundary-country:outline');
+      }
+
+      // Administrative lines stay above satellite/terrain imagery while all
+      // provider-generated place and city labels remain hidden.
+      for (const [id, color, opacity, width] of [
+        ['boundary-country:outline', '#ffffff', 0.72, 2.2],
+        ['boundary-country', '#334155', 0.9, 1.15],
+        ['boundary-state:outline', '#ffffff', 0.6, 1.7],
+        ['boundary-state', '#475569', 0.78, 0.85]
+      ]) {
+        if (map.getLayer(id)) {
+          map.setPaintProperty(id, 'line-color', color);
+          map.setPaintProperty(id, 'line-opacity', opacity);
+          map.setPaintProperty(id, 'line-width', width);
+        }
+      }
+      // Apply after natural-feature paint setup, so those writes cannot override
+      // the street palette. Imagery modes restore the original provider colours.
+      applySoftMapPalette(map, mapType);
+      applyNaturalFeatureVisibility(map, mapType);
+    });
+
     map.on('load', () => {
       const curFilters = boundaryFiltersRef.current || {};
 
       map.addSource('kok-river-route', {
         type: 'geojson',
+        tolerance: 0,
+        attribution: 'River: © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap contributors (ODbL)</a> / <a href="https://waterwaymap.org/" target="_blank" rel="noopener noreferrer">WaterwayMap</a>',
         data: {
           type: 'Feature',
           properties: { name: 'แม่น้ำกก' },
-          geometry: { type: 'LineString', coordinates: RIVER_COORDINATES }
+          geometry: RIVER_GEOMETRY
         }
       });
       map.addLayer({
         id: 'kok-river-route-halo',
         type: 'line',
         source: 'kok-river-route',
-        paint: { 'line-color': '#ffffff', 'line-opacity': 0.78, 'line-width': 6 }
+        layout: { 'line-cap': 'round', 'line-join': 'round' },
+        paint: { 'line-color': '#ffffff', 'line-opacity': 0.95, 'line-width': ['interpolate', ['linear'], ['zoom'], 4, 5, 8, 7, 13, 9] }
       });
       map.addLayer({
         id: 'kok-river-route-line',
         type: 'line',
         source: 'kok-river-route',
-        paint: { 'line-color': '#0b88c6', 'line-opacity': 0.94, 'line-width': 3.5 }
+        layout: { 'line-cap': 'round', 'line-join': 'round' },
+        paint: { 'line-color': '#0EA5E9', 'line-opacity': 1, 'line-width': ['interpolate', ['linear'], ['zoom'], 4, 3, 8, 4.5, 13, 6] }
       });
 
       // 1. เส้นพรมแดนประเทศ (Country)
       map.addSource('bnd-country-src', {
         type: 'geojson',
-        data: '/data/boundaries/thailand-adm0.geojson'
+        data: boundaryDataRef.current?.countries || EMPTY_BOUNDARY
       });
       // Label anchors keep names visible near the Kok basin; boundary geometry stays untouched.
-      map.addSource('bnd-country-label-src', {
-        type: 'geojson',
-        data: {
-          type: 'FeatureCollection',
-          features: [{ type: 'Feature', properties: { shapeName: 'Thailand' }, geometry: { type: 'Point', coordinates: [99.72, 20.01] } }]
-        }
-      });
       map.addLayer({
-        id: 'bnd-country-layer',
-        type: 'line',
-        source: 'bnd-country-src',
-        layout: {
-          visibility: 'visible'
-        },
-        paint: {
-          'line-color': '#ef4444',
-          'line-width': curFilters.country ? 3 : 1,
-          'line-opacity': curFilters.country ? 0.86 : 0.17,
-          'line-dasharray': [3, 2]
-        }
+        id: 'bnd-country-hit', type: 'fill', source: 'bnd-country-src',
+        filter: ['==', ['get', 'shapeISO'], 'THA'],
+        paint: { 'fill-color': '#38bdf8', 'fill-opacity': 0.015 }
       });
-      map.addLayer({
-        id: 'bnd-country-labels',
-        type: 'symbol',
-        source: 'bnd-country-label-src',
-        layout: {
-          visibility: curFilters.country && showBoundaryLabels ? 'visible' : 'none',
-          'symbol-placement': 'point',
-          'text-field': thaiBoundaryLabelExpression('country'),
-          'text-size': 16,
-          'text-font': ['Noto Sans Thai Bold'],
-          'text-offset': [0, -1.5],
-          'text-allow-overlap': false
-        },
-        paint: {
-          'text-color': '#b91c1c',
-          'text-halo-color': '#ffffff',
-          'text-halo-width': 2
-        }
-      });
-
       // 2. เส้นแบ่งเขตจังหวัด (Province)
+      // Keep canonical coordinates for selection/counts; use sub-pixel tile tolerance
+      // for drawing so very large dissolved polygons do not overflow fill indices.
+      map.addSource('bnd-region-src', { type: 'geojson', tolerance: 0.375, data: boundaryDataRef.current?.regions || EMPTY_BOUNDARY });
+      map.addLayer({ id: 'bnd-region-fill', type: 'fill', source: 'bnd-region-src', paint: {
+        'fill-color': ['match', ['get', 'regionId'], 'north', '#2563eb', 'northeast', '#7c3aed', 'south', '#0891b2', '#16a34a'],
+        'fill-opacity': 0.52
+      } }, 'boundary-country:outline');
+      map.on('click', 'bnd-region-fill', event => {
+        const feature = event.features?.[0];
+        if (selectedAreaRef.current?.level === 'country' && feature?.properties.regionId) onAreaSelectRef.current?.({ level: 'region', countryIso: 'THA', regionId: feature.properties.regionId }, feature);
+      });
       map.addSource('bnd-province-src', {
         type: 'geojson',
-        data: '/data/boundaries/chiangrai-region-adm1.geojson'
+        tolerance: 0,
+        attribution: '<a href="https://data.humdata.org/dataset/cod-ab-tha" target="_blank" rel="noopener">Thailand COD-AB / OCHA ROAP (CC BY-IGO)</a>',
+        data: boundaryDataRef.current?.provinces || EMPTY_BOUNDARY
       });
       map.addLayer({
-        id: 'bnd-province-layer',
+        id: 'bnd-province-region-fill', type: 'fill', source: 'bnd-province-src',
+        paint: {
+          'fill-color': ['match', regionFillExpression(), 'north', '#2563eb', 'northeast', '#7c3aed', 'south', '#0891b2', '#16a34a'],
+          'fill-opacity': selectedAreaRef.current?.level === 'country' && selectedAreaRef.current?.countryIso === 'THA' ? 0.52 : 0
+        }
+      }, 'boundary-country:outline');
+      map.addLayer({
+        id: 'bnd-province-outline-halo', type: 'line', source: 'bnd-province-src',
+        layout: { visibility: 'none', 'line-cap': 'round', 'line-join': 'round' },
+        paint: { 'line-color': '#ffffff', 'line-opacity': 0.85,
+          'line-width': 4 }
+      });
+      map.addLayer({
+        id: 'bnd-province-outline',
         type: 'line',
         source: 'bnd-province-src',
         layout: {
-          visibility: 'visible'
+          visibility: 'none',
+          'line-cap': 'round',
+          'line-join': 'round'
         },
         paint: {
-          'line-color': '#8b5cf6',
-          'line-width': curFilters.province ? 2.5 : 1,
-          'line-opacity': curFilters.province ? 0.86 : 0.17,
-          'line-dasharray': [4, 2]
-        }
-      });
-      map.addLayer({
-        id: 'bnd-province-labels',
-        type: 'symbol',
-        source: 'bnd-province-src',
-        layout: {
-          visibility: curFilters.province && showBoundaryLabels ? 'visible' : 'none',
-          'symbol-placement': 'point',
-          'text-field': thaiBoundaryLabelExpression('province'),
-          'text-size': 13,
-          'text-font': ['Noto Sans Thai Bold'],
-          'text-offset': [0, 1.2],
-          'text-allow-overlap': false
-        },
-        paint: {
-          'text-color': '#6d28d9',
-          'text-halo-color': '#ffffff',
-          'text-halo-width': 2
+          'line-color': '#0284C7',
+          'line-opacity': 0.9,
+          'line-width': 2
         }
       });
 
       // 3. ขอบเขตอำเภอ (Locality)
       map.addSource('bnd-locality-src', {
         type: 'geojson',
-        data: '/data/boundaries/kok-region-adm2.geojson'
+        tolerance: 0,
+        data: boundaryDataRef.current?.districts || EMPTY_BOUNDARY
       });
+      for (const [key, source] of [['countries', 'bnd-country-src'], ['regions', 'bnd-region-src'], ['provinces', 'bnd-province-src'], ['districts', 'bnd-locality-src']]) {
+        sourceDataRef.current[key] = { source: map.getSource(source), data: boundaryDataRef.current?.[key] || EMPTY_BOUNDARY };
+      }
+      const initialDistrictFilter = ['all', ['==', ['get', 'provinceCode'], selectedAreaRef.current?.provinceIso || ''], ...(selectedAreaRef.current?.level === 'district' ? [['==', ['get', 'districtCode'], selectedAreaRef.current.districtCode || '']] : [])];
+      map.addLayer({ id: 'bnd-locality-hit', type: 'fill', source: 'bnd-locality-src', filter: initialDistrictFilter, paint: { 'fill-color': '#f59e0b', 'fill-opacity': 0.05 } });
       map.addLayer({
         id: 'bnd-locality-fill',
         type: 'fill',
         source: 'bnd-locality-src',
+        filter: initialDistrictFilter,
         layout: {
-          visibility: 'visible'
+          visibility: ['province', 'district'].includes(selectedAreaRef.current?.level) ? 'visible' : 'none'
         },
         paint: {
           'fill-color': '#3b82f6',
-          'fill-opacity': 0.05
+          'fill-opacity': ['province', 'district'].includes(selectedAreaRef.current?.level) ? 0.05 : 0
         }
       });
+
+      map.on('click', 'bnd-country-hit', event => {
+        const feature = event.features?.[0];
+        if (selectedAreaRef.current?.level !== 'world') return;
+        if (!feature || feature.properties.shapeISO !== 'THA') return;
+        onAreaSelectRef.current?.({ level: 'country', countryIso: feature.properties.shapeISO }, feature);
+      });
+      map.on('click', 'bnd-province-region-fill', event => {
+        const feature = event.features?.[0];
+        if (!feature) return;
+        const area = selectedAreaRef.current || { level: 'world' };
+        if (area.level === 'country' && area.countryIso === 'THA') {
+          onAreaSelectRef.current?.({ level: 'region', countryIso: 'THA', regionId: regionForProvince(feature.properties.shapeISO) });
+        } else if (area.level === 'region' && regionForProvince(feature.properties.shapeISO) === area.regionId) {
+          onAreaSelectRef.current?.({ level: 'province', countryIso: 'THA', regionId: area.regionId, provinceIso: feature.properties.shapeISO }, feature);
+        }
+      });
+      map.on('click', 'bnd-locality-hit', event => {
+        const area = selectedAreaRef.current || {};
+        const feature = event.features?.[0];
+        if (area.level === 'province' && feature?.properties.provinceCode === area.provinceIso) {
+          onAreaSelectRef.current?.({ level: 'district', countryIso: 'THA', regionId: area.regionId, provinceIso: area.provinceIso, districtCode: feature.properties.districtCode, districtName: feature.properties.shapeName, label: feature.properties.nameTh }, feature);
+        }
+      });
+      map.addLayer({ id: 'bnd-locality-halo', type: 'line', source: 'bnd-locality-src', filter: initialDistrictFilter, layout: { visibility: 'none', 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': '#fff', 'line-width': 3, 'line-opacity': 0.85 } });
       map.addLayer({
         id: 'bnd-locality-layer',
         type: 'line',
         source: 'bnd-locality-src',
+        filter: initialDistrictFilter,
         layout: {
-          visibility: curFilters.locality ? 'visible' : 'none'
+          visibility: curFilters.locality && ['province', 'district'].includes(selectedAreaRef.current?.level) ? 'visible' : 'none'
         },
         paint: {
-          'line-color': '#2563eb',
-          'line-width': curFilters.locality ? 2 : 1,
-          'line-opacity': curFilters.locality ? 0.86 : 0.17,
-          'line-dasharray': [3, 1.5]
-        }
-      });
-      map.addLayer({
-        id: 'bnd-locality-labels',
-        type: 'symbol',
-        source: 'bnd-locality-src',
-        layout: {
-          visibility: curFilters.locality && showBoundaryLabels ? 'visible' : 'none',
-          'symbol-placement': 'point',
-          'text-field': thaiBoundaryLabelExpression('locality'),
-          'text-size': 11,
-          'text-font': ['Noto Sans Thai Regular'],
-          'text-allow-overlap': false
-        },
-        paint: {
-          'text-color': '#1d4ed8',
-          'text-halo-color': '#ffffff',
-          'text-halo-width': 1.5
+          'line-color': '#0284C7',
+          'line-width': 1,
+          'line-opacity': curFilters.locality ? 0.86 : 0.17
         }
       });
 
+      // Keep the channel above administrative fills; HTML labels stay above the map.
+      map.moveLayer('kok-river-route-halo');
+      map.moveLayer('kok-river-route-line');
       setIsMapLoaded(true);
       applyBoundaryVisibility(curFilters);
-      map.fitBounds(RIVER_BOUNDS, {
-        padding: { top: 110, right: 100, bottom: 100, left: 100 },
+      map.fitBounds([[97, 5], [106, 21]], {
+        padding: { top: 65, right: 100, bottom: 90, left: 370 },
         duration: 0,
-        maxZoom: 11
+        maxZoom: 6.4
       });
     });
 
@@ -1219,8 +1237,9 @@ export default function WaterWatchMap({
       map.off('webglcontextrestored', handleContextRestored);
       markersRef.current.forEach(marker => marker.remove());
       markersRef.current = [];
-      flowMarkersRef.current.forEach(marker => marker.remove());
-      flowMarkersRef.current = [];
+      markerEntriesRef.current.clear();
+      areaLabelMarkersRef.current.forEach(marker => marker.remove());
+      areaLabelMarkersRef.current = [];
       if (userLocationMarkerRef.current) {
         try { userLocationMarkerRef.current.remove(); } catch (e) {}
       }
@@ -1241,6 +1260,147 @@ export default function WaterWatchMap({
 
   useEffect(() => {
     if (!isMapLoaded || !mapRef.current) return;
+    for (const [key, source] of [['countries', 'bnd-country-src'], ['regions', 'bnd-region-src'], ['provinces', 'bnd-province-src'], ['districts', 'bnd-locality-src']]) {
+      const currentSource = mapRef.current.getSource(source);
+      const data = boundaryData?.[key] || EMPTY_BOUNDARY;
+      if (currentSource && (sourceDataRef.current[key]?.source !== currentSource || sourceDataRef.current[key]?.data !== data)) {
+        currentSource.setData(data);
+        sourceDataRef.current[key] = { source: currentSource, data };
+      }
+    }
+  }, [isMapLoaded, boundaryData?.countries, boundaryData?.regions, boundaryData?.provinces, boundaryData?.districts]);
+
+  useEffect(() => {
+    if (!isMapLoaded || !mapRef.current || !selectedAreaFeature) return;
+    const map = mapRef.current;
+    const bounds = boundsForGeometry(selectedAreaFeature);
+    if (!bounds) return;
+    const fit = () => map.fitBounds(bounds, {
+      padding: window.innerWidth < 768
+        ? { top: 65, right: 55, bottom: Math.min(440, window.innerHeight * 0.52), left: 20 }
+        : { top: 100, right: 90, bottom: 90, left: Math.min(430, window.innerWidth * 0.35) },
+      duration: 850,
+      maxZoom: selectedArea?.level === 'district' ? 13 : selectedArea?.level === 'province' ? 10.5 : selectedArea?.level === 'region' ? 8.5 : 6.4
+    });
+    fit();
+    map.on('resize', fit);
+    return () => map.off('resize', fit);
+  }, [isMapLoaded, selectedAreaFeature, selectedArea?.level]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    areaLabelMarkersRef.current.forEach(marker => marker.remove());
+    areaLabelMarkersRef.current = [];
+    if (!isMapLoaded || !map) return;
+
+    const showOverview = selectedArea?.level === 'country' && selectedArea?.countryIso === 'THA';
+    const showThaiRegions = showOverview && boundaryFilters.province;
+    const labels = [];
+    const showNeighborCountries = showOverview;
+    if (showNeighborCountries && boundaryFilters.country && showBoundaryLabels) {
+      labels.push(
+        { id: 'myanmar', text: 'พม่า', coordinates: [96.5, 20.5], kind: 'country' },
+        { id: 'laos', text: 'ลาว', coordinates: [103.2, 19.7], kind: 'country' },
+        { id: 'cambodia', text: 'กัมพูชา', coordinates: [104.9, 12.6], kind: 'country' },
+        { id: 'vietnam', text: 'เวียดนาม', coordinates: [108.0, 18.1], kind: 'country' },
+        { id: 'malaysia', text: 'มาเลเซีย', coordinates: [102.3, 6.2], kind: 'country' }
+      );
+    }
+    if (showThaiRegions) {
+      labels.push(
+        { id: 'north', text: 'ภาคเหนือ', coordinates: [99.5, 18.2], kind: 'region', color: '#1d4ed8' },
+        { id: 'central', text: 'ภาคกลาง', coordinates: [100.4, 15.1], kind: 'region', color: '#166534' },
+        { id: 'northeast', text: 'ภาคอีสาน', coordinates: [103.4, 16.1], kind: 'region', color: '#6b21a8' },
+        { id: 'south', text: 'ภาคใต้', coordinates: [99.7, 8.8], kind: 'region', color: '#0e7490' }
+      );
+    }
+    // Province labels are navigation, independent of optional basemap labels/glyphs.
+    labels.push(...provinceLabelsForArea(provinceFeatures, selectedArea));
+    labels.push(...districtLabelsForArea(boundaryData?.districts?.features, selectedArea));
+
+    areaLabelMarkersRef.current = labels.map(label => {
+      const element = document.createElement(['province', 'district'].includes(label.kind) ? 'button' : 'div');
+      element.className = `water-area-label water-area-label--${label.kind}`;
+      element.dataset.areaLabel = label.id;
+      element.textContent = label.kind === 'province' ? label.text.replace(/^จังหวัด/, '') : label.text;
+      element.setAttribute('aria-label', label.text);
+      element.style.pointerEvents = 'none';
+      element.style.whiteSpace = 'nowrap';
+      element.style.fontFamily = '"Noto Sans Thai", Tahoma, sans-serif';
+      element.style.fontWeight = '800';
+      if (['province', 'district'].includes(label.kind)) {
+        element.type = 'button';
+        element.style.pointerEvents = 'auto';
+        element.style.cursor = 'pointer';
+        element.style.color = '#1e293b';
+        element.style.fontSize = '13px';
+        element.style.padding = '3px 6px';
+        element.style.borderRadius = '6px';
+        element.style.border = '1px solid rgba(71,85,105,0.3)';
+        element.style.background = 'rgba(255,255,255,0.9)';
+        element.addEventListener('click', event => {
+          event.stopPropagation();
+          onAreaSelectRef.current?.(label.kind === 'province'
+            ? { level: 'province', countryIso: 'THA', regionId: regionForProvince(label.id), provinceIso: label.id }
+            : { level: 'district', countryIso: 'THA', regionId: selectedArea.regionId, provinceIso: label.feature.properties.provinceCode, districtCode: label.id, districtName: label.feature.properties.shapeName, label: label.text });
+        });
+      } else if (label.kind === 'region') {
+        element.style.color = label.color;
+        element.style.fontSize = '18px';
+        element.style.letterSpacing = '0.01em';
+        element.style.padding = '4px 12px';
+        element.style.borderRadius = '999px';
+        element.style.background = 'rgba(255,255,255,0.82)';
+        element.style.border = `1px solid ${label.color}66`;
+        element.style.boxShadow = '0 2px 8px rgba(15,23,42,0.2)';
+      } else {
+        element.style.color = '#111827';
+        element.style.fontSize = '16px';
+        element.style.textShadow = '0 0 3px #fff, 0 0 7px #fff, 0 1px 1px #fff';
+      }
+      const marker = new maplibregl.Marker({ element, anchor: 'center' }).setLngLat(label.coordinates).addTo(map);
+      // MapLibre initializes custom marker accessibility with "Map marker".
+      element.setAttribute('aria-label', label.text);
+      return marker;
+    });
+
+    return () => {
+      areaLabelMarkersRef.current.forEach(marker => marker.remove());
+      areaLabelMarkersRef.current = [];
+    };
+  }, [isMapLoaded, selectedArea?.level, selectedArea?.countryIso, selectedArea?.regionId, selectedArea?.provinceIso, selectedArea?.districtCode, provinceFeatures, boundaryData?.districts, showBoundaryLabels, boundaryFilters.country, boundaryFilters.province, boundaryFilters.locality]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!isMapLoaded || !map) return;
+    const provinceFilter = selectedArea?.level === 'region'
+      ? ['in', ['get', 'shapeISO'], ['literal', provinceFeatures.filter(f => regionForProvince(f.properties.shapeISO) === selectedArea.regionId).map(f => f.properties.shapeISO)]]
+      : ['province', 'district'].includes(selectedArea?.level)
+        ? ['==', ['get', 'shapeISO'], selectedArea.provinceIso || ''] : null;
+    for (const id of ['bnd-province-region-fill', 'bnd-province-outline-halo', 'bnd-province-outline']) {
+      if (map.getLayer(id)) map.setFilter(id, provinceFilter);
+    }
+    const isThailandOverview = selectedArea?.level === 'country' && selectedArea?.countryIso === 'THA';
+    const isProvinceDetail = ['province', 'district'].includes(selectedArea?.level);
+    if (map.getLayer('bnd-province-region-fill')) map.setPaintProperty('bnd-province-region-fill', 'fill-opacity', isThailandOverview && boundaryFilters.province ? 0.52 : 0);
+    if (map.getLayer('bnd-locality-fill')) map.setPaintProperty('bnd-locality-fill', 'fill-opacity', isProvinceDetail && boundaryFilters.locality ? 0.08 : 0);
+    if (map.getLayer('bnd-province-region-fill')) map.setLayoutProperty('bnd-province-region-fill', 'visibility', (isThailandOverview || selectedArea?.level === 'region') ? 'visible' : 'none');
+    if (map.getLayer('bnd-locality-hit')) map.setLayoutProperty('bnd-locality-hit', 'visibility', selectedArea?.level === 'province' ? 'visible' : 'none');
+    const localityFilter = selectedArea?.level === 'district'
+      ? ['all', ['==', ['get', 'provinceCode'], selectedArea.provinceIso || ''], ['==', ['get', 'districtCode'], selectedArea.districtCode || '']]
+      : ['==', ['get', 'provinceCode'], selectedArea?.provinceIso || ''];
+    for (const id of ['bnd-locality-hit', 'bnd-locality-fill', 'bnd-locality-layer', 'bnd-locality-halo']) {
+      if (map.getLayer(id)) map.setFilter(id, localityFilter);
+    }
+    if (map.getLayer('bnd-locality-layer')) {
+      map.setPaintProperty('bnd-locality-layer', 'line-color', '#0284C7');
+      map.setPaintProperty('bnd-locality-layer', 'line-width', 1);
+      map.setPaintProperty('bnd-locality-layer', 'line-opacity', boundaryFilters.locality ? 0.86 : 0.17);
+    }
+  }, [isMapLoaded, selectedArea?.level, selectedArea?.countryIso, selectedArea?.regionId, selectedArea?.provinceIso, selectedArea?.districtCode, provinceFeatures, showBoundaryLabels, boundaryFilters.country, boundaryFilters.province, boundaryFilters.locality]);
+
+  useEffect(() => {
+    if (!isMapLoaded || !mapRef.current) return;
     for (const id of ['kok-river-route-halo', 'kok-river-route-line']) {
       if (mapRef.current.getLayer(id)) {
         mapRef.current.setLayoutProperty(id, 'visibility', riverVisible ? 'visible' : 'none');
@@ -1248,105 +1408,81 @@ export default function WaterWatchMap({
     }
   }, [isMapLoaded, riverVisible]);
 
-  useEffect(() => {
-    if (!isMapLoaded || !riverVisible || !mapRef.current) return undefined;
-
-    const map = mapRef.current;
-    const markers = Array.from({ length: 10 }, () => {
-      const element = document.createElement('span');
-      element.className = 'kok-river-flow-arrow';
-      element.setAttribute('aria-hidden', 'true');
-      element.innerHTML = '<svg viewBox="0 0 28 20" aria-hidden="true"><path d="M3 10H21M15 4l7 6-7 6" fill="none" stroke="#fff" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/><path d="M3 10H21M15 4l7 6-7 6" fill="none" stroke="#087bb3" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-      const marker = new maplibregl.Marker({ element, anchor: 'center' }).setLngLat(RIVER_COORDINATES[0]).addTo(map);
-      return { marker, arrow: element.firstElementChild };
-    });
-    flowMarkersRef.current = markers.map(({ marker }) => marker);
-    let frameId;
-    let startTime;
-    const placeArrow = ({ marker, arrow }, progress) => {
-      const point = riverPointAt(progress);
-      const before = map.project(riverPointAt(Math.max(0, progress - 0.0005)));
-      const after = map.project(riverPointAt(Math.min(1, progress + 0.0005)));
-      marker.setLngLat(point);
-      arrow.style.transform = `rotate(${Math.atan2(after.y - before.y, after.x - before.x) * 180 / Math.PI}deg)`;
-    };
-    const placeStaticArrows = () => {
-      markers.forEach((entry, index) => placeArrow(entry, (index + 0.5) / markers.length));
-    };
-    const animate = (time) => {
-      if (startTime === undefined) startTime = time;
-      const cycle = ((time - startTime) % RIVER_FLOW_CYCLE_DURATION_MS) / RIVER_FLOW_CYCLE_DURATION_MS;
-      markers.forEach((entry, index) => {
-        placeArrow(entry, (cycle + index / markers.length) % 1);
-      });
-      frameId = requestAnimationFrame(animate);
-    };
-    if (riverFlowPlaying) frameId = requestAnimationFrame(animate);
-    else {
-      placeStaticArrows();
-      map.on('move', placeStaticArrows);
-    }
-
-    return () => {
-      if (frameId) cancelAnimationFrame(frameId);
-      map.off('move', placeStaticArrows);
-      markers.forEach(({ marker }) => marker.remove());
-      flowMarkersRef.current = [];
-    };
-  }, [isMapLoaded, riverVisible, riverFlowPlaying]);
-
   // ควบคุมการแสดงผล/ซ่อนเลเยอร์ขอบเขตตาม boundaryFilters ทันที 100%
   useEffect(() => {
     if (isMapLoaded) {
       applyBoundaryVisibility(boundaryFilters);
     }
-  }, [boundaryFilters, showBoundaryLabels, isMapLoaded]);
+  }, [boundaryFilters, showBoundaryLabels, isMapLoaded, selectedArea?.level, selectedArea?.countryIso, selectedArea?.provinceIso, selectedArea?.regionId, selectedArea?.districtCode]);
 
   // ปิด Popup Card ทันทีเมื่อชุดข้อมูลตัวอย่างเปลี่ยนจากการสลับ Time Filter
   useEffect(() => {
     setIsPinned(false);
     updatePopupHotspot(null);
+    setPreviewImage(null);
   }, [submissions]);
 
   // สลับการแสดงผลระหว่าง แผนที่สถานที่ & พื้นที่ดาวเทียม
   useEffect(() => {
-    if (!mapRef.current) return;
+    if (!mapRef.current || !isMapLoaded) return;
     const map = mapRef.current;
-    if (map.getLayer('google-street-layer')) {
-      map.setLayoutProperty('google-street-layer', 'visibility', (mapType === 'street' && showLabels) ? 'visible' : 'none');
-    }
-    if (map.getLayer('google-street-no-labels-layer')) {
-      map.setLayoutProperty('google-street-no-labels-layer', 'visibility', (mapType === 'street' && !showLabels) ? 'visible' : 'none');
-    }
+    applySoftMapPalette(map, mapType);
+    applyNaturalFeatureVisibility(map, mapType);
+    const overview = ['world', 'country', 'region'].includes(selectedArea?.level);
+    const showBaseLabels = showLabels && !overview;
     if (map.getLayer('google-satellite-layer')) {
-      map.setLayoutProperty('google-satellite-layer', 'visibility', (mapType === 'satellite' && showLabels) ? 'visible' : 'none');
+      map.setLayoutProperty('google-satellite-layer', 'visibility', (mapType === 'satellite' && showBaseLabels) ? 'visible' : 'none');
     }
     if (map.getLayer('google-satellite-no-labels-layer')) {
-      map.setLayoutProperty('google-satellite-no-labels-layer', 'visibility', (mapType === 'satellite' && !showLabels) ? 'visible' : 'none');
+      map.setLayoutProperty('google-satellite-no-labels-layer', 'visibility', (mapType === 'satellite' && !showBaseLabels) ? 'visible' : 'none');
     }
     if (map.getLayer('google-terrain-layer')) {
-      map.setLayoutProperty('google-terrain-layer', 'visibility', (mapType === 'terrain' && showLabels) ? 'visible' : 'none');
+      map.setLayoutProperty('google-terrain-layer', 'visibility', (mapType === 'terrain' && showBaseLabels) ? 'visible' : 'none');
     }
     if (map.getLayer('google-terrain-no-labels-layer')) {
-      map.setLayoutProperty('google-terrain-no-labels-layer', 'visibility', (mapType === 'terrain' && !showLabels) ? 'visible' : 'none');
+      map.setLayoutProperty('google-terrain-no-labels-layer', 'visibility', (mapType === 'terrain' && !showBaseLabels) ? 'visible' : 'none');
     }
-  }, [mapType, showLabels, isMapLoaded]);
+  }, [mapType, showLabels, isMapLoaded, selectedArea?.level]);
 
   // Update Dynamic Hotspot Clusters and Single Point Markers
   useEffect(() => {
     if (!mapRef.current || !isMapLoaded) return;
     const map = mapRef.current;
 
-    // Remove old markers
-    markersRef.current.forEach(m => m.remove());
-    markersRef.current = [];
+    const remaining = new globalThis.Map(markerEntriesRef.current);
+    const keepMarker = (key, data) => {
+      remaining.delete(key);
+      const signature = JSON.stringify(data);
+      const previous = markerEntriesRef.current.get(key);
+      if (previous?.signature === signature) return true;
+      previous?.marker.remove();
+      markerEntriesRef.current.delete(key);
+      return false;
+    };
+    const rememberMarker = (key, data, marker, element) => {
+      element.dataset.sampleCode = data.sample?.sample_code || '';
+      element.dataset.hotspotId = data.id;
+      markerEntriesRef.current.set(key, { marker, signature: JSON.stringify(data) });
+    };
+    if (!shouldShowAreaSamples(selectedArea)) {
+      markerEntriesRef.current.forEach(entry => entry.marker.remove());
+      markerEntriesRef.current.clear(); markersRef.current = [];
+      return;
+    }
 
     // Run spatial clustering engine (radius 250m)
-    const { clusters, singlePoints } = clusterSubmissions(submissions, 250);
+    const { clusters, singlePoints } = clusterSubmissions(
+      submissions,
+      250,
+      sample => provinceForCoordinates(sample.coordinates, provinceFeatures)?.iso || null
+    );
 
     // 1. Render Dynamic Hotspot Clusters (สำหรับบริเวณที่มีผลตรวจตั้งแต่ 2 รายการขึ้นไป)
     clusters.forEach((cluster) => {
-      const isSelected = selectedHotspot?.id === cluster.id || (popupHotspot?.id === cluster.id && isPinned);
+      const key = 'cluster:' + cluster.items.map(item => item.sample_code || item.record_id).sort().join('|');
+      if (keepMarker(key, cluster)) return;
+      const province = provinceForCoordinates(cluster.coordinates, provinceFeatures);
+      const isSelected = false;
       const isDanger = cluster.isDanger;
       const isWatch = cluster.isWatch;
 
@@ -1381,6 +1517,7 @@ export default function WaterWatchMap({
           <!-- Glowing Hotspot Badge -->
           <div class="hotspot-badge px-2.5 py-1 rounded-xl text-[11px] font-bold text-white shadow-xl flex items-center gap-1.5 whitespace-nowrap mb-1 transition-all ${riskGlow}">
             <span class="text-xs">🔥</span>
+            ${province ? `<span class="font-extrabold">จ.${province.name}</span>` : ''}
             <span>${cluster.title}</span>
             <span class="px-1.5 py-0.2 rounded-md bg-black/30 font-mono font-black text-[10px] text-amber-200">
               ${cluster.count} จุด
@@ -1439,12 +1576,15 @@ export default function WaterWatchMap({
         .setLngLat(cluster.coordinates)
         .addTo(map);
 
-      markersRef.current.push(marker);
+      rememberMarker(key, cluster, marker, el);
     });
 
     // 2. Render Single Points (จุดตรวจเดี่ยวที่มี 1 รายงาน)
     singlePoints.forEach((point) => {
-      const isSelected = selectedSample?.record_id === point.sample?.record_id || selectedHotspot?.id === point.id || (popupHotspot?.id === point.id && isPinned);
+      const key = 'point:' + (point.sample?.sample_code || point.sample?.record_id || point.id);
+      if (keepMarker(key, point)) return;
+      const province = provinceForCoordinates(point.coordinates, provinceFeatures);
+      const isSelected = false;
       const arsenicVal = point.latestAs;
       const isDanger = point.isDanger;
       const isWatch = point.isWatch;
@@ -1459,6 +1599,12 @@ export default function WaterWatchMap({
 
       const el = document.createElement('div');
       el.className = 'single-point-marker group cursor-pointer select-none' + (isSelected ? ' is-selected' : '');
+      el.setAttribute('role', 'button');
+      el.setAttribute('aria-label', `เปิดผลตรวจ ${point.latestSampleCode}`);
+      el.tabIndex = 0;
+      el.addEventListener('keydown', event => {
+        if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); el.click(); }
+      });
       el.style.zIndex = isSelected ? '65' : '35';
 
       const hasPhotos = (point.latestPhotos && point.latestPhotos.length > 0) || (point.photos && point.photos.length > 0);
@@ -1468,6 +1614,7 @@ export default function WaterWatchMap({
           isSelected ? 'scale-120' : 'hover:scale-110'
         }">
           <div class="point-badge px-2 py-0.5 rounded-lg text-[10px] font-bold shadow-md border border-white flex items-center gap-1.5 ${badgeColor} whitespace-nowrap mb-0.5 transition-all">
+            ${province ? `<span class="font-extrabold">จ.${province.name}</span>` : ''}
             <span class="max-w-[110px] truncate text-[9px] font-sans font-medium text-white/95">
               ${point.locationName}
             </span>
@@ -1521,9 +1668,22 @@ export default function WaterWatchMap({
         .setLngLat(point.coordinates)
         .addTo(map);
 
-      markersRef.current.push(marker);
+      rememberMarker(key, point, marker, el);
     });
-  }, [submissions, selectedSample, onSelectSample, selectedHotspot, onSelectHotspot, isMapLoaded]);
+    remaining.forEach((entry, key) => { entry.marker.remove(); markerEntriesRef.current.delete(key); });
+    markersRef.current = [...markerEntriesRef.current.values()].map(entry => entry.marker);
+  }, [submissions, isMapLoaded, selectedArea?.level, provinceFeatures]);
+
+  useEffect(() => {
+    for (const { marker } of markerEntriesRef.current.values()) {
+      const element = marker.getElement();
+      element.classList.toggle('is-selected', Boolean(
+        (selectedSample && element.dataset.sampleCode === selectedSample.sample_code) ||
+        (selectedHotspot && element.dataset.hotspotId === selectedHotspot.id) ||
+        (isPinned && popupHotspot && element.dataset.hotspotId === popupHotspot.id)
+      ));
+    }
+  }, [selectedSample, selectedHotspot, isPinned, popupHotspot]);
 
   // Handle focus coordinates trigger
   useEffect(() => {
@@ -1562,6 +1722,8 @@ export default function WaterWatchMap({
   const cardHeightEstimate = 420;
   const isFlippedBelow = popupPos.y < (cardHeightEstimate + 20);
   const cardHalfWidth = 160;
+  const screenHeight = typeof window !== 'undefined' ? window.innerHeight : 800;
+  const popupMaxHeight = Math.max(160, isFlippedBelow ? screenHeight - popupPos.y - 100 : popupPos.y - 30);
   const screenWidth = typeof window !== 'undefined' ? window.innerWidth : 1000;
   const clampedX = Math.max(cardHalfWidth + 10, Math.min(screenWidth - cardHalfWidth - 10, popupPos.x));
   const pointerOffset = Math.max(-110, Math.min(110, popupPos.x - clampedX));
@@ -1627,7 +1789,7 @@ export default function WaterWatchMap({
 
       {/* Hover / Click Hotspot Popup Card (บนมือถือแสดงตรงกลางจอพร้อมฉากหลัง, บนเดสก์ท็อปแสดงบนหัวหมุด) */}
       {popupHotspot && (
-        isMobile ? (
+        isMobile ? createPortal(
           <div
             className="fixed inset-0 z-[160] flex items-center justify-center p-3.5 bg-black/50 backdrop-blur-xs animate-in fade-in duration-200"
             onClick={() => {
@@ -1669,7 +1831,7 @@ export default function WaterWatchMap({
                     น้ำ · {getThaiShortDate(popupHotspot.latestCollectionTime)} · {popupHotspot.count || 1} รอบตรวจ
                   </div>
                   <div className="text-[11px] text-slate-700 font-semibold mt-0.5 truncate">
-                    ที่มา: {popupHotspot.latestCollector?.organization || popupHotspot.sample?.collector?.organization || 'มหาวิทยาลัยแม่ฟ้าหลวง (MFU)'}
+                    ชื่อสมมติ: {publicPseudonym(popupHotspot.latestSampleCode)}{popupHotspot.count > 1 ? ' · ผลตรวจล่าสุด' : ''}
                   </div>
                 </div>
               </div>
@@ -1694,6 +1856,7 @@ export default function WaterWatchMap({
                   latestTime={popupHotspot.latestCollectionTime}
                   count={popupHotspot.count || 1}
                 />
+                <PublicEvidencePhotos sample={popupHotspot.sample} />
 
                 {/* ตารางสรุป 3 คอลัมน์เฉพาะข้อมูลระบบจริง: รอบตรวจ | สารหนู (As) | เกณฑ์ คพ. */}
                 <div className="grid grid-cols-3 text-xs py-1.5 text-left border-t border-slate-100 mt-2">
@@ -1757,7 +1920,7 @@ export default function WaterWatchMap({
                 </button>
               </div>
             </div>
-          </div>
+          </div>, document.body
         ) : (
           <div
             className="absolute z-[90] pointer-events-auto transition-all duration-200"
@@ -1787,7 +1950,7 @@ export default function WaterWatchMap({
               }
             }}
           >
-            <div className="w-[300px] sm:w-[320px] max-w-[92vw] bg-white rounded-2xl shadow-2xl border border-slate-200/90 p-4 text-slate-800 relative flex flex-col select-none kok-popup-card">
+            <div style={{ maxHeight: popupMaxHeight, overflowY: 'auto' }} className="w-[300px] sm:w-[320px] max-w-[92vw] bg-white rounded-2xl shadow-2xl border border-slate-200/90 p-4 text-slate-800 relative flex flex-col select-none kok-popup-card">
               {/* ปุ่มปิด ✕ มุมขวาบน */}
               <button
                 type="button"
@@ -1816,7 +1979,7 @@ export default function WaterWatchMap({
                     น้ำ · {getThaiShortDate(popupHotspot.latestCollectionTime)} · {popupHotspot.count || 1} รอบตรวจ
                   </div>
                   <div className="text-[11px] text-slate-700 font-semibold mt-0.5 truncate">
-                    ที่มา: {popupHotspot.latestCollector?.organization || popupHotspot.sample?.collector?.organization || 'มหาวิทยาลัยแม่ฟ้าหลวง (MFU)'}
+                    ชื่อสมมติ: {publicPseudonym(popupHotspot.latestSampleCode)}{popupHotspot.count > 1 ? ' · ผลตรวจล่าสุด' : ''}
                   </div>
                 </div>
               </div>
@@ -1841,6 +2004,7 @@ export default function WaterWatchMap({
                   latestTime={popupHotspot.latestCollectionTime}
                   count={popupHotspot.count || 1}
                 />
+                <PublicEvidencePhotos sample={popupHotspot.sample} />
 
                 {/* ตารางสรุป 3 คอลัมน์เฉพาะข้อมูลระบบจริง: รอบตรวจ | สารหนู (As) | เกณฑ์ คพ. */}
                 <div className="grid grid-cols-3 text-xs py-1.5 text-left border-t border-slate-100 mt-2">
@@ -1922,9 +2086,9 @@ export default function WaterWatchMap({
       )}
 
       {/* Lightbox Modal สำหรับขยายดูรูปภาพถ่ายหลักฐาน พร้อมระบบสลับรูปถัดไป/ก่อนหน้า */}
-      {previewImage && (
+      {previewImage && createPortal(
         <div
-          className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-6 bg-black/85 backdrop-blur-md animate-in fade-in duration-200"
+          className="fixed inset-0 z-[200] flex items-center justify-center p-3 sm:p-6 bg-black/85 backdrop-blur-md animate-in fade-in duration-200"
           onClick={() => setPreviewImage(null)}
         >
           <div
@@ -2014,7 +2178,7 @@ export default function WaterWatchMap({
               </div>
             )}
           </div>
-        </div>
+        </div>, document.body
       )}
 
       {/* 1. Floating Map Controls & Boundaries Filter (ชิดขวาบน ใต้แถบบาร์) */}
@@ -2022,6 +2186,18 @@ export default function WaterWatchMap({
         <div className="absolute top-2 right-2 sm:top-3 sm:right-4 z-20 pointer-events-auto flex flex-col items-end gap-2 select-none max-w-[calc(100vw-24px)]">
           {/* แถวที่ 1: สลับแผนที่สถานที่ / ดาวเทียม & แสดง/ซ่อนตัวอักษร */}
           <div className="flex items-center gap-1.5 flex-wrap justify-end">
+            {/* ปุ่มผู้ดูแลระบบ (Admin Login) */}
+            <button
+              type="button"
+              onClick={() => {
+                if (typeof window !== 'undefined') window.location.hash = '#admin';
+              }}
+              className="p-1.5 sm:p-2 rounded-xl backdrop-blur-md shadow-lg border bg-white/95 text-slate-700 hover:text-[#A6192E] border-slate-200 hover:bg-slate-50 transition-all cursor-pointer"
+              title="เข้าสู่ระบบผู้ดูแลระบบ (Admin Login)"
+            >
+              <User className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#A6192E]" />
+            </button>
+
             <div className="p-1 sm:p-1.5 rounded-2xl bg-white/95 backdrop-blur-md shadow-xl border border-[#B4975A]/40 flex items-center gap-1">
               <button
                 type="button"
@@ -2053,19 +2229,21 @@ export default function WaterWatchMap({
               </button>
             </div>
 
-            <button
-              type="button"
-              onClick={() => setShowLabels(prev => !prev)}
-              className={`px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-xl backdrop-blur-md shadow-lg border text-[11px] sm:text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
-                showLabels
-                  ? 'bg-amber-50/95 text-amber-950 border-amber-300 ring-1 ring-amber-400/40'
-                  : 'bg-white/90 text-slate-500 border-slate-200 hover:bg-slate-50'
-              }`}
-              title="เปิด/ปิด การแสดงตัวอักษรและชื่อสถานที่บนแผนที่"
-            >
-              <Layers className={`w-3.5 h-3.5 ${showLabels ? 'text-amber-600' : 'text-slate-400'}`} />
-              <span className="hidden sm:inline">{showLabels ? 'แสดงตัวอักษร' : 'ซ่อนตัวอักษร'}</span>
-            </button>
+            {mapType !== 'street' && (
+              <button
+                type="button"
+                onClick={() => setShowLabels(prev => !prev)}
+                className={`px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-xl backdrop-blur-md shadow-lg border text-[11px] sm:text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+                  showLabels
+                    ? 'bg-amber-50/95 text-amber-950 border-amber-300 ring-1 ring-amber-400/40'
+                    : 'bg-white/90 text-slate-500 border-slate-200 hover:bg-slate-50'
+                }`}
+                title="เปิด/ปิด การแสดงตัวอักษรและชื่อสถานที่บนแผนที่"
+              >
+                <Layers className={`w-3.5 h-3.5 ${showLabels ? 'text-amber-600' : 'text-slate-400'}`} />
+                <span className="hidden sm:inline">{showLabels ? 'แสดงตัวอักษร' : 'ซ่อนตัวอักษร'}</span>
+              </button>
+            )}
           </div>
 
           {/* แถวที่ 2: ตัวกรองขอบเขตการปกครองและพื้นที่ (Administrative Boundaries Filter) */}
@@ -2132,7 +2310,7 @@ export default function WaterWatchMap({
                     <Layers className={`w-4 h-4 ${showBoundaryLabels ? 'text-sky-600' : 'text-slate-400'}`} />
                     <span>
                       <span className="block text-xs font-bold">ชื่อพื้นที่</span>
-                      <span className="block text-[10px] text-slate-400">แสดงชื่อประเทศ จังหวัด และอำเภอ</span>
+                      <span className="block text-[10px] text-slate-400">แสดงชื่อประเทศ จังหวัด และพื้นที่</span>
                     </span>
                   </span>
                   <span className={`w-4 h-4 rounded-md border flex items-center justify-center shrink-0 transition-colors ${

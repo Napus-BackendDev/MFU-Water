@@ -1,0 +1,19 @@
+{
+  "source": "OpenStreetMap contributors via WaterwayMap",
+  "sourceUrl": "https://waterwaymap.org/river/%E0%B9%81%E0%B8%A1%E0%B9%88%E0%B8%99%E0%B9%89%E0%B8%B3%E0%B8%81%E0%B8%81%20000312531234/geometry.geojson",
+  "sourcePage": "https://waterwaymap.org/river/%E0%B9%81%E0%B8%A1%E0%B9%88%E0%B8%99%E0%B9%89%E0%B8%B3%E0%B8%81%E0%B8%81%20000312531234/",
+  "license": "ODbL-1.0",
+  "licenseUrl": "https://www.openstreetmap.org/copyright",
+  "osmDataTimestamp": "2026-04-22T18:05:07Z",
+  "retrievedAt": "2026-09-28T17:55:57.378Z",
+  "rawSha256": "b57ff28a5f4af90d3bea20550fab09bf49a61d10f896f6dde0639bac61dc9d09",
+  "mainStemIndex": 0,
+  "partVertexCounts": [
+    3363,
+    8,
+    6,
+    5,
+    5
+  ],
+  "note": "Coordinates preserved as supplied. Mapped channels, not measured water width, depth or flow speed."
+}

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { publicPseudonym } from '../../lib/publicPseudonym.js';
 import {
   X,
   MapPin,
@@ -220,10 +221,7 @@ export default function StationDetailModal({
                         </div>
                         <div className="flex items-center gap-2 text-xs sm:text-sm text-slate-700 mt-1 font-bold">
                           <User className="w-4 h-4 text-[#A6192E] shrink-0" />
-                          <span>{item.collector?.name || 'ไม่ระบุชื่อผู้เก็บ'}</span>
-                          {item.collector?.organization && (
-                            <span className="text-xs text-slate-400 font-normal">({item.collector.organization})</span>
-                          )}
+                          <span>ชื่อสมมติ: {publicPseudonym(item.sample_code)}</span>
                         </div>
                       </div>
 

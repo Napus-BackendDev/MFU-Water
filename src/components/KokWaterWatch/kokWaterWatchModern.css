@@ -238,6 +238,109 @@
   text-decoration: underline;
 }
 
+.map-area-sidebar {
+  position: absolute;
+  z-index: 22;
+  top: 326px;
+  left: 20px;
+  display: flex;
+  width: min(340px, calc(100vw - 40px));
+  max-height: calc(100% - 350px);
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid rgba(226, 234, 230, .95);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, .97);
+  box-shadow: 0 6px 24px rgba(32, 61, 50, .17);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  color: #27453d;
+  font-size: 12px;
+}
+
+.map-area-sidebar header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px 9px;
+  border-bottom: 1px solid #edf1ef;
+}
+
+.map-area-sidebar header > div,
+.map-area-breadcrumbs,
+.map-area-options button,
+.map-area-back,
+.map-area-section-title {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.map-area-sidebar header > div { color: #176756; }
+.map-area-sidebar header > span { color: #82928c; font-size: 10px; }
+
+.map-area-breadcrumbs {
+  flex-wrap: wrap;
+  gap: 3px;
+  padding: 8px 12px;
+  color: #9aa8a2;
+  border-bottom: 1px solid #edf1ef;
+}
+
+.map-area-breadcrumbs button {
+  max-width: 125px;
+  overflow: hidden;
+  color: #397365;
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.map-area-breadcrumbs button[aria-current="location"] { color: #253b36; font-weight: 700; }
+.map-area-options { overflow-y: auto; padding: 8px 10px; }
+.map-area-section-title { margin: 0 2px 5px; color: #7a8a84; font-size: 10px; font-weight: 700; }
+
+.map-area-options > button {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 8px;
+  border-radius: 8px;
+  color: #324c44;
+  text-align: left;
+}
+
+.map-area-options > button:hover,
+.map-area-quickviews > button:hover { background: #eef7f3; }
+.map-area-options > button span { flex: 1; }
+.map-area-options > button .map-area-count,
+.map-area-count {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: #e0f2fe;
+  color: #075985;
+  font-size: 11px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.map-area-options > button svg:first-child { color: #5e9280; }
+.map-area-options > button svg:last-child { color: #a0ada8; }
+.map-area-back { margin: 0 12px 8px; color: #28705d; font-size: 10px; }
+.map-area-empty,.map-area-error { margin: 8px 12px; color: #7b8984; font-size: 10px; line-height: 1.5; }
+.map-area-error { color: #a53a3a; }
+.map-area-error button { margin-left: 5px; text-decoration: underline; }
+.map-area-quickviews { display: grid; gap: 3px; padding: 8px 10px 10px; border-top: 1px solid #edf1ef; }
+.map-area-quickviews .map-area-section-title { margin-bottom: 2px; }
+.map-area-quickviews > button { display: grid; grid-template-columns: 1fr; padding: 6px 8px; border-radius: 8px; color: #315a4d; text-align: left; }
+.map-area-quickviews > button small { margin-top: 1px; color: #8b9892; font-size: 9px; }
+
 /* 3. Time Range Capsule (ล่างกลาง ดีไซน์โมเดิร์น กระจกใสพรีเมียม) */
 .time-range-capsule {
   position: absolute;
@@ -440,6 +543,22 @@
   background: #f0f8f4;
   transform: translateY(-1px);
   box-shadow: 0 4px 18px rgba(32, 61, 50, 0.16);
+}
+
+.round-control.is-active {
+  color: #a6192e;
+  border-color: #b4975a;
+  background: #fff8f8;
+  box-shadow: 0 0 0 2px rgba(180, 151, 90, 0.35), 0 4px 18px rgba(166, 25, 46, 0.2);
+}
+
+.user-admin-btn {
+  color: #a6192e;
+}
+
+.user-admin-btn:hover {
+  color: #8c1022;
+  background: #fff1f2;
 }
 
 .round-control:active,
@@ -1208,6 +1327,17 @@
   .water-criteria-card {
     display: none !important;
   }
+
+  .map-area-sidebar {
+    top: auto;
+    bottom: 82px;
+    left: 10px;
+    width: min(300px, calc(100vw - 20px));
+    max-height: min(44vh, 370px);
+    font-size: 11px;
+  }
+
+  .map-area-options > button { padding: 6px 7px; }
 
   /* เอา Time Range ไว้ข้างล่างตัวของปุ่ม (ชิดล่างสุด) */
   /* Time Range Capsule บนหน้าจอมือถือ */

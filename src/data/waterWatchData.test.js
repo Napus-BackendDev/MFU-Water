@@ -30,3 +30,20 @@ test('map risk thresholds match the displayed <5, 5-10, >10 ppb legend', () => {
     assert.equal(normalizeSubmission(sample).measurements.arsenic.status, status);
   }
 });
+
+test('hotspot marker stays on the newest real sample coordinate, not a synthetic centroid', () => {
+  const older = { record_id: 'older', coordinates: [99.8, 19.9], collection_time: '2026-09-23T08:00:00+07:00' };
+  const latest = { record_id: 'latest', coordinates: [99.801, 19.901], collection_time: '2026-09-24T08:00:00+07:00' };
+  const hotspot = clusterSubmissions([older, latest], 250).clusters[0];
+  assert.deepEqual(hotspot.coordinates, latest.coordinates);
+});
+
+test('hotspot clustering never merges samples assigned to different provinces', () => {
+  const samples = [
+    { record_id: 'chiang-rai', provinceIso: 'TH-57', coordinates: [99.8, 19.9] },
+    { record_id: 'chiang-mai', provinceIso: 'TH-50', coordinates: [99.801, 19.901] }
+  ];
+  const result = clusterSubmissions(samples, 250, sample => sample.provinceIso);
+  assert.equal(result.clusters.length, 0);
+  assert.equal(result.singlePoints.length, 2);
+});

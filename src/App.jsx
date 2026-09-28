@@ -12,28 +12,29 @@ import {
   ChevronUp,
   ChevronDown
 } from 'lucide-react';
-import MapView2D from './components/MapView2D';
-import SatelliteComparisonController from './components/SatelliteComparisonController';
-import SentinelAnalysisHUD from './components/SentinelAnalysisHUD';
-import FloodAnalysisModal from './components/FloodAnalysisModal';
-import ImageZoomLightbox from './components/ImageZoomLightbox';
 import ErrorBoundary from './components/ErrorBoundary';
 import { THATON_COMMUNITIES, THATON_CENTER } from './data/thatonFloodData';
 import { getTimelineDayByIndex } from './data/timelineFloodData';
-import MapControlSidebar from './components/MapControlSidebar';
-import GeeWaterAnalysisView from './components/GeeWaterAnalysisView';
+const MapView2D = lazy(() => import('./components/MapView2D'));
+const SatelliteComparisonController = lazy(() => import('./components/SatelliteComparisonController'));
+const SentinelAnalysisHUD = lazy(() => import('./components/SentinelAnalysisHUD'));
+const FloodAnalysisModal = lazy(() => import('./components/FloodAnalysisModal'));
+const ImageZoomLightbox = lazy(() => import('./components/ImageZoomLightbox'));
+const MapControlSidebar = lazy(() => import('./components/MapControlSidebar'));
+const GeeWaterAnalysisView = lazy(() => import('./components/GeeWaterAnalysisView'));
 
 // Code splitting: Dynamic lazy load for secondary views to maximize initial page performance
 const SentinelCompareView = lazy(() => import('./components/SentinelCompareView'));
 const KokWaterWatchView = lazy(() => import('./components/KokWaterWatch/KokWaterWatchView'));
 const GoogleMaps3DView = lazy(() => import('./components/GoogleMaps3DView'));
+const AdminPortalView = lazy(() => import('./components/Admin/AdminPortalView'));
 
 export default function App() {
   const [activePage, setActivePage] = useState(() => {
     if (typeof window !== 'undefined') {
       if (window.location.hash === '#sentinel-compare') return 'sentinel-compare';
-      if (window.location.hash === '#flood-sim') return 'flood-sim';
       if (window.location.hash === '#google-3d') return 'google-3d';
+      if (window.location.hash === '#admin' || window.location.hash === '#login') return 'admin';
       if (window.location.hash === '#water-watch') return 'water-watch';
     }
     // ค่าเริ่มต้นเป็น KOK Water Watch ตามที่ผู้ใช้ระบุ
@@ -62,10 +63,10 @@ export default function App() {
     const handleHash = () => {
       if (window.location.hash === '#sentinel-compare') {
         setActivePage('sentinel-compare');
-      } else if (window.location.hash === '#flood-sim') {
-        setActivePage('flood-sim');
       } else if (window.location.hash === '#google-3d') {
         setActivePage('google-3d');
+      } else if (window.location.hash === '#admin' || window.location.hash === '#login') {
+        setActivePage('admin');
       } else {
         // เมื่อไม่มี hash หรือเป็น #water-watch ให้หน้าเริ่มต้นเป็น KOK Water Watch
         setActivePage('water-watch');
@@ -103,13 +104,21 @@ export default function App() {
     }
   };
 
-  if (activePage === 'flood-sim' || activePage === 'sentinel-compare') {
+  if (activePage === 'sentinel-compare') {
     return (
       <ErrorBoundary>
-        <GeeWaterAnalysisView onOpenWaterWatch={() => {
-          setActivePage('water-watch');
-          window.location.hash = '#water-watch';
-        }} />
+        <Suspense fallback={<div role="status">กำลังโหลดเครื่องมือวิเคราะห์…</div>}>
+        <GeeWaterAnalysisView
+          onOpenWaterWatch={() => {
+            setActivePage('water-watch');
+            window.location.hash = '#water-watch';
+          }}
+          onOpenAdmin={() => {
+            setActivePage('admin');
+            window.location.hash = '#admin';
+          }}
+        />
+        </Suspense>
       </ErrorBoundary>
     );
   }
@@ -128,16 +137,16 @@ export default function App() {
         }>
           <SentinelCompareView
             onSwitchTo3DSim={() => {
-              setActivePage('flood-sim');
-              window.location.hash = '#3d';
+              setActivePage('water-watch');
+              window.location.hash = '#water-watch';
             }}
             onOpenWaterWatch={() => {
               setActivePage('water-watch');
               window.location.hash = '#water-watch';
             }}
             onFlyToLocation={(coords, zoom = 15.5) => {
-              setActivePage('flood-sim');
-              window.location.hash = '#3d';
+              setActivePage('water-watch');
+              window.location.hash = '#water-watch';
               setTimeout(() => {
                 if (window.map) {
                   window.map.flyTo({
@@ -157,6 +166,29 @@ export default function App() {
     );
   }
 
+  // 2. หน้าต่างระบบจัดการหลังบ้านผู้ดูแลระบบ (Admin Portal)
+  if (activePage === 'admin') {
+    return (
+      <ErrorBoundary>
+        <Suspense fallback={
+          <div className="w-screen h-screen flex items-center justify-center bg-slate-950 text-white font-['Prompt',sans-serif]">
+            <div className="flex flex-col items-center gap-3">
+              <div className="w-9 h-9 border-4 border-[#A6192E] border-t-transparent rounded-full animate-spin"></div>
+              <p className="text-sm font-semibold text-slate-300">กำลังโหลดระบบหลังบ้าน...</p>
+            </div>
+          </div>
+        }>
+          <AdminPortalView
+            onBackToMap={() => {
+              setActivePage('water-watch');
+              window.location.hash = '#water-watch';
+            }}
+          />
+        </Suspense>
+      </ErrorBoundary>
+    );
+  }
+
   if (activePage === 'water-watch') {
     return (
       <ErrorBoundary>
@@ -169,9 +201,9 @@ export default function App() {
           </div>
         }>
           <KokWaterWatchView
-            onBackToFloodSim={() => {
-              setActivePage('flood-sim');
-              window.location.hash = '#flood-sim';
+            onOpenAdmin={() => {
+              setActivePage('admin');
+              window.location.hash = '#admin';
             }}
           />
         </Suspense>
@@ -192,8 +224,8 @@ export default function App() {
         }>
           <GoogleMaps3DView
             onBack={() => {
-              setActivePage('flood-sim');
-              window.location.hash = '#flood-sim';
+              setActivePage('water-watch');
+              window.location.hash = '#water-watch';
             }}
             floodStage={floodStage}
           />
@@ -204,6 +236,7 @@ export default function App() {
 
   return (
     <ErrorBoundary>
+      <Suspense fallback={<div role="status">กำลังโหลดแผนที่…</div>}>
       <div className="relative w-screen h-screen overflow-hidden bg-white font-['Prompt',sans-serif] text-slate-800">
         {/* 3D Map Viewport (ภาพถ่ายดาวเทียม 3D คมชัด 100% ไร้สิ่งรบกวน) */}
         <div className="absolute inset-0 z-0">
@@ -532,6 +565,7 @@ export default function App() {
         onClose={() => setLightboxImage(null)}
       />
     </div>
+      </Suspense>
     </ErrorBoundary>
   );
 }

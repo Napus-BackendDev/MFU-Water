@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import { publicPseudonym } from '../../lib/publicPseudonym.js';
+import PublicEvidencePhotos from './PublicEvidencePhotos.jsx';
 import {
   X,
   MapPin,
@@ -65,22 +67,6 @@ export default function WaterWatchSampleDetail({ sample, onClose, onDelete }) {
   };
 
   const { date, time } = formatDateTime(sample.collection_time);
-
-  // รูปถ่าย (ถ้าไม่มี ให้ fallback รูปตัวอย่าง)
-  const images = Array.isArray(sample.images) && sample.images.length > 0
-    ? sample.images
-    : [
-        {
-          id: 'mock-strip',
-          title: `ภาพที่ 1: แถบเทียบสี ${levelCfg.label}`,
-          url: 'https://images.unsplash.com/photo-1579154204601-01588f351e67?w=800&auto=format&fit=crop&q=80'
-        },
-        {
-          id: 'mock-river',
-          title: 'ภาพที่ 2: บริเวณริมแม่น้ำกก',
-          url: 'https://images.unsplash.com/photo-1544644181-1484b3fdfc62?w=800&auto=format&fit=crop&q=80'
-        }
-      ];
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center p-3 sm:p-4 pt-6 sm:pt-10 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200 overflow-y-auto">
@@ -285,44 +271,15 @@ export default function WaterWatchSampleDetail({ sample, onClose, onDelete }) {
             </div>
           </div>
 
-          {/* Card B: ข้อมูลผู้ตรวจวัดและการติดต่อ (Inspector Info) */}
+          {/* Public identity is intentionally not exposed. */}
           <div className="p-3.5 bg-[#F8F7F5] rounded-2xl border border-slate-200 text-xs space-y-2.5 shadow-2xs">
             <span className="font-bold text-slate-800 block text-xs flex items-center gap-1.5">
               <User className="w-3.5 h-3.5 text-[#A6192E]" />
-              <span>ข้อมูลผู้ส่งผลตรวจและการติดต่อ</span>
+              <span>ข้อมูลผู้ส่งผลตรวจ</span>
             </span>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-              <div className="bg-white p-2.5 rounded-xl border border-slate-200">
-                <span className="text-[10px] text-slate-400 block font-medium">ชื่อ-นามสกุล ผู้ตรวจ</span>
-                <strong className="text-slate-800 block text-xs mt-0.5">
-                  {sample.collector?.name || 'ผู้ตรวจวัดภาคสนาม'}
-                </strong>
-                <span className="text-[10px] text-slate-500 font-mono">
-                  รหัส: {sample.collector?.id || 'VOL-001'}
-                </span>
-              </div>
-
-              <div className="bg-white p-2.5 rounded-xl border border-slate-200">
-                <span className="text-[10px] text-slate-400 block font-medium">เบอร์โทรศัพท์ติดต่อ</span>
-                <div className="flex items-center gap-1.5 mt-0.5">
-                  <Phone className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                  {sample.collector?.phone && sample.collector?.phone !== '-' ? (
-                    <a 
-                      href={`tel:${sample.collector.phone.replace(/[^0-9]/g, '')}`} 
-                      className="text-xs font-mono font-bold text-emerald-700 hover:underline"
-                    >
-                      {sample.collector.phone}
-                    </a>
-                  ) : (
-                    <span className="text-xs font-mono text-slate-500">-</span>
-                  )}
-                </div>
-                <span className="text-[10px] text-slate-400 block mt-0.5">
-                  สังกัด: {sample.collector?.organization || 'ประชาชนทั่วไป'}
-                </span>
-              </div>
-            </div>
+            <p className="bg-white p-2.5 rounded-xl border border-slate-200 text-slate-600">
+              ชื่อสมมติ: {publicPseudonym(sample.sample_code)} · ระบบปกปิดข้อมูลผู้กรอกต่อสาธารณะ ไม่ได้หมายถึง Anonymous สมบูรณ์ รูปหลักฐานอาจมีข้อมูลระบุตัวบุคคล
+            </p>
 
             <div className="pt-1 flex items-center justify-between text-[10px] text-slate-500 border-t border-slate-200">
               <span className="flex items-center gap-1">
@@ -331,9 +288,7 @@ export default function WaterWatchSampleDetail({ sample, onClose, onDelete }) {
                   {sample.entry_type === 'realtime' ? '⚡ บันทึกสดหน้างาน (GPS Real-time)' : 'บันทึกย้อนหลัง'}
                 </strong>
               </span>
-              <span className="font-mono text-emerald-600 font-bold">
-                ✓ ซิงก์สมบูรณ์
-              </span>
+              <span className="font-mono text-emerald-600 font-bold">{sample.publication_status === 'approved' ? 'ตรวจยืนยันแล้ว' : 'เผยแพร่ตามเกณฑ์ระบบ'}</span>
             </div>
           </div>
 
@@ -383,37 +338,7 @@ export default function WaterWatchSampleDetail({ sample, onClose, onDelete }) {
             )}
           </div>
 
-          {/* Card D: รูปถ่ายหลักฐานยืนยันผลตรวจ (Inspection Photo Evidence - 2 รูป) */}
-          <div className="p-3.5 bg-white rounded-2xl border border-slate-200 text-xs space-y-2 shadow-2xs">
-            <span className="font-bold text-slate-800 block text-xs flex items-center gap-1.5">
-              <Camera className="w-3.5 h-3.5 text-[#A6192E]" />
-              <span>รูปถ่ายหลักฐานยืนยันผลตรวจ ({images.length} รูป)</span>
-            </span>
-
-            <div className="grid grid-cols-2 gap-2.5">
-              {images.map((img, i) => (
-                <div 
-                  key={img.id || i} 
-                  className="group relative rounded-2xl overflow-hidden border border-slate-200 shadow-xs bg-slate-100 cursor-pointer"
-                  onClick={() => setSelectedPhoto(img.url)}
-                >
-                  <img
-                    src={img.url}
-                    alt={img.title || `ภาพที่ ${i + 1}`}
-                    className="w-full h-36 object-cover group-hover:scale-105 transition-transform duration-200"
-                  />
-                  <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-bold gap-1">
-                    <span>แตะเพื่อขยาย</span>
-                  </div>
-                  <div className="p-2 bg-white/95 border-t border-slate-100">
-                    <span className="font-bold block truncate text-slate-800 text-[11px]">
-                      {img.title || `ภาพที่ ${i + 1}`}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
+          <PublicEvidencePhotos sample={sample} onOpen={setSelectedPhoto} />
 
           {/* Action: Delete Button */}
           {onDelete && (

@@ -19,12 +19,16 @@ test('CSV exports arsenic data without unused pH, turbidity, or temperature colu
     images: [{ url: 'https://example.test/image?a=1,b=2' }]
   }]);
 
-  assert.equal(WATER_WATCH_EXPORT_HEADERS.length, 12);
+  assert.equal(WATER_WATCH_EXPORT_HEADERS.length, 10);
   assert.equal(csv.charCodeAt(0), 0xFEFF);
   assert.equal(csv.split('\n').length, 2);
   assert.match(csv, /"จุดตรวจ, ""ริมแม่น้ำ"""/);
   assert.match(csv, /"20","0"/);
-  assert.match(csv, /"10","1","https:\/\/example\.test\/image\?a=1,b=2"/);
+  assert.match(csv, /"10","1"/);
+  assert.match(csv, /"[ก-๙]+-[0-9a-f]{6}"/);
+  assert.equal(csv.includes('ผู้เก็บ'), false);
+  assert.equal(csv.includes('มฟล.'), false);
+  assert.equal(csv.includes('https://example.test'), false);
   for (const unused of ['ค่า_pH', 'ความขุ่น_NTU', 'อุณหภูมิ_C', '"7.4"', '"1234"', '"37.5"']) {
     assert.equal(csv.includes(unused), false, unused);
   }
@@ -71,7 +75,7 @@ test('download action creates a UTF-8 CSV blob and requests the expected filenam
   const csv = await exportedBlob.text();
   assert.equal(csv.split('\n').length, 2);
   assert.match(csv, /"20\.0462","99\.8913"/);
-  assert.match(csv, /"30","0",""$/);
+  assert.match(csv, /"30","0"$/);
 });
 
 test('download filename uses local calendar date, not UTC date', () => {

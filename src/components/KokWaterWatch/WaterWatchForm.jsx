@@ -7,7 +7,7 @@ import {
   AlertCircle,
   Check
 } from 'lucide-react';
-import { uploadSampleImage, saveSampleToSupabase } from '../../lib/supabase';
+import { requestContactRemoval, saveSampleToSupabase } from '../../lib/supabase';
 import { ARSENIC_LEVELS, parseCoordinate } from '../../data/waterWatchData';
 
 export { ARSENIC_LEVELS };
@@ -16,26 +16,9 @@ export default function WaterWatchForm({
   onCancel,
   onSubmitSuccess
 }) {
-  // Local Storage pre-fill for collector information
-  const [collectorInfo] = useState(() => {
-    let saved = {
-      name: '',
-      phone: '',
-      org: 'ทีมอาสาสมัครลุ่มน้ำกก มฟล.',
-      id: `VOL-${Math.floor(1000 + Math.random() * 9000)}`
-    };
-    if (typeof window !== 'undefined') {
-      try {
-        const raw = localStorage.getItem('kok_saved_collector');
-        if (raw) saved = { ...saved, ...JSON.parse(raw) };
-      } catch (e) {}
-    }
-    return saved;
-  });
-
   // Form Fields State
-  const [fullName, setFullName] = useState(collectorInfo.name || '');
-  const [phone, setPhone] = useState(collectorInfo.phone || '');
+  const [fullName, setFullName] = useState('');
+  const [phone, setPhone] = useState('');
   const [selectedLevel, setSelectedLevel] = useState(null);
 
   // Location State
@@ -53,6 +36,10 @@ export default function WaterWatchForm({
   // Submit State
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [removalSampleCode, setRemovalSampleCode] = useState('');
+  const [removalReason, setRemovalReason] = useState('');
+  const [removalStatus, setRemovalStatus] = useState('');
+  const idempotencyKey = useRef('');
 
   // GPS Handler
   const handleGetLiveGPS = () => {
@@ -151,56 +138,11 @@ export default function WaterWatchForm({
     setIsSubmitting(true);
 
     try {
-      const sampleCode = `KOK-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${Math.floor(1000 + Math.random() * 9000)}`;
-      const recordId = 'rec-' + Date.now();
-
-      // บันทึกข้อมูลผู้เก็บตัวอย่างลง LocalStorage
-      try {
-        localStorage.setItem(
-          'kok_saved_collector',
-          JSON.stringify({
-            name: fullName.trim(),
-            phone: phone.trim(),
-            org: 'ประชาชนทั่วไป',
-            id: collectorInfo.id
-          })
-        );
-      } catch (e) {}
-
-      // Stage 1: Upload images (รองรับ Supabase Storage พร้อม fallback Base64 อัตโนมัติ)
       const photos = [photo1, photo2].filter(Boolean);
-      const uploadedImages = [];
-
-      for (let i = 0; i < photos.length; i++) {
-        const photo = photos[i];
-        const photoTitle = i === 0 ? 'แถบเทียบสีผลตรวจ' : 'สภาพแวดล้อม/จุดเก็บน้ำ';
-        if (photo.rawFile) {
-          const uploadRes = await uploadSampleImage(photo.rawFile, sampleCode, i);
-          uploadedImages.push({
-            id: uploadRes.id,
-            title: photoTitle,
-            url: uploadRes.url,
-            drive_file_id: uploadRes.path || `SP_${sampleCode}_${i + 1}`,
-            size_kb: uploadRes.size_kb,
-            storage_type: uploadRes.storage_type
-          });
-        } else if (photo.url) {
-          uploadedImages.push({
-            id: photo.id,
-            title: photoTitle,
-            url: photo.url,
-            drive_file_id: `LOCAL_${sampleCode}_${i + 1}`,
-            size_kb: photo.sizeKb || 0
-          });
-        }
-      }
-
-      // Stage 2: Coordinate & Location naming
+      if (!idempotencyKey.current) idempotencyKey.current = crypto.randomUUID();
       const locationLabel = `พิกัด [${parsedLat.toFixed(4)}, ${parsedLng.toFixed(4)}]`;
 
       const newRecord = {
-        record_id: recordId,
-        sample_code: sampleCode,
         schema_version: '2.0',
         station_id: 'COORDINATE-POINT',
         station_name: locationLabel,
@@ -210,16 +152,10 @@ export default function WaterWatchForm({
         collection_time: new Date().toISOString(),
         gps_accuracy_meters: gpsAccuracy || 5.0,
         entry_type: 'realtime',
-        collector: {
-          id: collectorInfo.id,
-          name: fullName.trim() || 'ผู้ตรวจวัดภาคสนาม',
-          phone: phone.trim() || '-',
-          organization: 'ประชาชนทั่วไป',
-          notes: ''
-        },
+        collector: { name: fullName.trim(), phone: phone.trim() },
         sample_nature: {
           water_source: `จุดตรวจวัดพิกัดริมแม่น้ำกก (${parsedLat.toFixed(4)}, ${parsedLng.toFixed(4)})`,
-          notes: `บันทึกผ่านแถบเทียบสีระดับ ${selectedLevel.level} (${selectedLevel.label} - ${selectedLevel.desc})`
+          water_appearance: ''
         },
         measurements: {
           arsenic: {
@@ -254,27 +190,35 @@ export default function WaterWatchForm({
             instrument: null
           }
         },
-        images: uploadedImages,
-        status: 'COMPLETED',
-        sync_stage: 'INDEXED'
+        images: []
       };
 
-      // บันทึกลง Supabase Database (ถ้ามีการตั้งค่า)
-      try {
-        await saveSampleToSupabase(newRecord);
-      } catch (spErr) {
-        console.warn('Supabase save warning (fallback to local):', spErr);
-      }
+      const result = await saveSampleToSupabase(newRecord, photos.map(photo => photo.rawFile).filter(Boolean), idempotencyKey.current);
+      idempotencyKey.current = '';
 
       setIsSubmitting(false);
 
       if (onSubmitSuccess) {
-        onSubmitSuccess(newRecord);
+        onSubmitSuccess({ ...newRecord, sample_code: result.data.sample_code, publication_status: result.data.status });
       }
+      setFullName('');
+      setPhone('');
     } catch (err) {
       console.error('Error submitting water watch form:', err);
       setIsSubmitting(false);
       setErrorMessage(err.message || 'เกิดข้อผิดพลาดในการบันทึกข้อมูล กรุณาลองใหม่อีกครั้ง');
+    }
+  };
+
+  const handleContactRemovalRequest = async () => {
+    setRemovalStatus('');
+    try {
+      await requestContactRemoval({ sampleCode: removalSampleCode.trim(), reason: removalReason.trim() });
+      setRemovalStatus('ส่งคำขอแล้ว แอดมินจะตรวจและลบเฉพาะข้อมูลติดต่อ โดยไม่ลบผลตรวจ');
+      setRemovalSampleCode('');
+      setRemovalReason('');
+    } catch (error) {
+      setRemovalStatus(error.message || 'ส่งคำขอไม่สำเร็จ กรุณาลองใหม่');
     }
   };
 
@@ -334,6 +278,18 @@ export default function WaterWatchForm({
               className="w-full text-xs sm:text-sm h-11 sm:h-12 px-3.5 rounded-xl border border-slate-300 focus:border-[#A6192E] focus:ring-2 focus:ring-[#A6192E]/20 bg-white text-slate-800 outline-none transition-all placeholder:text-slate-400 disabled:bg-slate-100 font-medium font-mono"
             />
           </div>
+        </div>
+        <div className="space-y-2 rounded-xl bg-blue-50 border border-blue-100 p-3 text-[11px] leading-relaxed text-slate-600">
+          <p>การกรอกชื่อและเบอร์เป็นทางเลือก ข้อมูลติดต่อแยกเก็บและไม่แสดงต่อสาธารณะ โดยเก็บไว้ไม่มีกำหนดในรุ่นนี้ รูปอาจมีใบหน้าหรือข้อมูลส่วนบุคคล โปรดตรวจภาพก่อนแนบ ระบบลบ metadata/EXIF และชื่อไฟล์ต้นฉบับ</p>
+          <details className="pt-1">
+            <summary className="cursor-pointer font-semibold text-slate-700">ขอลบข้อมูลติดต่อที่เคยส่ง</summary>
+            <div className="mt-2 grid gap-2">
+              <input value={removalSampleCode} onChange={event => setRemovalSampleCode(event.target.value)} maxLength={80} placeholder="รหัสตัวอย่าง" aria-label="รหัสตัวอย่างสำหรับคำขอลบข้อมูลติดต่อ" className="w-full rounded-lg border border-blue-200 bg-white px-3 py-2 text-xs" />
+              <textarea value={removalReason} onChange={event => setRemovalReason(event.target.value)} maxLength={500} placeholder="เหตุผล (อย่าใส่ชื่อ เบอร์ หรือข้อมูลส่วนตัว)" aria-label="เหตุผลขอลบข้อมูลติดต่อ" className="w-full rounded-lg border border-blue-200 bg-white px-3 py-2 text-xs" rows={2} />
+              <button type="button" onClick={handleContactRemovalRequest} disabled={!removalSampleCode.trim() || removalReason.trim().length < 3} className="justify-self-start rounded-lg bg-slate-700 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50">ส่งคำขอลบเฉพาะข้อมูลติดต่อ</button>
+              {removalStatus && <p role="status" className="text-xs">{removalStatus}</p>}
+            </div>
+          </details>
         </div>
 
         {/* 3. Arsenic Level (9 ระดับสี สวยงาม กดง่าย ไม่เบียด ไม่ซ้อนทับ) */}

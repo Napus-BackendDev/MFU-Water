@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback, lazy, Suspense } from 'react';
 import {
   Droplets,
   Database,
@@ -29,31 +29,30 @@ import {
   Mountain,
   Crosshair,
   Grid2X2,
-  ArrowRight,
-  MapPinCheck
+  MapPinCheck,
+  User
 } from 'lucide-react';
+import { checkPublicAdminSession } from '../../lib/publicSamples.js';
+import { publicPseudonym } from '../../lib/publicPseudonym.js';
+import { loadBoundary, loadAreaBoundaries } from './boundaryLoader.js';
+import { startPublishedPolling } from '../../lib/publishedPolling.js';
+import { getTimeReference, isWithinTimeRange } from './timeFilters.js';
 import WaterWatchMap from './WaterWatchMap';
-import WaterWatchForm from './WaterWatchForm';
-import WaterWatchSampleDetail from './WaterWatchSampleDetail';
-import StationDetailModal from './StationDetailModal';
+const WaterWatchForm = lazy(() => import('./WaterWatchForm'));
+const WaterWatchSampleDetail = lazy(() => import('./WaterWatchSampleDetail'));
+const StationDetailModal = lazy(() => import('./StationDetailModal'));
 import { downloadWaterWatchCSV } from './waterWatchExport';
 import { summarizeWaterWatch } from './waterWatchSummary';
-import WaterHealthChart from './WaterHealthChart';
+const WaterHealthChart = lazy(() => import('./WaterHealthChart'));
+import MapAreaSidebar from './MapAreaSidebar';
+import { countPublishedByArea, filterSampleLevel } from './areaSampleCounts.js';
+import { submittedSampleVisibility } from './submittedSampleVisibility.js';
+import { filterSubmissionsByArea, INITIAL_MAP_AREA, isSelectableCountry, provincesForRegion, regionForProvince } from './mapAreaNavigation.js';
 import './kokWaterWatchModern.css';
 import { 
-  getStoredSubmissions, 
-  saveNewSubmission, 
-  INITIAL_SUBMISSIONS,
-  resetStoredSubmissions,
-  normalizeSubmission
-} from '../../data/waterWatchData';
-import { 
   fetchSamplesFromSupabase, 
-  deleteSampleFromSupabase,
-  subscribeToNewSamples,
-  getSupabaseCredentials, 
-  isSupabaseConfigured 
-} from '../../lib/supabase';
+  downloadPublishedExport
+} from '../../lib/publicSamples.js';
 
 // ตัวเลือกช่วงเวลาสำหรับฟิลเตอร์ขนาดใหญ่
 const TIME_FILTER_OPTIONS = [
@@ -68,83 +67,10 @@ const TIME_FILTER_OPTIONS = [
 ];
 
 // ตรวจสอบว่า collection_time ของแต่ละรายการอยู่ในช่วงเวลาที่กำหนดหรือไม่
-function isWithinTimeRange(dateStr, filter, customStart, customEnd, allSubmissions = []) {
-  try {
-    if (!filter || filter === 'all') return true;
-    if (!dateStr) return false;
-    const targetDate = new Date(dateStr);
-    const targetTime = targetDate.getTime();
-    if (isNaN(targetTime)) return false;
 
-    // หา Reference Time: วันที่บันทึกล่าสุดในชุดข้อมูล หรือเวลาปัจจุบัน
-    let maxDataTime = Date.now();
-    if (Array.isArray(allSubmissions)) {
-      for (const s of allSubmissions) {
-        if (s && s.collection_time) {
-          const t = new Date(s.collection_time).getTime();
-          if (!isNaN(t) && t > maxDataTime) maxDataTime = t;
-        }
-      }
-    }
-    const refTime = maxDataTime;
-    const refDate = new Date(refTime);
-
-    const ONE_HOUR = 3600 * 1000;
-    const ONE_DAY = 24 * ONE_HOUR;
-
-    switch (filter) {
-      case 'today': {
-        const isSameDay = 
-          targetDate.getFullYear() === refDate.getFullYear() &&
-          targetDate.getMonth() === refDate.getMonth() &&
-          targetDate.getDate() === refDate.getDate();
-        return isSameDay || targetTime >= (refTime - ONE_DAY);
-      }
-      case '7days':
-        return targetTime >= (refTime - 7 * ONE_DAY);
-      case 'month': {
-        const isSameMonth = 
-          targetDate.getFullYear() === refDate.getFullYear() &&
-          targetDate.getMonth() === refDate.getMonth();
-        return isSameMonth || targetTime >= (refTime - 30 * ONE_DAY);
-      }
-      case '3months':
-        return targetTime >= (refTime - 90 * ONE_DAY);
-      case 'year': {
-        const refYear = refDate.getFullYear();
-        const targetYear = targetDate.getFullYear();
-        return targetYear === refYear;
-      }
-      case '1year':
-        return targetTime >= (refTime - 365 * ONE_DAY);
-      case 'custom': {
-        let startT = customStart ? new Date(customStart + 'T00:00:00').getTime() : null;
-        let endT = customEnd ? new Date(customEnd + 'T23:59:59.999').getTime() : null;
-        if (startT && isNaN(startT)) startT = null;
-        if (endT && isNaN(endT)) endT = null;
-
-        // หากผู้ใช้เลือกวันเริ่มต้นมากกว่าวันสิ้นสุด ให้สลับอัตโนมัติ ไม่ให้ผลลัพธ์เป็น 0 จุด
-        if (startT && endT && startT > endT) {
-          const temp = startT;
-          startT = endT;
-          endT = temp;
-        }
-
-        if (startT && targetTime < startT) return false;
-        if (endT && targetTime > endT) return false;
-        return true;
-      }
-      default:
-        return true;
-    }
-  } catch (err) {
-    console.warn('isWithinTimeRange error:', err);
-    return true;
-  }
-}
-
-export default function KokWaterWatchView({ onBackToFloodSim }) {
-  const [submissions, setSubmissions] = useState(getStoredSubmissions);
+export default function KokWaterWatchView({ onOpenAdmin }) {
+  const [sessionUser, setSessionUser] = useState(false);
+  const [submissions, setSubmissions] = useState([]);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [selectedSample, setSelectedSample] = useState(null);
   const [selectedHotspot, setSelectedHotspot] = useState(null);
@@ -180,13 +106,22 @@ export default function KokWaterWatchView({ onBackToFloodSim }) {
   const mapController = useRef(null);
   const settingsPanelRef = useRef(null);
   const settingsButtonRef = useRef(null);
+  const [serverReadOnly, setServerReadOnly] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    checkPublicAdminSession().then(session => {
+      if (active) { setSessionUser(Boolean(session?.user)); setServerReadOnly(session?.readOnly === true); }
+    });
+    return () => { active = false; };
+  }, []);
 
   // สถานะเปิด-ปิดของเลเยอร์ (iOS Toggle) ตามภาพที่ 1
   const [layerSettings, setLayerSettings] = useState(() => {
     try {
       const saved = localStorage.getItem('kok_layer_settings');
       if (saved) return {
-        country: true, province: true, locality: true, river: true, flowArrows: true,
+        country: true, province: true, locality: true, river: true,
         focusThailand: false, rain24h: false, researchReports: true,
         ...JSON.parse(saved)
       };
@@ -196,7 +131,6 @@ export default function KokWaterWatchView({ onBackToFloodSim }) {
       province: true,       // เขตจังหวัด
       locality: true,       // เขตอำเภอ
       river: true,          // เส้นแม่น้ำ
-      flowArrows: !window.matchMedia('(prefers-reduced-motion: reduce)').matches, // ลูกศรเคลื่อนที่
       focusThailand: false, // โฟกัสไทย
       rain24h: false,       // ฝนสะสม 24 ชม.
       researchReports: true // จุดตรวจวัดบนแผนที่ (คง key เดิมเพื่อไม่ให้ค่าเก่าหาย)
@@ -209,7 +143,54 @@ export default function KokWaterWatchView({ onBackToFloodSim }) {
     } catch {}
   }, [layerSettings]);
 
-  const [showBoundaryLabels, setShowBoundaryLabels] = useState(false);
+  const [showBoundaryLabels, setShowBoundaryLabels] = useState(true);
+  const [selectedArea, setSelectedArea] = useState(INITIAL_MAP_AREA);
+  const selectedAreaRef = useRef(selectedArea);
+  selectedAreaRef.current = selectedArea;
+  const [boundaryData, setBoundaryData] = useState(null);
+  const [boundaryLoading, setBoundaryLoading] = useState(true);
+  const [boundaryError, setBoundaryError] = useState(false);
+  const [boundaryRetry, setBoundaryRetry] = useState(0);
+  const [districtCache, setDistrictCache] = useState({});
+  const areaFeature = useMemo(() => {
+    if (selectedArea.level === 'country') return boundaryData?.countries?.features.find(f => f.properties.shapeISO === 'THA') || null;
+    if (selectedArea.level === 'region') return boundaryData?.regions?.features.find(f => f.properties.regionId === selectedArea.regionId) || null;
+    if (selectedArea.level === 'province') return boundaryData?.provinces?.features.find(f => f.properties.shapeISO === selectedArea.provinceIso) || null;
+    return boundaryData?.districts?.features.find(f => f.properties.provinceCode === selectedArea.provinceIso && f.properties.districtCode === selectedArea.districtCode) || null;
+  }, [boundaryData?.countries, boundaryData?.regions, boundaryData?.provinces, boundaryData?.districts, selectedArea]);
+
+  useEffect(() => {
+    let active = true;
+    setBoundaryLoading(true);
+    setBoundaryError(false);
+    loadAreaBoundaries(selectedArea)
+      .then(data => {
+        if (!active) return;
+        setBoundaryData(previous => ({ ...previous, ...data, countries: previous?.countries?.features.some(f => f.properties.shapeISO !== 'THA') ? previous.countries : data.countries }));
+        if (data.districts) setDistrictCache(previous => ({ ...previous, [selectedArea.provinceIso]: data.districts }));
+      }).catch(() => { if (active) setBoundaryError(true); })
+      .finally(() => { if (active) setBoundaryLoading(false); });
+    const idle = setTimeout(() => loadBoundary('countries').then(countries => {
+      if (active) setBoundaryData(previous => ({ ...previous, countries }));
+    }).catch(() => {}), 1500);
+    return () => { active = false; clearTimeout(idle); };
+  }, [boundaryRetry, selectedArea.level, selectedArea.regionId, selectedArea.provinceIso, selectedArea.districtCode]);
+
+  const selectArea = (selection, clickedFeature = null) => {
+    if (!selection || selection.level === 'world') return;
+    const next = { ...selection };
+    if (next.level === 'region' && !next.regionId) next.regionId = next.id;
+    if (next.iso && !next.countryIso && next.iso.length === 3) next.countryIso = next.iso;
+    if (next.iso?.startsWith('TH-')) next.provinceIso = next.iso;
+    if (next.level === 'country' && !isSelectableCountry(next.countryIso)) return;
+    if (next.provinceIso) next.regionId = regionForProvince(next.provinceIso);
+    if (next.level === 'district' && (!/^TH\d{4}$/.test(next.districtCode || '') || !next.districtCode.startsWith(next.provinceIso?.replace('TH-', 'TH')))) return;
+    if (next.provinceIso !== selectedArea.provinceIso) setBoundaryData(previous => ({ ...previous, districts: null }));
+    if (next.regionId !== selectedArea.regionId) setBoundaryData(previous => ({ ...previous, provinces: null, districts: null }));
+    setSelectedArea(next);
+    setSelectedSample(null);
+    setSelectedHotspot(null);
+  };
 
   // Close search, time filter dropdown, and settings panel on click outside
   useEffect(() => {
@@ -233,30 +214,44 @@ export default function KokWaterWatchView({ onBackToFloodSim }) {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Supabase Config State
-  const initialCreds = getSupabaseCredentials();
-  const [spUrl, setSpUrl] = useState(initialCreds.url);
-  const [spAnonKey, setSpAnonKey] = useState(initialCreds.anonKey);
-  const [spConnected, setSpConnected] = useState(isSupabaseConfigured());
   const [isSyncing, setIsSyncing] = useState(false);
+  const [samplesError, setSamplesError] = useState(false);
+  const [samplesLoaded, setSamplesLoaded] = useState(false);
 
-  // โหลดข้อมูลล่าสุดจาก Supabase เมื่อเริ่มต้น
+  const pollingRef = useRef(null);
+  const [referenceClock, setReferenceClock] = useState(Date.now);
   useEffect(() => {
-    async function loadRemoteSamples() {
-      if (isSupabaseConfigured()) {
-        setIsSyncing(true);
-        const data = await fetchSamplesFromSupabase();
-        if (data && Array.isArray(data)) {
-          const normalizedData = data.map(d => normalizeSubmission(d)).filter(Boolean);
-          const realCodes = new Set(normalizedData.map(d => d.sample_code));
-          const merged = [...normalizedData, ...INITIAL_SUBMISSIONS.filter(init => !realCodes.has(init.sample_code))];
-          setSubmissions(merged);
-        }
-        setIsSyncing(false);
-      }
-    }
-    loadRemoteSamples();
-  }, [spConnected]);
+    const poller = startPublishedPolling({
+      load: fetchSamplesFromSupabase,
+      onData: data => {
+        setSamplesLoaded(true);
+        setSamplesError(false);
+        setSubmissions(previous => JSON.stringify(previous) === JSON.stringify(data) ? previous : data);
+        setReferenceClock(Date.now());
+      },
+      onError: error => {
+        const message = error?.code === 'API_NOT_JSON' || /loopback|ไม่ได้ตั้งค่า Supabase|API ส่งข้อมูลไม่ถูกต้อง/.test(error?.message || '')
+          ? error.message : 'โหลดข้อมูลที่เผยแพร่ไม่สำเร็จ กรุณาลองใหม่';
+        setSamplesError(message);
+        setSamplesLoaded(false);
+        setSubmissions([]);
+        setActionFeedback(message);
+      },
+      onLoading: setIsSyncing
+    });
+    pollingRef.current = poller;
+    return () => { poller.stop(); pollingRef.current = null; };
+  }, []);
+
+  useEffect(() => {
+    setSelectedSample(previous => previous ? submissions.find(sample => sample.sample_code === previous.sample_code && sample.revision === previous.revision) || null : null);
+    setSelectedHotspot(null);
+  }, [submissions]);
+
+  const allAreaSubmissions = useMemo(() => !boundaryLoading && !boundaryError && areaFeature ? filterSubmissionsByArea(submissions, areaFeature) : [], [submissions, areaFeature, boundaryLoading, boundaryError]);
+  const referenceTime = useMemo(() => getTimeReference(submissions, referenceClock), [submissions, referenceClock]);
+  const selectSample = useCallback(sample => setSelectedSample(sample), []);
+  const selectHotspot = useCallback(hotspot => setSelectedHotspot(hotspot), []);
 
   // ฟังก์ชันสลับตัวกรองช่วงเวลา พร้อมล้างสถานะหมุดที่เลือกค้างไว้
   const handleSelectTimeFilter = (filterId) => {
@@ -266,103 +261,31 @@ export default function KokWaterWatchView({ onBackToFloodSim }) {
     setIsTimeFilterOpen(false);
   };
 
-  // รีเซ็ตข้อมูลตัวอย่างทั้งหมดกลับเป็นชุดเริ่มต้นล่าสุด
-  const handleResetAllData = () => {
-    if (window.confirm('คุณต้องการรีเซ็ตข้อมูลตัวอย่างคุณภาพน้ำกลับเป็นชุดเริ่มต้นล่าสุด 16 จุดหรือไม่?')) {
-      const fresh = resetStoredSubmissions();
-      setSubmissions(fresh);
-      setTimeFilter('all');
-      setCustomStartDate('');
-      setCustomEndDate('');
-      setSelectedSample(null);
-      setSelectedHotspot(null);
-      setIsTimeFilterOpen(false);
-    }
-  };
-
-  // Realtime Listener สำหรับดักจับข้อมูลใหม่ที่อาสาสมัครกรอกเข้ามาแบบสดๆ
-  useEffect(() => {
-    const unsubscribe = subscribeToNewSamples((payload) => {
-      if (payload.eventType === 'INSERT' && payload.new) {
-        const row = payload.new;
-        const newRecord = {
-          record_id: row.id || row.sample_code,
-          sample_code: row.sample_code,
-          schema_version: '1.0',
-          station_id: row.station_id || 'COORDINATE-POINT',
-          station_name: row.station_name,
-          coordinates: [row.longitude, row.latitude],
-          collection_time: row.collection_time,
-          gps_accuracy_meters: row.gps_accuracy_meters,
-          entry_type: row.entry_type,
-          collector: row.collector,
-          sample_nature: row.sample_nature,
-          measurements: row.measurements,
-          images: row.images || [],
-          status: row.status,
-          sync_stage: row.sync_stage
-        };
-        setSubmissions(prev => {
-          if (prev.some(s => s.sample_code === newRecord.sample_code)) return prev;
-          return [newRecord, ...prev];
-        });
-      } else if (payload.eventType === 'DELETE' && payload.old) {
-        setSubmissions(prev => prev.filter(s => s.record_id !== payload.old.id && s.sample_code !== payload.old.sample_code));
-      }
-    });
-
-    return () => unsubscribe();
-  }, [spConnected]);
-
-  const handleDeleteSample = async (sampleCode) => {
-    if (window.confirm(`คุณแน่ใจหรือไม่ว่าต้องการลบตัวอย่าง "${sampleCode}" ออกจากระบบ?`)) {
-      await deleteSampleFromSupabase(sampleCode);
-      setSubmissions(prev => prev.filter(s => s.sample_code !== sampleCode));
-      setSelectedSample(null);
-    }
-  };
-
-  const handleSaveSupabaseConfig = async () => {
-    localStorage.setItem('kok_supabase_url', spUrl.trim());
-    localStorage.setItem('kok_supabase_anon_key', spAnonKey.trim());
-    const configured = isSupabaseConfigured();
-    setSpConnected(configured);
-    if (configured) {
-      setIsSyncing(true);
-      const data = await fetchSamplesFromSupabase();
-      if (data && data.length > 0) {
-        setSubmissions(data);
-      }
-      setIsSyncing(false);
-      alert('เชื่อมต่อ Supabase สำเร็จ! โหลดข้อมูลล่าสุดเรียบร้อย');
-    } else {
-      alert('บันทึกการตั้งค่าแล้ว (ยังไม่ได้เปิดใช้ Supabase โหมดสมบูรณ์)');
-    }
-  };
-
-  const handleExportCSV = () => {
-    if (!timeFilteredSubmissions || !timeFilteredSubmissions.length) {
+  const handleExportCSV = async () => {
+    if (!areaFilteredSubmissions || !areaFilteredSubmissions.length) {
       alert('ยังไม่มีข้อมูลสำหรับส่งออกในช่วงเวลาที่เลือก');
       return;
     }
     try {
-      const filename = downloadWaterWatchCSV(timeFilteredSubmissions, timeFilter);
-      setActionFeedback(`เริ่มดาวน์โหลด ${filename} (${timeFilteredSubmissions.length} จุด)`);
+      const filename = timeFilter === 'all' && selectedArea.level === 'world'
+        ? await downloadPublishedExport()
+        : downloadWaterWatchCSV(areaFilteredSubmissions, timeFilter);
+      setActionFeedback(`เริ่มดาวน์โหลด ${filename} (${areaFilteredSubmissions.length} จุด)`);
     } catch (error) {
       console.error('CSV download failed:', error);
       setActionFeedback('เริ่มดาวน์โหลดไม่ได้ กรุณาลองอีกครั้ง');
     }
   };
 
-  const handleCreateNewSample = (newSample) => {
-    const updated = saveNewSubmission(newSample);
-    setSubmissions(updated);
+  const handleCreateNewSample = async (newSample) => {
     setIsFormOpen(false);
     setSelectedHotspot(null);
-    setSelectedSample(newSample);
-    if (newSample.coordinates) {
-      setFocusCoords(newSample.coordinates);
-    }
+    setSelectedSample(null);
+    const published = await pollingRef.current?.refresh();
+    const presentation = submittedSampleVisibility(newSample, published, selectedArea, areaFeature, boundaryData?.regions);
+    if (presentation.selection) selectArea(presentation.selection);
+    if (presentation.resetFilters) { setTimeFilter('all'); setFilterLevel('all'); }
+    setActionFeedback(presentation.message);
   };
 
   const totalSamples = Array.isArray(submissions) ? submissions.length : 0;
@@ -374,10 +297,10 @@ export default function KokWaterWatchView({ onBackToFloodSim }) {
       const list = Array.isArray(submissions) ? submissions : [];
       for (const opt of TIME_FILTER_OPTIONS) {
         if (opt.id === 'all') {
-          counts[opt.id] = list.length;
+          counts[opt.id] = allAreaSubmissions.length;
         } else {
-          counts[opt.id] = list.filter(s => 
-            s && isWithinTimeRange(s.collection_time, opt.id, customStartDate, customEndDate, list)
+          counts[opt.id] = allAreaSubmissions.filter(s =>
+            s && isWithinTimeRange(s.collection_time, opt.id, customStartDate, customEndDate, referenceTime)
           ).length;
         }
       }
@@ -386,21 +309,28 @@ export default function KokWaterWatchView({ onBackToFloodSim }) {
       console.warn('filterCounts error:', err);
       return {};
     }
-  }, [submissions, customStartDate, customEndDate]);
+  }, [allAreaSubmissions, referenceTime, customStartDate, customEndDate]);
 
   // จุดตรวจที่ผ่านการกรองช่วงเวลา (Time Filtered Submissions)
   const timeFilteredSubmissions = useMemo(() => {
     try {
-      const list = Array.isArray(submissions) ? submissions : [];
+      const list = allAreaSubmissions;
       if (!timeFilter || timeFilter === 'all') return list;
       return list.filter(sub => 
-        sub && isWithinTimeRange(sub.collection_time, timeFilter, customStartDate, customEndDate, list)
+        sub && isWithinTimeRange(sub.collection_time, timeFilter, customStartDate, customEndDate, referenceTime)
       );
     } catch (err) {
       console.warn('timeFilteredSubmissions error:', err);
-      return Array.isArray(submissions) ? submissions : [];
+      return [];
     }
-  }, [submissions, timeFilter, customStartDate, customEndDate]);
+  }, [allAreaSubmissions, referenceTime, timeFilter, customStartDate, customEndDate]);
+
+  const areaFilteredSubmissions = timeFilteredSubmissions;
+  const areaCounts = useMemo(() => {
+    if (samplesError || !boundaryData?.regions || boundaryLoading) return {};
+    const visible = filterSampleLevel((submissions || []).filter(s => !timeFilter || timeFilter === 'all' || isWithinTimeRange(s.collection_time, timeFilter, customStartDate, customEndDate, referenceTime)), filterLevel);
+    return countPublishedByArea(visible, boundaryData, districtCache);
+  }, [submissions, samplesError, boundaryData, boundaryLoading, districtCache, timeFilter, filterLevel, customStartDate, customEndDate, referenceTime]);
 
   // หาตัวเลือกฟิลเตอร์ปัจจุบัน
   const activeFilterOption = useMemo(() => {
@@ -429,46 +359,49 @@ export default function KokWaterWatchView({ onBackToFloodSim }) {
   // ค้นหาเฉพาะในชุดที่ผ่านการกรองช่วงเวลาแล้ว
   const filteredSubmissions = useMemo(() => {
     try {
-      const list = Array.isArray(timeFilteredSubmissions) ? timeFilteredSubmissions : [];
+      const list = Array.isArray(areaFilteredSubmissions) ? areaFilteredSubmissions : [];
       return list.filter(sub => {
         if (!sub) return false;
         if (!searchQuery.trim()) return true;
-        const q = searchQuery.toLowerCase();
-        const code = (sub.sample_code || '').toLowerCase();
-        const st = (sub.station_name || '').toLowerCase();
-        const collector = (sub.collector?.name || '').toLowerCase();
-        const waterSource = (sub.sample_nature?.water_source || '').toLowerCase();
+        const q = String(searchQuery).toLowerCase().trim();
+        const code = typeof sub.sample_code === 'object' && sub.sample_code !== null
+          ? String(sub.sample_code.code || sub.sample_code.id || '').toLowerCase()
+          : String(sub.sample_code ?? '').toLowerCase();
+        const st = typeof sub.station_name === 'object' && sub.station_name !== null
+          ? String(sub.station_name.name || sub.station_name.th || sub.station_name.label || '').toLowerCase()
+          : String(sub.station_name ?? '').toLowerCase();
+        const waterSource = String(sub.sample_nature?.water_source || '').toLowerCase();
         const asVal = sub.measurements?.arsenic?.value !== undefined ? String(sub.measurements?.arsenic?.value) : '';
-        return code.includes(q) || st.includes(q) || collector.includes(q) || waterSource.includes(q) || asVal.includes(q);
+        return code.includes(q) || st.includes(q) || waterSource.includes(q) || asVal.includes(q);
       });
     } catch (err) {
       console.warn('filteredSubmissions error:', err);
-      return Array.isArray(timeFilteredSubmissions) ? timeFilteredSubmissions : [];
+      return Array.isArray(areaFilteredSubmissions) ? areaFilteredSubmissions : [];
     }
-  }, [timeFilteredSubmissions, searchQuery]);
+  }, [areaFilteredSubmissions, searchQuery]);
 
   // กรองตามระดับความเสี่ยงเพิ่มเติมเมื่อเลือกในตั้งค่า
   const levelFilteredSubmissions = useMemo(() => {
-    if (filterLevel === 'all') return timeFilteredSubmissions;
-    return timeFilteredSubmissions.filter((s) => {
+    if (filterLevel === 'all') return areaFilteredSubmissions;
+    return areaFilteredSubmissions.filter((s) => {
       const val = Number(s?.measurements?.arsenic?.value ?? s?.arsenic_ppb ?? s?.arsenic_level_ppb ?? 0);
       if (filterLevel === 'critical') return val > 10;
       if (filterLevel === 'watch') return val >= 5 && val <= 10;
       if (filterLevel === 'normal') return val < 5;
       return true;
     });
-  }, [timeFilteredSubmissions, filterLevel]);
+  }, [areaFilteredSubmissions, filterLevel]);
 
   const summaryData = useMemo(
-    () => summarizeWaterWatch(timeFilteredSubmissions),
-    [timeFilteredSubmissions, summaryOpen]
+    () => summarizeWaterWatch(areaFilteredSubmissions),
+    [areaFilteredSubmissions]
   );
 
   // การ์ดมุมซ้ายแสดงข้อมูลที่เก็บใน 24 ชั่วโมงล่าสุดจากทุกช่วงเวลา
   const todayStatus = useMemo(() => {
-    const recent = summarizeWaterWatch(submissions).recent;
+    const recent = summarizeWaterWatch(allAreaSubmissions).recent;
     return { ...recent, hasTodayData: recent.total > 0 };
-  }, [submissions, summaryOpen]);
+  }, [allAreaSubmissions]);
 
   return (
     <div className="kok-modern-app">
@@ -478,9 +411,9 @@ export default function KokWaterWatchView({ onBackToFloodSim }) {
           <WaterWatchMap
             submissions={layerSettings.researchReports ? levelFilteredSubmissions : []}
             selectedSample={selectedSample}
-            onSelectSample={(s) => setSelectedSample(s)}
+            onSelectSample={selectSample}
             selectedHotspot={selectedHotspot}
-            onSelectHotspot={(hs) => setSelectedHotspot(hs)}
+            onSelectHotspot={selectHotspot}
             focusCoords={focusCoords}
             onPopupChange={(hs) => setIsMapPopupActive(!!hs)}
             controllerRef={mapController}
@@ -488,8 +421,12 @@ export default function KokWaterWatchView({ onBackToFloodSim }) {
             mapType={mapType}
             showLabels={showLabels}
             showBoundaryLabels={showBoundaryLabels}
+            selectedArea={selectedArea}
+            selectedAreaFeature={areaFeature}
+            provinceFeatures={boundaryData?.provinces?.features}
+            boundaryData={boundaryData}
+            onAreaSelect={selectArea}
             riverVisible={layerSettings.river}
-            riverFlowPlaying={layerSettings.flowArrows}
             boundaryVisibility={{
               country: layerSettings.country,
               province: layerSettings.province,
@@ -497,6 +434,23 @@ export default function KokWaterWatchView({ onBackToFloodSim }) {
             }}
           />
         </div>
+
+        <MapAreaSidebar
+          area={selectedArea}
+          onSelect={selectArea}
+          countries={boundaryData?.countries}
+          provinces={boundaryData?.provinces}
+          districts={boundaryData?.districts}
+          loading={boundaryLoading}
+          error={boundaryError}
+          samplesError={samplesError}
+          samplesLoading={!samplesLoaded && !samplesError}
+          onRetrySamples={() => pollingRef.current?.refresh()}
+          retryingSamples={isSyncing}
+          areaCounts={areaCounts}
+          onRetry={() => setBoundaryRetry(value => value + 1)}
+          resultCount={samplesLoaded && !samplesError ? levelFilteredSubmissions.length : null}
+        />
 
         {/* 1. สถานการณ์ลุ่มน้ำวันนี้ (บนซ้าย - สไตล์เดียวกับตัวอ้างอิง) */}
         <section className="basin-status-card" aria-labelledby="basin-status-title">
@@ -542,7 +496,7 @@ export default function KokWaterWatchView({ onBackToFloodSim }) {
             </>
           ) : (
             <p className="basin-status-unavailable" role="status">
-              ยังไม่มีผลตรวจใน 24 ชั่วโมงล่าสุด
+              {samplesError ? 'ยังโหลดผลตรวจไม่สำเร็จ' : !samplesLoaded ? 'กำลังโหลดผลตรวจ…' : 'ยังไม่มีผลตรวจใน 24 ชั่วโมงล่าสุด'}
             </p>
           )}
         </section>
@@ -601,7 +555,7 @@ export default function KokWaterWatchView({ onBackToFloodSim }) {
               <div className="time-range-main-row">
                 <span className="time-range-active-title">{activeFilterOption.label}</span>
                 <span className="time-range-points-badge">
-                  {filterCounts[timeFilter] !== undefined ? filterCounts[timeFilter] : filteredSubmissions.length} จุด
+                  {samplesError ? 'โหลดไม่สำเร็จ' : !samplesLoaded ? 'กำลังโหลด…' : `${filterCounts[timeFilter] !== undefined ? filterCounts[timeFilter] : filteredSubmissions.length} จุด`}
                 </span>
               </div>
             </div>
@@ -619,6 +573,21 @@ export default function KokWaterWatchView({ onBackToFloodSim }) {
         {/* 4. Map Floating Controls (บนขวา แนวตั้ง) */}
         <div className="map-controls" aria-label="เครื่องมือแผนที่">
           <div className="map-actions" aria-label="เมนูหลัก">
+            {/* ปุ่มเข้าสู่ระบบผู้ดูแลระบบ (User / Admin Login) บนขวา */}
+            <button
+              className={`round-control user-admin-btn ${sessionUser ? 'is-active' : ''}`}
+              type="button"
+              aria-label="เข้าสู่ระบบผู้ดูแลระบบ (Admin Login)"
+              disabled={serverReadOnly}
+              title={sessionUser ? "ผู้ดูแลระบบ (คลิกเพื่อเข้าระบบหลังบ้าน)" : "เข้าสู่ระบบผู้ดูแลระบบ (Admin Login)"}
+              onClick={() => {
+                if (onOpenAdmin) onOpenAdmin();
+                else window.location.hash = '#admin';
+              }}
+            >
+              <User size={20} className={sessionUser ? "text-[#A6192E]" : "text-slate-700"} />
+            </button>
+
             <button
               className="round-control"
               type="button"
@@ -741,7 +710,7 @@ export default function KokWaterWatchView({ onBackToFloodSim }) {
                 </li>
                 <li>
                   <strong>4. ดูเส้นทางน้ำและขอบเขต</strong>
-                  <p>กดตั้งค่าเพื่อสลับภาพดาวเทียม ถนน หรือภูมิประเทศ ดูแม่น้ำกกทั้งสาย เล่นหรือหยุดลูกศรทิศทางน้ำ และเน้นขอบเขตประเทศ จังหวัด หรืออำเภอ ลูกศรบอกทิศทางบนแผนที่ ไม่ใช่ความเร็วกระแสน้ำจริง</p>
+                  <p>กดตั้งค่าเพื่อสลับภาพดาวเทียม ถนน หรือภูมิประเทศ ดูแนวแม่น้ำกกสีฟ้าทั้งสาย และเน้นขอบเขตประเทศ จังหวัด หรือพื้นที่ย่อย</p>
                 </li>
                 <li>
                   <strong>5. ตรวจแนวโน้มสุขภาพน้ำ</strong>
@@ -781,7 +750,7 @@ export default function KokWaterWatchView({ onBackToFloodSim }) {
                 <div className="is-normal"><strong>{summaryData.overall.normal}</strong><span>ปกติ<br />ต่ำกว่า 5 ppb</span></div>
                 <div className="is-unknown"><strong>{summaryData.overall.unknown}</strong><span>ไม่มีค่าตรวจ<br />ยังจัดระดับไม่ได้</span></div>
               </div>
-              <WaterHealthChart summary={summaryData} />
+              <Suspense fallback={<div role="status">กำลังโหลดกราฟ…</div>}><WaterHealthChart summary={summaryData} /></Suspense>
               {summaryData.undated > 0 && <p className="water-summary-caveat">อีก {summaryData.undated} รายการไม่มีวันเวลาที่ใช้ได้ จึงรวมในยอดช่วงที่เลือกแต่ไม่อยู่ในกราฟ</p>}
               <div className="utility-detail-note">ผลสรุปเป็นจำนวนรายการ ไม่ใช่จำนวนสถานีที่ไม่ซ้ำ · 5 ppb เป็นระดับเตือนของระบบ ไม่ใช่เกณฑ์กฎหมาย · ค่าที่หายไม่ถูกนับเป็น “ปกติ”</div>
             </div>
@@ -872,7 +841,7 @@ export default function KokWaterWatchView({ onBackToFloodSim }) {
 
               {[
                 ['province', 'เขตจังหวัด'],
-                ['locality', 'เขตอำเภอ']
+                ['locality', 'เขตพื้นที่']
               ].map(([id, label]) => (
                 <div className="layer-toggle-row" key={id}>
                   <div className="layer-toggle-label">
@@ -901,7 +870,7 @@ export default function KokWaterWatchView({ onBackToFloodSim }) {
                 <button type="button" onClick={() => mapController.current?.fitRiverOverview?.()}>
                   <Waves size={15} /> ดูทั้งสาย
                 </button>
-                <small>ลูกศรบอกทิศทางบนแผนที่ ไม่ใช่ความเร็วกระแสน้ำจริง</small>
+                <small><a href="https://waterwaymap.org/river/%E0%B9%81%E0%B8%A1%E0%B9%88%E0%B8%99%E0%B9%89%E0%B8%B3%E0%B8%81%E0%B8%81%20000312531234/" target="_blank" rel="noopener noreferrer">แนวแม่น้ำ: OpenStreetMap / WaterwayMap</a> · ODbL · <a href="/kok-river-source.geojson" download>ดาวน์โหลดข้อมูลต้นฉบับ</a></small>
               </div>
 
               {/* 2. เส้นแม่น้ำ */}
@@ -918,26 +887,6 @@ export default function KokWaterWatchView({ onBackToFloodSim }) {
                   className={`ios-toggle ${layerSettings.river ? 'is-on' : 'is-off'}`}
                   onClick={() => {
                     setLayerSettings(prev => ({ ...prev, river: !prev.river }));
-                  }}
-                >
-                  <span className="ios-toggle-knob" />
-                </button>
-              </div>
-
-              <div className="layer-toggle-row">
-                <div className="layer-toggle-label">
-                  <ArrowRight className="layer-toggle-icon" />
-                  <span>ให้ลูกศรเคลื่อนที่</span>
-                </div>
-                <button
-                  type="button"
-                  role="switch"
-                  aria-label="เล่นหรือหยุดลูกศรทิศทางน้ำ"
-                  aria-checked={layerSettings.flowArrows}
-                  className={`ios-toggle ${layerSettings.flowArrows ? 'is-on' : 'is-off'}`}
-                  disabled={!layerSettings.river}
-                  onClick={() => {
-                    setLayerSettings(prev => ({ ...prev, flowArrows: !prev.flowArrows }));
                   }}
                 >
                   <span className="ios-toggle-knob" />
@@ -1016,28 +965,14 @@ export default function KokWaterWatchView({ onBackToFloodSim }) {
           </section>
         )}
 
-        {/* 6. Bottom Action Buttons (ล่างซ้าย App Switcher, ล่างขวา Survey FAB Button วงกลม) */}
-        {/* App Switcher Button (Blue Wave - ล่างซ้าย) */}
-        <div className="kok-bottom-left-action">
-          <button
-            type="button"
-            onClick={onBackToFloodSim}
-            className="app-switch-button"
-            title="สลับไปหน้าแบบจำลองน้ำท่วมแม่น้ำกก 3D"
-            aria-label="สลับไปหน้าแบบจำลองน้ำท่วม 3D"
-          >
-            <Waves size={20} className="text-white drop-shadow" />
-            <span className="kok-fab-tooltip kok-fab-tooltip-right">แบบจำลอง 3D</span>
-          </button>
-        </div>
-
         {/* Survey FAB Button (ทำแบบสำรวจ / แบบทดสอบ - วงกลม ล่างขวา) */}
         <div className="kok-bottom-right-action">
           <button
             className="survey-button"
             type="button"
             aria-label="ทำแบบสำรวจ"
-            title="ทำแบบสำรวจ / บันทึกผลตรวจวัดสารหนู"
+            disabled={serverReadOnly}
+            title={serverReadOnly ? 'โหมดอ่านอย่างเดียว ยังไม่เปิดรับผลตรวจ' : 'ทำแบบสำรวจ / บันทึกผลตรวจวัดสารหนู'}
             onClick={() => {
               setSelectedSample(null);
               setSelectedHotspot(null);
@@ -1048,6 +983,7 @@ export default function KokWaterWatchView({ onBackToFloodSim }) {
             <span className="kok-fab-tooltip kok-fab-tooltip-left">ทำแบบสำรวจ</span>
           </button>
         </div>
+        {serverReadOnly && <div role="status" className="fixed bottom-20 right-4 z-40 bg-white px-3 py-2 rounded-xl shadow text-sm">โหมดอ่านอย่างเดียว · แสดงเฉพาะผลตรวจที่เผยแพร่</div>}
 
         {/* Feedback Toast */}
         {actionFeedback && (
@@ -1254,7 +1190,7 @@ export default function KokWaterWatchView({ onBackToFloodSim }) {
                   <div className="flex items-center gap-1.5">
                     {timeFilter === 'custom' && (
                       <span className="text-[10px] text-emerald-800 font-bold bg-emerald-100 border border-emerald-300 px-2 py-0.5 rounded-full">
-                        ใช้งานอยู่ ({timeFilteredSubmissions.length} จุด)
+                        ใช้งานอยู่ ({areaFilteredSubmissions.length} จุด)
                       </span>
                     )}
                     {(customStartDate || customEndDate) && (
@@ -1309,7 +1245,7 @@ export default function KokWaterWatchView({ onBackToFloodSim }) {
             <div className="mt-3.5 pt-3 border-t border-slate-100 space-y-2 shrink-0 text-xs">
               <div className="flex items-center justify-between">
                 <span className="text-slate-500 font-medium">
-                  แสดงผล <strong className="text-emerald-700 text-sm font-bold">{timeFilteredSubmissions.length}</strong> จาก {totalSamples} จุด
+                  แสดงผล <strong className="text-emerald-700 text-sm font-bold">{areaFilteredSubmissions.length}</strong> จาก {totalSamples} จุด
                 </span>
                 {timeFilter !== 'all' && (
                   <button
@@ -1327,16 +1263,7 @@ export default function KokWaterWatchView({ onBackToFloodSim }) {
                 )}
               </div>
               <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-400">
-                <span>อัปเดตตอบสนองแผนที่แบบเรียลไทม์</span>
-                <button
-                  type="button"
-                  onClick={handleResetAllData}
-                  className="text-slate-400 hover:text-[#A6192E] font-medium transition-colors cursor-pointer flex items-center gap-1"
-                  title="รีเซ็ตข้อมูลตัวอย่างกลับเป็นชุดเริ่มต้นล่าสุด"
-                >
-                  <RotateCcw className="w-2.5 h-2.5" />
-                  <span>รีเซ็ตชุดข้อมูลตัวอย่าง</span>
-                </button>
+                <span>โหลดเฉพาะข้อมูลเผยแพร่ · รีเฟรชทุก 30 วินาที {isSyncing ? '· กำลังโหลด…' : ''}</span>
               </div>
             </div>
           </div>
@@ -1483,11 +1410,7 @@ export default function KokWaterWatchView({ onBackToFloodSim }) {
                       </span>
                     )}
                   </div>
-                  {sub.collector?.name && (
-                    <div className="mt-1 pt-1 border-t border-slate-100 text-[10px] text-slate-400 truncate">
-                      ผู้เก็บ: {sub.collector.name}
-                    </div>
-                  )}
+                  <div className="mt-1 pt-1 border-t border-slate-100 text-[10px] text-slate-400 truncate">ชื่อสมมติ: {publicPseudonym(sub.sample_code)}</div>
                 </div>
               );
             })
@@ -1514,11 +1437,12 @@ export default function KokWaterWatchView({ onBackToFloodSim }) {
         </div>
       </div>
 
+      <Suspense fallback={<div className="fixed bottom-4 left-4 z-50 bg-white p-3 rounded-xl" role="status">กำลังโหลดรายละเอียด…</div>}>
       {/* 6. Hotspot Detail Modal (เมื่อคลิกเลือกก้อน Hotspot หรือจุดตรวจเดี่ยวบนแผนที่) */}
       {selectedHotspot && !isFormOpen && (
         <StationDetailModal
           hotspot={selectedHotspot}
-          submissions={timeFilteredSubmissions}
+          submissions={areaFilteredSubmissions}
           onClose={() => setSelectedHotspot(null)}
           onSelectSample={(sample) => {
             setSelectedHotspot(null);
@@ -1532,7 +1456,6 @@ export default function KokWaterWatchView({ onBackToFloodSim }) {
         <WaterWatchSampleDetail
           sample={selectedSample}
           onClose={() => setSelectedSample(null)}
-          onDelete={handleDeleteSample}
         />
       )}
 
@@ -1546,6 +1469,7 @@ export default function KokWaterWatchView({ onBackToFloodSim }) {
         </div>
       )}
 
+      </Suspense>
       {/* 9. Settings Modal (Supabase & Data Pipeline Config) */}
       {isSettingsOpen && (
         <div className="absolute inset-0 z-40 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
@@ -1565,55 +1489,9 @@ export default function KokWaterWatchView({ onBackToFloodSim }) {
               </button>
             </div>
 
-            {/* Status indicator */}
-            <div className={`p-3 rounded-xl border text-xs flex items-center justify-between ${
-              spConnected 
-                ? 'bg-emerald-50 border-emerald-200 text-emerald-800' 
-                : 'bg-amber-50 border-amber-200 text-amber-800'
-            }`}>
-              <div className="flex items-center gap-2 font-bold">
-                <div className={`w-2.5 h-2.5 rounded-full animate-pulse ${spConnected ? 'bg-emerald-500' : 'bg-amber-500'}`}></div>
-                <span>{spConnected ? 'เชื่อมต่อ Supabase Cloud สำเร็จ' : 'โหมดแคช LocalStorage สำรอง'}</span>
-              </div>
-              {isSyncing && <span className="text-[10px] text-slate-500">กำลังซิงค์...</span>}
-            </div>
-
-            {/* Supabase Connection Form */}
-            <div className="space-y-3 bg-[#F8F7F5] p-3.5 rounded-xl border border-slate-200 text-xs">
-              <label className="block font-bold text-[#A6192E] uppercase tracking-wide">
-                ⚡ กำหนดค่าเชื่อมต่อ Supabase
-              </label>
-
-              <div>
-                <span className="block text-[11px] font-semibold text-slate-700 mb-1">Project URL</span>
-                <input
-                  type="text"
-                  placeholder="https://xxxxxxxx.supabase.co"
-                  value={spUrl}
-                  onChange={(e) => setSpUrl(e.target.value)}
-                  className="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 text-xs font-mono focus:outline-hidden focus:border-[#A6192E]"
-                />
-              </div>
-
-              <div>
-                <span className="block text-[11px] font-semibold text-slate-700 mb-1">Public Anon Key</span>
-                <input
-                  type="password"
-                  placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-                  value={spAnonKey}
-                  onChange={(e) => setSpAnonKey(e.target.value)}
-                  className="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 text-xs font-mono focus:outline-hidden focus:border-[#A6192E]"
-                />
-              </div>
-
-              <button
-                type="button"
-                onClick={handleSaveSupabaseConfig}
-                className="w-full py-2 bg-[#A6192E] hover:bg-[#851424] text-white font-bold text-xs rounded-lg transition-all shadow-xs flex items-center justify-center gap-1.5"
-              >
-                <Check className="w-3.5 h-3.5" />
-                <span>บันทึกและเชื่อมต่อ</span>
-              </button>
+            <div className="p-4 rounded-xl border border-emerald-200 bg-emerald-50 text-xs leading-relaxed text-emerald-900">
+              ฐานข้อมูลและ Storage เชื่อมผ่าน Express API เท่านั้น คีย์ privileged ไม่อยู่ใน browser และไม่สามารถตั้ง project URL/key จากหน้าสาธารณะได้
+              <button type="button" onClick={() => pollingRef.current?.refresh()} className="block mt-3 px-3 py-2 rounded-lg bg-emerald-800 text-white font-bold">{isSyncing ? 'กำลังโหลด…' : 'ทดสอบโหลดข้อมูลที่เผยแพร่'}</button>
             </div>
 
             {/* Excel Export & Quick Tools */}
@@ -1631,27 +1509,11 @@ export default function KokWaterWatchView({ onBackToFloodSim }) {
                 <span>ส่งออกข้อมูลทั้งหมดเป็น Excel (.csv)</span>
               </button>
 
-              <button
-                type="button"
-                onClick={() => {
-                  if (window.confirm('คุณต้องการรีเซ็ตข้อมูลทั้งหมดกลับเป็นชุดตัวอย่างใหม่ล่าสุด (Schema 2.0 สารหนู 9 ระดับ) หรือไม่?')) {
-                    const fresh = resetStoredSubmissions();
-                    setSubmissions(fresh);
-                    setSelectedSample(null);
-                    setSelectedHotspot(null);
-                    alert('รีเซ็ตข้อมูลตัวอย่างเป็นชุดใหม่เรียบร้อยแล้ว');
-                  }
-                }}
-                className="w-full py-2 px-3 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all shadow-xs"
-              >
-                <RotateCcw className="w-4 h-4 text-amber-700" />
-                <span>รีเซ็ตข้อมูลตัวอย่างเป็นชุดใหม่ (Schema 2.0)</span>
-              </button>
             </div>
 
             <div className="pt-2 text-[11px] text-slate-500 space-y-1">
               <p>• รูปภาพจัดเก็บลง Supabase Storage Bucket: <code>water-watch-photos</code></p>
-              <p>• ข้อมูลจัดเก็บลง Table: <code>kok_water_samples</code> (สคริปต์ SQL ดูได้ที่โฟลเดอร์ <code>supabase/schema.sql</code>)</p>
+              <p>• ผลคิวรออนุมัติและข้อมูลติดต่อไม่ถูกส่งมายังหน้า public</p>
             </div>
 
             <button

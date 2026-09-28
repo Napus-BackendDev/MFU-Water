@@ -1,0 +1,33 @@
+{
+  "source": "Thailand COD-AB, existing verified province asset",
+  "license": "CC BY-IGO",
+  "sourceSha256": "96aa7348547718a73a82f26bf00e491ba71009885e36d620569e0efd3ce370fa",
+  "transform": "dissolve regionId no-repair; province shards preserve exact features",
+  "files": {
+    "thailand-regions.geojson": {
+      "sha256": "c30eaa5a4daf573e719a6389cfc0ffa920d7aeba0860bfa94e38c5742fe3864b",
+      "bytes": 16760793,
+      "gzipBytes": 5388476
+    },
+    "regions/north-provinces.geojson": {
+      "sha256": "5151272b907389ed78a369e36c292a801cfc6ae2f3f50b44827de0047bce6f7b",
+      "bytes": 17922680,
+      "gzipBytes": 5701562
+    },
+    "regions/central-provinces.geojson": {
+      "sha256": "8513b3e4e9a728e593d191845873bb0e7e16ba6936178a307e6b80471faccc31",
+      "bytes": 17579965,
+      "gzipBytes": 5532318
+    },
+    "regions/northeast-provinces.geojson": {
+      "sha256": "bf474130b3fcf8861c74dbadb28ce584d4d9662ff33c53ece3b16f68ae91955d",
+      "bytes": 38808386,
+      "gzipBytes": 11759417
+    },
+    "regions/south-provinces.geojson": {
+      "sha256": "d65f7633a89ea62f6d58663e992b12f6fe6affb17581bbf69aeb0ae1bb8bfc42",
+      "bytes": 11035706,
+      "gzipBytes": 3617430
+    }
+  }
+}

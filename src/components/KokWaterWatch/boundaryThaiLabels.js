@@ -1,30 +1,47 @@
+// Display only: keep official source names, codes and geometry unchanged.
+export function districtDisplayName(name) {
+  return typeof name === 'string' ? name.replace(/^อ(?:ำ|ํา)เภอ\s*/, '') : '';
+}
+
 // Names correspond exactly to shapeName in the local geoBoundaries files; geometry is unchanged.
 export const BOUNDARY_THAI_NAMES = {
   country: {
-    Thailand: 'ประเทศไทย'
+    Thailand: 'ประเทศไทย',
+    Myanmar: 'ประเทศเมียนมา',
+    Laos: 'ประเทศลาว',
+    Cambodia: 'ประเทศกัมพูชา',
+    Malaysia: 'ประเทศมาเลเซีย',
+    Vietnam: 'ประเทศเวียดนาม'
   },
   province: {
-    'Chiang Rai Province': 'จังหวัดเชียงราย',
-    'Chiang Mai Province': 'จังหวัดเชียงใหม่'
+    'Chiang Rai': 'เชียงราย',
+    'Chiang Mai': 'เชียงใหม่',
+    'Chiang Rai Province': 'เชียงราย',
+    'Chiang Mai Province': 'เชียงใหม่'
   },
   locality: {
     'Chai Prakan': 'อำเภอไชยปราการ',
     'Chiang Dao': 'อำเภอเชียงดาว',
     'Chiang Saen': 'อำเภอเชียงแสน',
+    'Chiang Khong': 'อำเภอเชียงของ',
     Fang: 'อำเภอฝาง',
     'Mae Ai': 'อำเภอแม่อาย',
     'Mae Chan': 'อำเภอแม่จัน',
     'Mae Fa Luang': 'อำเภอแม่ฟ้าหลวง',
     'Mae Lao': 'อำเภอแม่ลาว',
+    'Doi Luang': 'อำเภอดอยหลวง',
+    'Khun Tan': 'อำเภอขุนตาล',
     'Mae Sai': 'อำเภอแม่สาย',
     'Mae Suai': 'อำเภอแม่สรวย',
     'Mueang Chiang Rai': 'อำเภอเมืองเชียงราย',
     'Pa Daet': 'อำเภอป่าแดด',
+    'Phaya Mengrai': 'อำเภอพญาเม็งราย',
     Phan: 'อำเภอพาน',
     Phrao: 'อำเภอพร้าว',
     Thoeng: 'อำเภอเทิง',
     'Wiang Chai': 'อำเภอเวียงชัย',
     'Wiang Chiang Rung': 'อำเภอเวียงเชียงรุ้ง',
+    'Wiang Kaen': 'อำเภอเวียงแก่น',
     'Wiang Pa Pao': 'อำเภอเวียงป่าเป้า'
   }
 };
@@ -34,6 +51,9 @@ export function thaiBoundaryName(level, sourceName) {
 }
 
 export function thaiBoundaryLabelExpression(level) {
+  if (level === 'province') {
+    return ['match', ['get', 'shapeISO'], ...Object.entries(THAI_PROVINCE_NAMES).flat(), ''];
+  }
   return [
     'match',
     ['get', 'shapeName'],
@@ -41,3 +61,22 @@ export function thaiBoundaryLabelExpression(level) {
     ''
   ];
 }
+
+export const THAI_PROVINCE_NAMES = {
+  'TH-10': 'กรุงเทพมหานคร', 'TH-11': 'สมุทรปราการ', 'TH-12': 'นนทบุรี', 'TH-13': 'ปทุมธานี',
+  'TH-14': 'พระนครศรีอยุธยา', 'TH-15': 'อ่างทอง', 'TH-16': 'ลพบุรี', 'TH-17': 'สิงห์บุรี',
+  'TH-18': 'ชัยนาท', 'TH-19': 'สระบุรี', 'TH-20': 'ชลบุรี', 'TH-21': 'ระยอง', 'TH-22': 'จันทบุรี',
+  'TH-23': 'ตราด', 'TH-24': 'ฉะเชิงเทรา', 'TH-25': 'ปราจีนบุรี', 'TH-26': 'นครนายก', 'TH-27': 'สระแก้ว',
+  'TH-30': 'นครราชสีมา', 'TH-31': 'บุรีรัมย์', 'TH-32': 'สุรินทร์', 'TH-33': 'ศรีสะเกษ', 'TH-34': 'อุบลราชธานี',
+  'TH-35': 'ยโสธร', 'TH-36': 'ชัยภูมิ', 'TH-37': 'อำนาจเจริญ', 'TH-38': 'บึงกาฬ', 'TH-39': 'หนองบัวลำภู',
+  'TH-40': 'ขอนแก่น', 'TH-41': 'อุดรธานี', 'TH-42': 'เลย', 'TH-43': 'หนองคาย', 'TH-44': 'มหาสารคาม',
+  'TH-45': 'ร้อยเอ็ด', 'TH-46': 'กาฬสินธุ์', 'TH-47': 'สกลนคร', 'TH-48': 'นครพนม', 'TH-49': 'มุกดาหาร',
+  'TH-50': 'เชียงใหม่', 'TH-51': 'ลำพูน', 'TH-52': 'ลำปาง', 'TH-53': 'อุตรดิตถ์', 'TH-54': 'แพร่',
+  'TH-55': 'น่าน', 'TH-56': 'พะเยา', 'TH-57': 'เชียงราย', 'TH-58': 'แม่ฮ่องสอน', 'TH-60': 'นครสวรรค์',
+  'TH-61': 'อุทัยธานี', 'TH-62': 'กำแพงเพชร', 'TH-63': 'ตาก', 'TH-64': 'สุโขทัย', 'TH-65': 'พิษณุโลก',
+  'TH-66': 'พิจิตร', 'TH-67': 'เพชรบูรณ์', 'TH-70': 'ราชบุรี', 'TH-71': 'กาญจนบุรี', 'TH-72': 'สุพรรณบุรี',
+  'TH-73': 'นครปฐม', 'TH-74': 'สมุทรสาคร', 'TH-75': 'สมุทรสงคราม', 'TH-76': 'เพชรบุรี', 'TH-77': 'ประจวบคีรีขันธ์',
+  'TH-80': 'นครศรีธรรมราช', 'TH-81': 'กระบี่', 'TH-82': 'พังงา', 'TH-83': 'ภูเก็ต', 'TH-84': 'สุราษฎร์ธานี',
+  'TH-85': 'ระนอง', 'TH-86': 'ชุมพร', 'TH-90': 'สงขลา', 'TH-91': 'สตูล', 'TH-92': 'ตรัง', 'TH-93': 'พัทลุง',
+  'TH-94': 'ปัตตานี', 'TH-95': 'ยะลา', 'TH-96': 'นราธิวาส'
+};

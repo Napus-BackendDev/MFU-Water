@@ -1,5 +1,6 @@
 import React from 'react';
 import { RotateCcw, AlertTriangle, RefreshCw } from 'lucide-react';
+import { recoveryUrl, recoverStaleChunk } from '../lib/pageRecovery.js';
 
 export default class ErrorBoundary extends React.Component {
   constructor(props) {
@@ -12,24 +13,16 @@ export default class ErrorBoundary extends React.Component {
   }
 
   componentDidCatch(error, errorInfo) {
+    if (recoverStaleChunk(error)) return;
     console.error('ErrorBoundary caught:', error, errorInfo);
   }
 
   handleReset = () => {
-    try {
-      localStorage.removeItem('kok_water_watch_submissions_v2');
-      localStorage.removeItem('kok_water_watch_submissions');
-      localStorage.removeItem('kok_water_watch_stations');
-      sessionStorage.clear();
-    } catch (e) {}
-    // บังคับ Hard Navigation เพื่อเคลียร์ GPU Context Blocked ใน Chromium
-    const targetUrl = window.location.origin + window.location.pathname + (window.location.hash || '#water-watch') + '?reset=' + Date.now();
-    window.location.replace(targetUrl);
+    window.location.replace(recoveryUrl(window.location.href));
   };
 
   handleReload = () => {
-    const targetUrl = window.location.origin + window.location.pathname + (window.location.hash || '#water-watch') + '?r=' + Date.now();
-    window.location.replace(targetUrl);
+    window.location.replace(recoveryUrl(window.location.href));
   };
 
   render() {
@@ -68,7 +61,7 @@ export default class ErrorBoundary extends React.Component {
                 className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer"
               >
                 <RotateCcw className="w-4 h-4" />
-                <span>ล้างแคชและเริ่มใหม่</span>
+                <span>โหลดเวอร์ชันล่าสุด</span>
               </button>
             </div>
           </div>

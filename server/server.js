@@ -6,13 +6,19 @@ import cors from 'cors';
 import ee from '@google/earthengine';
 import { analyzeGeeWater, parseGeeAnalysisQuery } from './geeWaterAnalysis.js';
 import { compareThaTonFrames, getThaTonFrame, listThaTonFrames, parseThaTonPeriod } from './geeThaTonTimeline.js';
+import { createWaterWatchApi } from './waterWatchApi.js';
+import { configureHttp, mountWeb, validateProductionConfig } from './productionHosting.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const keyPath = path.join(__dirname, 'service-account.json');
 
 const app = express();
-app.use(cors());
+const distPath = path.resolve(__dirname, '../dist');
+validateProductionConfig(process.env, distPath);
+configureHttp(app, { trustProxy: process.env.TRUST_PROXY || false });
+if (process.env.NODE_ENV !== 'production') app.use(cors());
 app.use(express.json());
+app.use('/api', createWaterWatchApi());
 
 let isGEEReady = false;
 let geeClientEmail = '';
@@ -326,12 +332,17 @@ app.get('/api/gee/flood-comparison', async (req, res) => {
 
 
 app.use('/api', (req, res) => res.status(404).json({ error: 'ไม่พบ API นี้ กรุณาเริ่มเซิร์ฟเวอร์รุ่นล่าสุด' }));
+mountWeb(app, distPath);
 
 export default app;
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const PORT = Number(process.env.PORT) || 5001;
-  app.listen(PORT, () => {
+  const server = app.listen(PORT, process.env.HOST || '127.0.0.1', () => {
     console.log(`🚀 GEE Backend Server running on http://localhost:${PORT}`);
+  });
+  for (const signal of ['SIGINT', 'SIGTERM']) process.once(signal, () => {
+    server.close(() => process.exit(0));
+    setTimeout(() => { server.closeAllConnections(); process.exit(1); }, 10_000).unref();
   });
 }
