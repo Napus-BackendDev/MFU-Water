@@ -1,4 +1,4 @@
-import { defineConfig } from 'vite';
+import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 
 const geeApiDevPlugin = () => ({
@@ -10,10 +10,24 @@ const geeApiDevPlugin = () => ({
       if (req.url?.startsWith('/api/')) api(req, res, next);
       else next();
     });
+  },
+  async configurePreviewServer(vite) {
+    const { createWaterWatchPreviewApp } = await import('./server/waterWatchPreview.js');
+    const api = createWaterWatchPreviewApp();
+    vite.middlewares.use((req, res, next) => {
+      if (['/', '/index.html'].includes(req.url?.split('?')[0])) res.setHeader('Cache-Control', 'no-store');
+      if (req.url?.startsWith('/api/')) api(req, res, next);
+      else next();
+    });
   }
 });
 
-export default defineConfig({
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, process.cwd(), '');
+  for (const key of ['SUPABASE_URL', 'SUPABASE_ANON_KEY', 'SUPABASE_SERVICE_ROLE_KEY', 'ADMIN_CSRF_SECRET', 'PUBLIC_APP_URL', 'SMTP_HOST', 'SMTP_PORT', 'SMTP_SECURE', 'SMTP_USER', 'SMTP_PASSWORD', 'SMTP_FROM', 'ENABLE_SMTP_DELIVERY', 'ENABLE_ADMIN_INVITES']) {
+    if (!process.env[key] && env[key]) process.env[key] = env[key];
+  }
+  return {
   plugins: [react(), geeApiDevPlugin()],
   build: {
     target: 'esnext',
@@ -32,5 +46,9 @@ export default defineConfig({
     port: 3000,
     strictPort: true,
     open: false,
+    watch: {
+      ignored: ['**/*.approval.json', '**/*.log', '**/tmp/**', '**/.git/**']
+    }
   }
+  };
 });

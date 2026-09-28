@@ -155,6 +155,8 @@ export async function compareThaTonFrames(ee, beforeIndex, afterIndex, period = 
   const area = ee.Image.pixelArea();
   const bands = area.updateMask(added).rename('added')
     .addBands(area.updateMask(receded).rename('receded'))
+    .addBands(area.updateMask(beforeWater).rename('beforeWater'))
+    .addBands(area.updateMask(afterWater).rename('afterWater'))
     .addBands(area.updateMask(observed).rename('observed'));
   let metrics = null;
   let metricError = null;
@@ -164,6 +166,8 @@ export async function compareThaTonFrames(ee, beforeIndex, afterIndex, period = 
       bestEffort: true, maxPixels: 1e8, tileScale: 2
     }));
     metrics = {
+      beforeKm2: Number(((values?.beforeWater || 0) / 1e6).toFixed(3)),
+      afterKm2: Number(((values?.afterWater || 0) / 1e6).toFixed(3)),
       addedKm2: Number(((values?.added || 0) / 1e6).toFixed(3)),
       recededKm2: Number(((values?.receded || 0) / 1e6).toFixed(3)),
       observedKm2: Number(((values?.observed || 0) / 1e6).toFixed(3))

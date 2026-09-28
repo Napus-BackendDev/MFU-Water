@@ -273,7 +273,7 @@ export function findNearestStation(lat, lng, stationsList = null) {
 
 // ระบบรวมกลุ่มพิกัดตรวจวัด (Spatial Clustering & Hotspot Engine)
 // จุดที่อยู่ใกล้กันภายในระยะ ~250 เมตร หากมีตั้งแต่ 2 รายการขึ้นไปจะรวมเป็นหนึ่งก้อน (Hotspot)
-export function clusterSubmissions(submissions = [], radiusMeters = 250) {
+export function clusterSubmissions(submissions = [], radiusMeters = 250, getPartitionKey = null) {
   const validSubmissions = (submissions || []).filter(
     s => s && s.coordinates && Array.isArray(s.coordinates) && s.coordinates.length === 2 &&
          !isNaN(s.coordinates[0]) && !isNaN(s.coordinates[1])
@@ -281,6 +281,9 @@ export function clusterSubmissions(submissions = [], radiusMeters = 250) {
 
   const visited = new Set();
   const rawClusters = [];
+  const partitionKeys = typeof getPartitionKey === 'function'
+    ? validSubmissions.map(getPartitionKey)
+    : null;
 
   for (let i = 0; i < validSubmissions.length; i++) {
     if (visited.has(i)) continue;
@@ -293,6 +296,7 @@ export function clusterSubmissions(submissions = [], radiusMeters = 250) {
     for (let j = i + 1; j < validSubmissions.length; j++) {
       if (visited.has(j)) continue;
       const other = validSubmissions[j];
+      if (partitionKeys && partitionKeys[i] !== partitionKeys[j]) continue;
       const [oLng, oLat] = other.coordinates;
       const dist = getDistanceMeters(cLat, cLng, oLat, oLng);
       if (dist <= radiusMeters) {
@@ -331,9 +335,7 @@ export function clusterSubmissions(submissions = [], radiusMeters = 250) {
     const items = [...group].sort((a, b) => getTimeVal(b) - getTimeVal(a));
     const latestSample = items[0] || {};
 
-    // คำนวณจุดกึ่งกลางพิกัด (Centroid)
-    const avgLng = items.reduce((sum, it) => sum + Number(it.coordinates[0]), 0) / items.length;
-    const avgLat = items.reduce((sum, it) => sum + Number(it.coordinates[1]), 0) / items.length;
+    // ปักก้อนที่พิกัดผลตรวจล่าสุดจริง ไม่สร้างจุด centroid ที่ไม่มีการเก็บตัวอย่าง
 
     // คำนวณค่าสารหนู (As) รวมของทุกรายงานในก้อน
     const arsenicValues = items
@@ -450,7 +452,7 @@ export function clusterSubmissions(submissions = [], radiusMeters = 250) {
       id: isCluster ? `hotspot-${index + 1}` : `single-${index + 1}`,
       title: isCluster ? `ก้อน Hotspot ที่ ${index + 1}` : (latestSample.station_name || 'จุดสำรวจตรวจวัด'),
       locationName: latestSample.station_name || latestSample.sample_nature?.water_source || 'จุดตรวจวัดริมแม่น้ำกก',
-      coordinates: [avgLng, avgLat],
+      coordinates: latestSample.coordinates.map(Number),
       count: items.length,
       items,
       isHotspot: isCluster,
@@ -1176,6 +1178,7 @@ export const INITIAL_SUBMISSIONS = [
       }
     ],
     status: 'COMPLETED',
+    publication_status: 'pending_review',
     sync_stage: 'INDEXED'
   },
   {
@@ -1384,12 +1387,19 @@ export function normalizeSubmission(item) {
     collection_time: item.collection_time || new Date().toISOString(),
     gps_accuracy_meters: item.gps_accuracy_meters || 5.0,
     entry_type: item.entry_type || 'realtime',
-    collector: {
-      id: item.collector?.id || 'VOL-001',
-      name: item.collector?.name || 'ผู้ตรวจวัดภาคสนาม',
-      phone: item.collector?.phone || '081-992-4521',
-      organization: item.collector?.organization || 'ประชาชนทั่วไป'
-    },
+    collector: typeof item.collector === 'string'
+      ? {
+          id: 'VOL-001',
+          name: item.collector.trim() || 'ผู้ตรวจวัดภาคสนาม',
+          phone: '081-992-4521',
+          organization: 'ประชาชนทั่วไป'
+        }
+      : {
+          id: item.collector?.id || 'VOL-001',
+          name: item.collector?.name || item.collector?.collector_name || item.collector?.fullname || 'ผู้ตรวจวัดภาคสนาม',
+          phone: item.collector?.phone || '081-992-4521',
+          organization: item.collector?.organization || item.collector?.org || 'ประชาชนทั่วไป'
+        },
     sample_nature: {
       water_source: item.sample_nature?.water_source || 'แม่น้ำกก',
       notes: item.sample_nature?.notes || `บันทึกผ่านชุดตรวจภาคสนาม (${cfg.label} - ${cfg.desc})`
@@ -1407,24 +1417,7 @@ export function normalizeSubmission(item) {
         color: cfg.color
       }
     },
-    images: Array.isArray(item.images) && item.images.length > 0 
-      ? item.images 
-      : [
-          {
-            id: `img-strip-${item.sample_code || 'mock'}`,
-            title: `ภาพที่ 1: แถบเทียบสี ${cfg.label}`,
-            url: 'https://images.unsplash.com/photo-1579154204601-01588f351e67?w=800&auto=format&fit=crop&q=80',
-            drive_file_id: 'TEST_STRIP',
-            size_kb: 380
-          },
-          {
-            id: `img-river-${item.sample_code || 'mock'}`,
-            title: 'ภาพที่ 2: บริเวณริมแม่น้ำกก',
-            url: 'https://images.unsplash.com/photo-1544644181-1484b3fdfc62?w=800&auto=format&fit=crop&q=80',
-            drive_file_id: 'RIVER_LOCATION',
-            size_kb: 490
-          }
-        ],
+    images: Array.isArray(item.images) ? item.images : [],
     status: 'COMPLETED',
     sync_stage: item.sync_stage || 'INDEXED'
   };
@@ -1522,4 +1515,33 @@ export function resetStoredSubmissions() {
     localStorage.removeItem(LEGACY_STORAGE_KEY);
   } catch (e) {}
   return INITIAL_SUBMISSIONS;
+}
+
+export function deleteStoredSubmission(sampleCodeOrId) {
+  try {
+    const current = getStoredSubmissions();
+    const updated = current.filter(s => s && s.sample_code !== sampleCodeOrId && s.record_id !== sampleCodeOrId);
+    localStorage.setItem(LOCAL_STORAGE_KEY_V2, JSON.stringify(updated));
+    return updated;
+  } catch (e) {
+    console.error('Failed to delete from localStorage:', e);
+    return getStoredSubmissions();
+  }
+}
+
+export function updateStoredSubmission(sampleCodeOrId, updates) {
+  try {
+    const current = getStoredSubmissions();
+    const updated = current.map(s => {
+      if (s && (s.sample_code === sampleCodeOrId || s.record_id === sampleCodeOrId)) {
+        return { ...s, ...updates };
+      }
+      return s;
+    });
+    localStorage.setItem(LOCAL_STORAGE_KEY_V2, JSON.stringify(updated));
+    return updated;
+  } catch (e) {
+    console.error('Failed to update in localStorage:', e);
+    return getStoredSubmissions();
+  }
 }

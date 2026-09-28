@@ -1,263 +1,97 @@
-import { createClient } from '@supabase/supabase-js';
-
-// ดึงการตั้งค่าจาก Environment Variables หรือ LocalStorage (สำหรับตั้งค่าผ่าน UI)
-const envUrl = import.meta.env.VITE_SUPABASE_URL;
-const envAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-
-export function getSupabaseCredentials() {
-  const localUrl = typeof window !== 'undefined' ? localStorage.getItem('kok_supabase_url') : null;
-  const localKey = typeof window !== 'undefined' ? localStorage.getItem('kok_supabase_anon_key') : null;
-
-  const url = (localUrl || envUrl || '').trim();
-  const anonKey = (localKey || envAnonKey || '').trim();
-
-  return { url, anonKey };
-}
-
-export function isSupabaseConfigured() {
-  const { url, anonKey } = getSupabaseCredentials();
-  return Boolean(url && anonKey && url.startsWith('http') && anonKey.length > 20);
-}
-
-// สร้าง Supabase Client แบบ Dynamic Singleton
-let supabaseClientInstance = null;
-let lastUsedConfig = '';
-
-export function getSupabaseClient() {
-  const { url, anonKey } = getSupabaseCredentials();
-  const configKey = `${url}:${anonKey}`;
-
-  if (!url || !anonKey || !url.startsWith('http')) {
-    return null;
+// Compatibility exports: browser operations use the same-origin Express API only.
+import { fetchSamplesFromSupabase, downloadPublishedExport } from './publicSamples.js';
+export { fetchSamplesFromSupabase, downloadPublishedExport };
+let csrfToken = '';
+let csrfExpiresAt = 0;
+let csrfRequest = null;
+export function getSupabaseCredentials() { return { url: '', anonKey: '' }; }
+export function getSupabaseClient() { return null; }
+export function isSupabaseConfigured() { return true; }
+async function getCsrfToken() {
+  if (csrfToken && Date.now() < csrfExpiresAt) return csrfToken;
+  if (!csrfRequest) {
+    csrfRequest = fetch('/api/security/csrf', { credentials: 'same-origin', cache: 'no-store' })
+      .then(async response => {
+        const payload = await response.json().catch(() => null);
+        if (!response.ok || !payload?.csrfToken) throw new Error(payload?.error || 'เชื่อมต่อระบบความปลอดภัยไม่สำเร็จ');
+        csrfToken = payload.csrfToken;
+        csrfExpiresAt = Date.now() + 50 * 60 * 1000;
+        return csrfToken;
+      }).finally(() => { csrfRequest = null; });
   }
-
-  if (!supabaseClientInstance || lastUsedConfig !== configKey) {
-    try {
-      supabaseClientInstance = createClient(url, anonKey, {
-        auth: {
-          persistSession: false,
-          autoRefreshToken: false
-        }
-      });
-      lastUsedConfig = configKey;
-    } catch (err) {
-      console.error('Supabase client initialization error:', err);
-      return null;
-    }
-  }
-
-  return supabaseClientInstance;
+  return csrfRequest;
 }
-
-/**
- * อัปโหลดรูปภาพไปยัง Supabase Storage Bucket 'water-watch-photos'
- * หากยังไม่ได้เชื่อมต่อ Supabase จะคืนค่าเป็น Base64 Data URL สำหรับ Local mode
- */
-export async function uploadSampleImage(file, sampleCode, index = 0) {
-  const client = getSupabaseClient();
-  
-  // โหมดสำรอง: แปลงเป็น Base64
-  const toBase64 = (f) => new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result);
-    reader.onerror = reject;
-    reader.readAsDataURL(f);
+async function apiRequest(path, { method = 'GET', body, formData, idempotencyKey } = {}) {
+  const headers = { Accept: 'application/json' };
+  if (method !== 'GET') {
+    headers['X-CSRF-Token'] = await getCsrfToken();
+    if (idempotencyKey) headers['Idempotency-Key'] = idempotencyKey;
+    if (!formData) headers['Content-Type'] = 'application/json';
+  }
+  const response = await fetch(path, {
+    method, headers, credentials: 'same-origin', cache: 'no-store',
+    body: formData || (body === undefined ? undefined : JSON.stringify(body))
   });
-
-  if (!client) {
-    const base64Url = await toBase64(file);
-    return {
-      id: `img-local-${Date.now()}-${index}`,
-      title: file.name.replace(/\.[^/.]+$/, ''),
-      url: base64Url,
-      size_kb: Math.round(file.size / 1024),
-      storage_type: 'local_base64'
-    };
+  const payload = (response.headers.get('content-type') || '').includes('application/json') ? await response.json() : null;
+  if (!response.ok || !payload) {
+    if ([403, 503].includes(response.status)) { csrfToken = ''; csrfExpiresAt = 0; }
+    throw new Error(payload?.error || 'คำขอไม่สำเร็จ กรุณาลองใหม่');
   }
-
-  try {
-    const ext = file.name.split('.').pop() || 'jpg';
-    const filePath = `samples/${sampleCode}/photo_${index + 1}_${Date.now()}.${ext}`;
-
-    const { data: uploadData, error: uploadError } = await client.storage
-      .from('water-watch-photos')
-      .upload(filePath, file, {
-        cacheControl: '3600',
-        upsert: true
-      });
-
-    if (uploadError) {
-      console.warn('Storage upload error, falling back to base64:', uploadError);
-      const base64Url = await toBase64(file);
-      return {
-        id: `img-fallback-${Date.now()}-${index}`,
-        title: file.name.replace(/\.[^/.]+$/, ''),
-        url: base64Url,
-        size_kb: Math.round(file.size / 1024),
-        storage_type: 'fallback_base64'
-      };
-    }
-
-    // ดึง Public URL ของภาพ
-    const { data: publicUrlData } = client.storage
-      .from('water-watch-photos')
-      .getPublicUrl(filePath);
-
-    return {
-      id: `img-sp-${Date.now()}-${index}`,
-      title: file.name.replace(/\.[^/.]+$/, ''),
-      url: publicUrlData.publicUrl,
-      path: filePath,
-      size_kb: Math.round(file.size / 1024),
-      storage_type: 'supabase_storage'
-    };
-  } catch (err) {
-    console.error('Exception uploading image to Supabase:', err);
-    const base64Url = await toBase64(file);
-    return {
-      id: `img-err-${Date.now()}-${index}`,
-      title: file.name.replace(/\.[^/.]+$/, ''),
-      url: base64Url,
-      size_kb: Math.round(file.size / 1024),
-      storage_type: 'fallback_base64'
-    };
-  }
+  return payload;
 }
-
-/**
- * บันทึกข้อมูลการเก็บตัวอย่างลงใน Supabase Table 'kok_water_samples'
- */
-export async function saveSampleToSupabase(record) {
-  const client = getSupabaseClient();
-  if (!client) {
-    return { success: false, reason: 'not_configured' };
-  }
-
-  try {
-    const payload = {
-      sample_code: record.sample_code,
-      station_id: record.station_id,
-      station_name: record.station_name,
-      latitude: record.coordinates?.[1] || null,
-      longitude: record.coordinates?.[0] || null,
-      collection_time: record.collection_time,
-      gps_accuracy_meters: record.gps_accuracy_meters,
-      entry_type: record.entry_type,
-      collector: record.collector,
-      sample_nature: record.sample_nature,
-      measurements: record.measurements,
-      images: record.images,
-      status: record.status || 'COMPLETED',
-      sync_stage: 'INDEXED'
-    };
-
-    const { data, error } = await client
-      .from('kok_water_samples')
-      .insert([payload])
-      .select();
-
-    if (error) {
-      console.error('Failed to insert sample into Supabase:', error);
-      return { success: false, error };
-    }
-
-    return { success: true, data: data?.[0] };
-  } catch (err) {
-    console.error('Exception inserting sample to Supabase:', err);
-    return { success: false, error: err };
-  }
+async function apiList(path) {
+  const result = await apiRequest(path);
+  if (!Array.isArray(result.data)) throw new Error('API ส่งรายการไม่ถูกต้อง');
+  return result.data;
 }
-
-/**
- * ดึงรายการตัวอย่างคุณภาพน้ำทั้งหมดจาก Supabase
- */
-export async function fetchSamplesFromSupabase() {
-  const client = getSupabaseClient();
-  if (!client) return null;
-
-  try {
-    const { data, error } = await client
-      .from('kok_water_samples')
-      .select('*')
-      .order('collection_time', { ascending: false });
-
-    if (error) {
-      console.error('Error fetching samples from Supabase:', error);
-      return null;
-    }
-
-    return (data || []).map(row => ({
-      record_id: row.id || row.sample_code,
-      sample_code: row.sample_code,
-      schema_version: '1.0',
-      station_id: row.station_id,
-      station_name: row.station_name,
-      coordinates: [row.longitude, row.latitude],
-      collection_time: row.collection_time,
-      gps_accuracy_meters: row.gps_accuracy_meters,
-      entry_type: row.entry_type,
-      collector: row.collector,
-      sample_nature: row.sample_nature,
-      measurements: row.measurements,
-      images: row.images || [],
-      status: row.status,
-      sync_stage: row.sync_stage
-    }));
-  } catch (err) {
-    console.error('Exception in fetchSamplesFromSupabase:', err);
-    return null;
-  }
+export async function uploadSampleImage() { throw new Error('รูปหลักฐานต้องส่งพร้อมผลตรวจผ่าน API ที่ปลอดภัย'); }
+export async function saveSampleToSupabase(record, photos = [], idempotencyKey = crypto.randomUUID()) {
+  const formData = new FormData();
+  formData.set('sample', JSON.stringify(record));
+  for (const photo of photos) formData.append('photos', photo, 'evidence.jpg');
+  return { success: true, data: await apiRequest('/api/samples', { method: 'POST', formData, idempotencyKey }) };
 }
-
-/**
- * ลบรายการตัวอย่างคุณภาพน้ำออกจาก Supabase
- */
-export async function deleteSampleFromSupabase(sampleCode) {
-  const client = getSupabaseClient();
-  if (!client) return { success: false, reason: 'not_configured' };
-
-  try {
-    const { error } = await client
-      .from('kok_water_samples')
-      .delete()
-      .eq('sample_code', sampleCode);
-
-    if (error) {
-      console.error('Failed to delete sample from Supabase:', error);
-      return { success: false, error };
-    }
-    return { success: true };
-  } catch (err) {
-    console.error('Exception deleting sample from Supabase:', err);
-    return { success: false, error: err };
-  }
+export function fetchAdminSamples() { return apiList('/api/admin/samples'); }
+export async function fetchAdminContact(code) { return (await apiRequest(`/api/admin/samples/${encodeURIComponent(code)}/contact`)).data; }
+export function reviewAdminSample(code, { decision, revision, reason }) {
+  return apiRequest(`/api/admin/samples/${encodeURIComponent(code)}/review`, { method: 'POST', body: { decision, revision, reason } });
 }
-
-/**
- * รับการแจ้งเตือน Realtime เมื่อมีตัวอย่างใหม่เข้ามา
- */
-export function subscribeToNewSamples(onNewSample) {
-  const client = getSupabaseClient();
-  if (!client) return () => {};
-
-  try {
-    const channel = client
-      .channel('kok_realtime_channel')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'kok_water_samples' },
-        (payload) => {
-          if (onNewSample) onNewSample(payload);
-        }
-      )
-      .subscribe();
-
-    return () => {
-      client.removeChannel(channel);
-    };
-  } catch (err) {
-    console.warn('Realtime subscription not available:', err);
-    return () => {};
-  }
+export function fetchAdminAlerts() { return apiList('/api/admin/alerts'); }
+export function fetchAdminMembers() { return apiList('/api/admin/members'); }
+export function fetchContactRemovalRequests() { return apiList('/api/admin/contact-removal-requests'); }
+export function requestContactRemoval({ sampleCode, reason }) { return apiRequest('/api/contact-removal-requests', { method: 'POST', body: { sample_code: sampleCode, reason } }); }
+export function resolveContactRemovalRequest(id, reason) { return apiRequest(`/api/admin/contact-removal-requests/${encodeURIComponent(id)}/resolve`, { method: 'POST', body: { reason } }); }
+export function inviteAdmin(email) { return apiRequest('/api/admin/members/invite', { method: 'POST', body: { email } }); }
+export function deactivateAdmin(id) { return apiRequest(`/api/admin/members/${encodeURIComponent(id)}/deactivate`, { method: 'POST', body: {} }); }
+export async function deleteSampleFromSupabase() { throw new Error('การลบผลตรวจปิดไว้เพื่อรักษาหลักฐานและประวัติการตรวจ'); }
+export async function loginAdmin({ email, password }) {
+  const result = await apiRequest('/api/auth/login', { method: 'POST', body: { email, password } });
+  if (!result.user) throw new Error('บัญชีนี้ไม่มีสิทธิ์ผู้ดูแล');
+  return { success: true, session: { user: result.user } };
 }
-
+export async function checkAdminSession() {
+  try { const result = await apiRequest('/api/auth/session'); return result.user ? { user: result.user } : null; }
+  catch { return null; }
+}
+export async function logoutAdminSession() {
+  await apiRequest('/api/auth/logout', { method: 'POST', body: {} });
+  csrfToken = ''; csrfExpiresAt = 0;
+}
+export function subscribeToNewSamples(onNewSample, intervalMs = 30_000) {
+  let previousCodes = null;
+  let stopped = false;
+  let timer;
+  const poll = async () => {
+    try {
+      const samples = await fetchSamplesFromSupabase();
+      if (!stopped) {
+        const nextCodes = new Set(samples.map(item => item.sample_code));
+        if (previousCodes) for (const sample of samples) if (!previousCodes.has(sample.sample_code)) onNewSample?.({ eventType: 'INSERT', new: sample });
+        previousCodes = nextCodes;
+      }
+    } catch { /* Retry without modifying current records. */ }
+    if (!stopped) timer = setTimeout(poll, intervalMs);
+  };
+  poll();
+  return () => { stopped = true; clearTimeout(timer); };
+}

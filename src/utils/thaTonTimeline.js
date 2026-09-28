@@ -5,6 +5,26 @@ export function compatibleAfterFrames(frames, beforeIndex) {
     frame.orbitPass === before.orbitPass && Number(frame.relativeOrbit) === Number(before.relativeOrbit));
 }
 
+export function calendarDays(start, end) {
+  const first = Date.parse(`${start}T00:00:00Z`);
+  const last = Date.parse(`${end}T00:00:00Z`);
+  if (!Number.isFinite(first) || !Number.isFinite(last) || last < first) return [];
+  const days = [];
+  for (let time = first; time <= last; time += 86400000) {
+    days.push(new Date(time).toISOString().slice(0, 10));
+  }
+  return days;
+}
+
+export function latestSceneIndexForDay(frames, day) {
+  let latest = -1;
+  frames.forEach((frame, index) => {
+    if (frame.acquiredAt?.slice(0, 10) <= day &&
+      (latest < 0 || frame.acquiredAt > frames[latest].acquiredAt)) latest = index;
+  });
+  return latest;
+}
+
 export function selectDefaultPair(frames, eventDate = '2024-09-11') {
   const pairs = [];
   frames.forEach((before, beforeIndex) => {

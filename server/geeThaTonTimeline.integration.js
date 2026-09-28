@@ -30,6 +30,11 @@ if (!comparison.addedTileUrl?.includes('{z}') || !comparison.recededTileUrl?.inc
     !Number.isFinite(comparison.metrics?.addedKm2) || !Number.isFinite(comparison.metrics?.recededKm2)) {
   throw new Error('GEE ไม่คืนแผนที่หรือพื้นที่เปรียบเทียบครบ');
 }
+const netChange = comparison.metrics.afterKm2 - comparison.metrics.beforeKm2;
+const mappedChange = comparison.metrics.addedKm2 - comparison.metrics.recededKm2;
+if (Math.abs(netChange - mappedChange) > 0.003 || comparison.metrics.observedKm2 <= 0) {
+  throw new Error('พื้นที่ Before–After ไม่สอดคล้องกับชั้นน้ำเพิ่ม/ลด');
+}
 console.log(JSON.stringify({ frames: results, comparison: {
   beforeDate: comparison.before.acquiredAt.slice(0, 10),
   afterDate: comparison.after.acquiredAt.slice(0, 10),

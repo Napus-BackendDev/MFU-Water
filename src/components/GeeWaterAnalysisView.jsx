@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import maplibregl from 'maplibre-gl';
+import * as maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import './KokWaterWatch/kokWaterWatchModern.css';
 import './GeeWaterTimeline.css';
@@ -21,12 +21,14 @@ import {
   Satellite,
   Settings,
   Waves,
-  X
+  X,
+  User
 } from 'lucide-react';
+import { isAdminAuthenticated } from '../lib/adminAuth';
 import { THATON_CENTER } from '../data/thatonFloodData';
 import { thaiBoundaryLabelExpression } from './KokWaterWatch/boundaryThaiLabels';
 import { readGeeApiResponse } from '../utils/geeApiResponse';
-import { compatibleAfterFrames, selectDefaultPair } from '../utils/thaTonTimeline';
+import { calendarDays, compatibleAfterFrames, latestSceneIndexForDay, selectDefaultPair } from '../utils/thaTonTimeline';
 
 const MODES = [
   { id: 's2-rgb', label: 'ภาพสีจริง', detail: 'Sentinel-2 · สีธรรมชาติ' },
@@ -41,20 +43,25 @@ const DEFAULT_TIMELINE = { start: '2024-09-05', end: '2024-10-05' };
 const sceneDate = (frame) => frame ? new Date(frame.acquiredAt).toLocaleDateString('th-TH', {
   day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Asia/Bangkok'
 }) : '—';
+const calendarDate = (day) => day ? new Date(`${day}T00:00:00Z`).toLocaleDateString('th-TH', {
+  day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC'
+}) : '—';
 
-export default function GeeWaterAnalysisView({ onOpenWaterWatch }) {
+export default function GeeWaterAnalysisView({ onOpenWaterWatch, onOpenAdmin }) {
   const containerRef = useRef(null);
   const mapRef = useRef(null);
   const requestRef = useRef(null);
   const frameRequestRef = useRef(null);
   const compareRequestRef = useRef(null);
+  const baselineRequestRef = useRef(null);
 
   const [mapReady, setMapReady] = useState(false);
   const [analysisOpen, setAnalysisOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [frames, setFrames] = useState([]);
-  const [frameIndex, setFrameIndex] = useState(0);
+  const [frameIndex, setFrameIndex] = useState(-1);
+  const [dayIndex, setDayIndex] = useState(0);
   const [frameDetail, setFrameDetail] = useState(null);
   const [timelineLoading, setTimelineLoading] = useState(true);
   const [frameLoading, setFrameLoading] = useState(false);
@@ -73,6 +80,10 @@ export default function GeeWaterAnalysisView({ onOpenWaterWatch }) {
   const [codeOpen, setCodeOpen] = useState(false);
   const [codeCopied, setCodeCopied] = useState(false);
   const [codeError, setCodeError] = useState('');
+  const [baselineResult, setBaselineResult] = useState(null);
+  const [baselineVisible, setBaselineVisible] = useState(false);
+  const [baselineLoading, setBaselineLoading] = useState(false);
+  const [baselineError, setBaselineError] = useState('');
 
   // Map Background and Boundary Layer States (ตรงตามมาตรฐานระบบ)
   const [mapType, setMapType] = useState('satellite');
@@ -365,6 +376,7 @@ export default function GeeWaterAnalysisView({ onOpenWaterWatch }) {
       requestRef.current?.abort();
       frameRequestRef.current?.abort();
       compareRequestRef.current?.abort();
+      baselineRequestRef.current?.abort();
       locationMarker?.remove();
       map.remove();
       mapRef.current = null;
@@ -425,7 +437,9 @@ export default function GeeWaterAnalysisView({ onOpenWaterWatch }) {
     const controller = new AbortController();
     setPlaying(false);
     setFrames([]);
-    setFrameIndex(0);
+    setFrameIndex(-1);
+    setDayIndex(0);
+    setFrameLoading(false);
     setFrameDetail(null);
     setComparisonResult(null);
     setComparisonOpen(false);
@@ -447,6 +461,16 @@ export default function GeeWaterAnalysisView({ onOpenWaterWatch }) {
       .finally(() => { if (!controller.signal.aborted) setTimelineLoading(false); });
     return () => controller.abort();
   }, [mapReady, appliedPeriod]);
+
+  const calendar = calendarDays(appliedPeriod.start, appliedPeriod.end);
+  const selectedDay = calendar[dayIndex];
+  const activeSceneIndex = latestSceneIndexForDay(frames, selectedDay);
+
+  useEffect(() => {
+    if (compareMode !== 'timeline') return;
+    setFrameIndex(activeSceneIndex);
+    if (activeSceneIndex < 0) setFrameDetail(null);
+  }, [activeSceneIndex, compareMode]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -485,10 +509,10 @@ export default function GeeWaterAnalysisView({ onOpenWaterWatch }) {
   }, [mapReady, frames, frameIndex, appliedPeriod]);
 
   useEffect(() => {
-    if (!playing || compareMode !== 'timeline' || frameLoading || frames.length < 2) return undefined;
-    const timer = window.setTimeout(() => setFrameIndex((index) => (index + 1) % frames.length), 1800);
+    if (!playing || compareMode !== 'timeline' || frameLoading || calendar.length < 2) return undefined;
+    const timer = window.setTimeout(() => setDayIndex((index) => (index + 1) % calendar.length), 700);
     return () => window.clearTimeout(timer);
-  }, [playing, compareMode, frameLoading, frameIndex, frames.length]);
+  }, [playing, compareMode, frameLoading, dayIndex, calendar.length]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -515,18 +539,44 @@ export default function GeeWaterAnalysisView({ onOpenWaterWatch }) {
   useEffect(() => {
     const map = mapRef.current;
     if (!mapReady || !map) return;
+    if (map.getLayer('tha-ton-natural-baseline')) map.removeLayer('tha-ton-natural-baseline');
+    if (map.getSource('tha-ton-natural-baseline-source')) map.removeSource('tha-ton-natural-baseline-source');
+    if (!baselineResult?.tileUrl) return;
+    map.addSource('tha-ton-natural-baseline-source', {
+      type: 'raster', tiles: [baselineResult.tileUrl], tileSize: 256,
+      attribution: 'Google Earth Engine · Copernicus Sentinel-2'
+    });
+    map.addLayer({ id: 'tha-ton-natural-baseline', type: 'raster', source: 'tha-ton-natural-baseline-source',
+      layout: { visibility: baselineVisible ? 'visible' : 'none' },
+      paint: { 'raster-opacity': 1, 'raster-fade-duration': 0 } },
+    map.getLayer('tha-ton-outline') ? 'tha-ton-outline' : undefined);
+  }, [baselineResult, mapReady]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!mapReady || !map) return;
     for (const id of ['tha-ton-added', 'tha-ton-receded']) {
-      if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', compareMode === 'change' ? 'visible' : 'none');
+      if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', !baselineVisible && compareMode === 'change' ? 'visible' : 'none');
+    }
+    if (map.getLayer('tha-ton-natural-baseline')) map.setLayoutProperty('tha-ton-natural-baseline', 'visibility', baselineVisible ? 'visible' : 'none');
+    if (map.getLayer('tha-ton-sar-frame')) {
+      map.setLayoutProperty('tha-ton-sar-frame', 'visibility', baselineVisible || frameLoading || (compareMode === 'timeline' && activeSceneIndex < 0) ? 'none' : 'visible');
     }
     if (map.getLayer('tha-ton-water-frame')) {
-      map.setLayoutProperty('tha-ton-water-frame', 'visibility', compareMode === 'change' ? 'none' : 'visible');
+      map.setLayoutProperty('tha-ton-water-frame', 'visibility', baselineVisible || frameLoading || compareMode === 'change' || (compareMode === 'timeline' && activeSceneIndex < 0) ? 'none' : 'visible');
     }
-  }, [compareMode, comparisonResult, frameDetail, mapReady]);
+    for (const id of ['gee-base-raster', 'gee-raster']) {
+      if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', baselineVisible ? 'none' : 'visible');
+    }
+  }, [activeSceneIndex, baselineVisible, baselineResult, compareMode, comparisonResult, frameDetail, frameLoading, mapReady]);
 
   // รันการคำนวณจาก GEE
   const runAnalysis = useCallback(async () => {
     const map = mapRef.current;
     if (!map?.loaded()) return;
+    baselineRequestRef.current?.abort();
+    setBaselineLoading(false);
+    setBaselineVisible(false);
     requestRef.current?.abort();
     const controller = new AbortController();
     requestRef.current = controller;
@@ -640,8 +690,14 @@ export default function GeeWaterAnalysisView({ onOpenWaterWatch }) {
     }
     frameRequestRef.current?.abort();
     compareRequestRef.current?.abort();
+    baselineRequestRef.current?.abort();
+    setBaselineLoading(false);
     setPlaying(false);
+    setBaselineVisible(false);
     setFrames([]);
+    setFrameIndex(-1);
+    setDayIndex(0);
+    setFrameLoading(false);
     setFrameDetail(null);
     setComparisonResult(null);
     setCompareMode('timeline');
@@ -660,6 +716,8 @@ export default function GeeWaterAnalysisView({ onOpenWaterWatch }) {
 
   const runComparison = async () => {
     if (!pairReady) { setComparisonError('เลือกคู่ภาพที่ถ่ายจากวงโคจรเดียวกัน'); return; }
+    baselineRequestRef.current?.abort();
+    setBaselineLoading(false);
     compareRequestRef.current?.abort();
     const controller = new AbortController();
     compareRequestRef.current = controller;
@@ -667,6 +725,7 @@ export default function GeeWaterAnalysisView({ onOpenWaterWatch }) {
     setComparisonError('');
     setComparisonResult(null);
     setPlaying(false);
+    setBaselineVisible(false);
     try {
       const response = await fetch(`/api/gee/tha-ton-compare?${comparisonParams}`, { signal: controller.signal });
       const data = await readGeeApiResponse(response, 'เปรียบเทียบ Before–After');
@@ -682,10 +741,48 @@ export default function GeeWaterAnalysisView({ onOpenWaterWatch }) {
   };
 
   const showComparisonMode = (nextMode) => {
+    baselineRequestRef.current?.abort();
+    setBaselineLoading(false);
     setPlaying(false);
+    setBaselineVisible(false);
     setCompareMode(nextMode);
     if (nextMode === 'before') setFrameIndex(beforeIndex);
     else if (nextMode === 'after' || nextMode === 'change') setFrameIndex(afterIndex);
+  };
+
+  const showNaturalBaseline = async () => {
+    if (baselineVisible) { setBaselineVisible(false); return; }
+    setPlaying(false);
+    setCompareMode('timeline');
+    setComparisonOpen(false);
+    setAnalysisOpen(false);
+    setSettingsOpen(false);
+    if (baselineResult?.tileUrl) { setBaselineVisible(true); return; }
+    const map = mapRef.current;
+    if (!mapReady || !map) { setBaselineError('แผนที่ยังไม่พร้อม'); return; }
+    baselineRequestRef.current?.abort();
+    const controller = new AbortController();
+    baselineRequestRef.current = controller;
+    setBaselineLoading(true);
+    setBaselineError('');
+    const [longitude, latitude] = THATON_CENTER;
+    const bbox = [longitude - 0.15, latitude - 0.15, longitude + 0.15, latitude + 0.15].join(',');
+    const params = new URLSearchParams({
+      mode: 's2-rgb', region: 'tha-ton', bbox,
+      start: '2024-04-01', end: '2024-08-31', cloud: '70'
+    });
+    try {
+      const response = await fetch(`/api/gee/analyze?${params}`, { signal: controller.signal });
+      const data = await readGeeApiResponse(response, 'ภาพสีธรรมชาติก่อนเหตุการณ์');
+      if (controller.signal.aborted) return;
+      if (!data.tileUrl) throw new Error('Earth Engine ไม่คืนชั้นภาพสีธรรมชาติ');
+      setBaselineResult(data);
+      setBaselineVisible(true);
+    } catch (caught) {
+      if (caught.name !== 'AbortError') setBaselineError(caught.message);
+    } finally {
+      if (baselineRequestRef.current === controller) setBaselineLoading(false);
+    }
   };
 
   const copyExampleCode = async () => {
@@ -697,6 +794,11 @@ export default function GeeWaterAnalysisView({ onOpenWaterWatch }) {
       setCodeError('คัดลอกไม่ได้ กรุณาเลือกข้อความในช่องโค้ดแล้วคัดลอกเอง');
     }
   };
+
+  const sidebarBusy = timelineLoading || frameLoading || baselineLoading || comparisonLoading;
+  const sourceFrame = frames[activeSceneIndex];
+  const mapFrame = compareMode === 'before' ? frames[beforeIndex] :
+    compareMode === 'after' || compareMode === 'change' ? frames[afterIndex] : sourceFrame;
 
   return (
     <main className="relative h-screen w-screen overflow-hidden bg-[#111b25] font-['Prompt',sans-serif] text-slate-900">
@@ -722,7 +824,48 @@ export default function GeeWaterAnalysisView({ onOpenWaterWatch }) {
           <span><PanelLeft size={18} /> แถบด้านซ้าย</span>
           <button type="button" onClick={() => setSidebarOpen(false)} aria-label="ยุบแถบด้านซ้าย"><X size={17} /></button>
         </div>
-        <div className="gee-left-sidebar-blank" aria-label="พื้นที่สำหรับเครื่องมือในอนาคต" />
+        <div className="gee-left-sidebar-content">
+          <section className="gee-side-card" aria-label="สถานะโหลดภาพ">
+            <div className="gee-side-card-title"><strong>สถานะภาพ</strong><span className={sidebarBusy ? 'gee-side-live is-loading' : 'gee-side-live'}>{sidebarBusy ? 'กำลังโหลด' : 'พร้อม'}</span></div>
+            <p role="status" aria-live="polite">
+              {baselineLoading ? 'กำลังสร้างภาพสีธรรมชาติจาก Sentinel-2…' : timelineLoading ? 'กำลังค้นฉากเรดาร์จาก Earth Engine…' : comparisonLoading ? 'กำลังคำนวณพื้นที่น้ำก่อนและหลัง…' : frameLoading ? 'กำลังโหลดภาพเรดาร์ของวันที่เลือก…' : baselineVisible ? 'กำลังแสดงภาพสีธรรมชาติก่อนเหตุการณ์' : playing ? 'กำลังเล่นช่วงวันที่เลือก' : timelineError ? 'โหลดภาพเรดาร์ไม่สำเร็จ' : 'เลือกวันหรือกดเล่นคลิปได้'}
+            </p>
+            {sidebarBusy && <div className="gee-side-progress" aria-label="กำลังโหลด"><span /></div>}
+            <dl className="gee-side-facts">
+              <div><dt>วันบนคลิป</dt><dd>{calendarDate(selectedDay)}</dd></div>
+              <div><dt>แหล่งภาพ</dt><dd>{baselineVisible ? 'Sentinel-2 สีธรรมชาติ' : compareMode === 'change' ? 'Sentinel-1 เปรียบเทียบ' : 'Sentinel-1 เรดาร์'}</dd></div>
+              <div><dt>วันที่ภาพบนแผนที่</dt><dd>{baselineVisible ? 'เม.ย.–ส.ค. 2024 (ภาพผสม)' : compareMode === 'change' && comparisonResult ? `${calendarDate(comparisonResult.before.acquiredAt.slice(0, 10))} / ${calendarDate(comparisonResult.after.acquiredAt.slice(0, 10))} UTC` : mapFrame ? `${calendarDate(mapFrame.acquiredAt.slice(0, 10))} UTC` : 'ยังไม่มีภาพก่อนวันนี้'}</dd></div>
+              <div><dt>จำนวนภาพจริง</dt><dd>{baselineVisible ? `${baselineResult?.provenance?.imageCount ?? '—'} ฉาก` : `${frames.length} ฉากในช่วงที่เลือก`}</dd></div>
+            </dl>
+          </section>
+
+          <section className="gee-side-card" aria-label="ภาพสีธรรมชาติก่อนเหตุการณ์">
+            <h2>ก่อนน้ำหลาก · ภาพสีธรรมชาติ</h2>
+            <p>Sentinel-2 ช่วง เม.ย.–ส.ค. 2024 แสดงสีผิวดิน ป่า ถนน และลำน้ำใกล้เคียงตาเห็น เป็นภาพผสมจากหลายวันก่อนช่วงคลิป ไม่ใช่ภาพวันเดียว; ฤดูกาลและเมฆอาจทำให้ภาพต่างจากวันน้ำท่วม</p>
+            <button type="button" className="gee-side-action" disabled={baselineLoading} onClick={showNaturalBaseline}>
+              {baselineLoading ? 'กำลังโหลดภาพสีจริง…' : baselineVisible ? 'กลับไปดูภาพเรดาร์' : 'ดูภาพสีก่อนเหตุการณ์บนแผนที่'}
+            </button>
+            {baselineResult && <small>แหล่งภาพ: {baselineResult.provenance?.dataset} · {baselineResult.provenance?.imageCount ?? '—'} ฉาก</small>}
+            {baselineError && <p className="gee-side-error" role="alert">{baselineError}</p>}
+          </section>
+
+          <section className="gee-side-card" aria-label="คำอธิบายสีและการเปลี่ยนแปลงน้ำ">
+            <h2>อ่านแผนที่น้ำท่วม</h2>
+            <p>คลิปใช้ Sentinel-1 เรดาร์ ภาพพื้นเทาคือสัญญาณเรดาร์ ไม่ใช่สีจริงของภูมิประเทศ</p>
+            <div className="gee-side-legend"><i className="is-water" /> <span>ฟ้า: พื้นที่เข้าข่ายผิวน้ำในภาพเรดาร์วันนั้น</span></div>
+            <div className="gee-side-legend"><i className="is-added" /> <span>ส้ม: น้ำเพิ่มจากภาพก่อน</span></div>
+            <div className="gee-side-legend"><i className="is-receded" /> <span>เขียว: น้ำลดจากภาพก่อน</span></div>
+            <p>สีส้มและเขียวจะแสดงเมื่อคำนวณ Before–After ด้วยภาพเรดาร์วงโคจรเดียวกัน</p>
+            {comparisonResult?.metrics ? <div className="gee-side-comparison">
+              <strong>ผลเปรียบเทียบจริง</strong>
+              <span>{calendarDate(comparisonResult.before.acquiredAt.slice(0, 10))} → {calendarDate(comparisonResult.after.acquiredAt.slice(0, 10))}</span>
+              <span>ผิวน้ำก่อน {comparisonResult.metrics.beforeKm2} · หลัง {comparisonResult.metrics.afterKm2} กม.²</span>
+              <span>น้ำเพิ่ม {comparisonResult.metrics.addedKm2} · น้ำลด {comparisonResult.metrics.recededKm2} กม.²</span>
+              <span>เปลี่ยนสุทธิ {(comparisonResult.metrics.afterKm2 - comparisonResult.metrics.beforeKm2).toFixed(3)} กม.² ในพื้นที่ที่ทั้งสองภาพมองเห็น</span>
+            </div> : <button type="button" className="gee-side-link" onClick={() => { baselineRequestRef.current?.abort(); setBaselineLoading(false); setBaselineVisible(false); setPlaying(false); setComparisonOpen(true); setAnalysisOpen(false); setSettingsOpen(false); }}>เปิด Before–After เพื่อดูน้ำเพิ่ม/ลด</button>}
+            <p className="gee-side-note">ภาพเรดาร์บอกพื้นที่ที่อาจมีน้ำ ไม่ได้บอกความลึกหรือปริมาณฝน; วันที่ไม่มีภาพใหม่ คลิปคงภาพล่าสุดไว้</p>
+          </section>
+        </div>
       </aside>
       {!sidebarOpen && <button className="gee-sidebar-open" type="button" onClick={() => setSidebarOpen(true)} aria-label="เปิดแถบด้านซ้าย"><PanelLeft size={20} /></button>}
 
@@ -738,21 +881,21 @@ export default function GeeWaterAnalysisView({ onOpenWaterWatch }) {
         </div>
         <div className="gee-timeline-controls">
           <button type="button" className="gee-timeline-play" aria-label={playing ? 'หยุดคลิป' : 'เล่นคลิป'}
-            disabled={frames.length < 2 || timelineLoading}
-            onClick={() => { setCompareMode('timeline'); setPlaying((value) => !value); }}>
+            disabled={!frames.length || calendar.length < 2 || timelineLoading}
+            onClick={() => { baselineRequestRef.current?.abort(); setBaselineLoading(false); setBaselineVisible(false); setCompareMode('timeline'); setPlaying((value) => !value); }}>
             {playing ? <Pause size={17} /> : <Play size={17} />}
           </button>
-          <input type="range" min="0" max={Math.max(0, frames.length - 1)} step="1" value={frameIndex}
-            disabled={!frames.length} aria-label="เลือกภาพตามวันที่ถ่ายจริง"
-            onChange={(event) => { setPlaying(false); setCompareMode('timeline'); setFrameIndex(Number(event.target.value)); }} />
-          <strong>{sceneDate(frames[frameIndex])}</strong>
+          <input type="range" min="0" max={Math.max(0, calendar.length - 1)} step="1" value={dayIndex}
+            disabled={!calendar.length || timelineLoading} aria-label="เลือกวันในช่วงเวลา" aria-valuetext={calendarDate(selectedDay)}
+            onChange={(event) => { baselineRequestRef.current?.abort(); setBaselineLoading(false); setPlaying(false); setBaselineVisible(false); setCompareMode('timeline'); setDayIndex(Number(event.target.value)); }} />
+          <strong>{calendarDate(selectedDay)}</strong>
         </div>
         <p className="gee-timeline-meta" aria-live="polite">
-          {timelineLoading ? 'กำลังค้นหาภาพถ่ายจริง…' : frameLoading ? 'กำลังโหลดภาพ…' : frameDetail?.waterAreaKm2 !== null && frameDetail?.waterAreaKm2 !== undefined ? `ผิวน้ำเข้าข่าย ${frameDetail.waterAreaKm2} กม.² · ฉาก ${frameIndex + 1}/${frames.length} · ${frameDetail.orbitPass === 'ASCENDING' ? 'วงโคจรขาขึ้น' : 'วงโคจรขาลง'}` : `${frames.length} ฉากจริง · ไม่มีข้อมูลพื้นที่`}
+          {timelineLoading ? 'กำลังค้นหาภาพถ่ายจริง…' : compareMode !== 'timeline' ? 'กำลังแสดงชั้นภาพเปรียบเทียบ · กลับมาเล่นคลิปเพื่อดูรายวัน' : activeSceneIndex < 0 ? `วันที่ ${dayIndex + 1}/${calendar.length} · ยังไม่มีภาพถ่ายจริงก่อนวันนี้` : frameLoading || frameIndex !== activeSceneIndex ? `วันที่ ${dayIndex + 1}/${calendar.length} · กำลังโหลดภาพถ่ายจริง…` : `วันที่ ${dayIndex + 1}/${calendar.length} · ภาพถ่ายจริง ${calendarDate(frames[activeSceneIndex].acquiredAt.slice(0, 10))} (UTC)${frames[activeSceneIndex].acquiredAt.slice(0, 10) === selectedDay ? '' : ' · คงภาพล่าสุด'}${frameDetail?.waterAreaKm2 == null ? '' : ` · ผิวน้ำจากภาพนี้ ${frameDetail.waterAreaKm2} กม.²`}`}
         </p>
         <div className="gee-timeline-footer">
-          <p className="gee-timeline-caveat">มีภาพเฉพาะวันที่ดาวเทียมถ่าย · พื้นที่น้ำไม่ใช่ความลึกน้ำ</p>
-          <button type="button" onClick={() => { setPlaying(false); setComparisonOpen((value) => !value); setAnalysisOpen(false); setSettingsOpen(false); }}>
+          <p className="gee-timeline-caveat">เล่นครบทุกวันในช่วงที่เลือก · วันไม่มีภาพใหม่คงภาพล่าสุด · ไม่ใช่ความลึกน้ำ</p>
+          <button type="button" onClick={() => { setPlaying(false); if (comparisonOpen) setCompareMode('timeline'); setComparisonOpen((value) => !value); setAnalysisOpen(false); setSettingsOpen(false); }}>
             {comparisonOpen ? 'ปิด Before–After' : 'เปิด Before–After'}
           </button>
         </div>
@@ -760,7 +903,7 @@ export default function GeeWaterAnalysisView({ onOpenWaterWatch }) {
       </section>
 
       {comparisonOpen && <section className="gee-compare-panel" aria-label="เปรียบเทียบพื้นที่น้ำก่อนและหลัง">
-        <div className="gee-compare-header"><strong>Before–After · ตำบลท่าตอน</strong><button type="button" onClick={() => setComparisonOpen(false)} aria-label="ปิด Before–After"><X size={17} /></button></div>
+        <div className="gee-compare-header"><strong>Before–After · ตำบลท่าตอน</strong><button type="button" onClick={() => { setComparisonOpen(false); setCompareMode('timeline'); }} aria-label="ปิด Before–After"><X size={17} /></button></div>
         <p>เลือกภาพจริงที่วงโคจรตรงกัน ก่อนและหลังเหตุการณ์ 11 ก.ย. 2024</p>
         <label>ภาพก่อน
           <select value={beforeIndex} onChange={(event) => {
@@ -791,8 +934,8 @@ export default function GeeWaterAnalysisView({ onOpenWaterWatch }) {
               <button key={id} type="button" aria-pressed={compareMode === id} onClick={() => showComparisonMode(id)}>{label}</button>)}
           </div>
           <div className="gee-compare-metrics">
-            <span>ก่อน <b>{comparisonResult.before.waterAreaKm2 ?? '—'}</b> กม.²</span>
-            <span>หลัง <b>{comparisonResult.after.waterAreaKm2 ?? '—'}</b> กม.²</span>
+            <span>ก่อน <b>{comparisonResult.metrics?.beforeKm2 ?? '—'}</b> กม.²</span>
+            <span>หลัง <b>{comparisonResult.metrics?.afterKm2 ?? '—'}</b> กม.²</span>
             <span className="added">น้ำเพิ่ม <b>{comparisonResult.metrics?.addedKm2 ?? '—'}</b> กม.²</span>
             <span className="receded">น้ำลด <b>{comparisonResult.metrics?.recededKm2 ?? '—'}</b> กม.²</span>
           </div>
@@ -804,6 +947,20 @@ export default function GeeWaterAnalysisView({ onOpenWaterWatch }) {
       {/* Floating Vertical Toolbar (บนขวา แนวตั้ง สไตล์มินิมอลโมเดิร์นตามภาพที่ 1) */}
       <div className="map-controls" aria-label="เครื่องมือแผนที่">
         <div className="map-actions" aria-label="เมนูควบคุม">
+          {/* ปุ่มเข้าสู่ระบบผู้ดูแลระบบ (User / Admin Login) บนขวา */}
+          <button
+            className="round-control user-admin-btn"
+            type="button"
+            aria-label="เข้าสู่ระบบผู้ดูแลระบบ (Admin Login)"
+            title="เข้าสู่ระบบผู้ดูแลระบบ (Admin Login)"
+            onClick={() => {
+              if (onOpenAdmin) onOpenAdmin();
+              else window.location.hash = '#admin';
+            }}
+          >
+            <User size={19} className="text-slate-700" />
+          </button>
+
           {/* ปุ่มสลับเปิด-ปิด เครื่องมือวิเคราะห์น้ำ GEE */}
           <button
             className={`round-control ${analysisOpen ? 'is-active' : ''}`}
@@ -1210,7 +1367,7 @@ export default function GeeWaterAnalysisView({ onOpenWaterWatch }) {
           </div>
           {codeError && <p className="gee-timeline-error" role="alert">{codeError}</p>}
         </section>}
-        <button type="button" className="gee-code-toggle" onClick={() => setCodeOpen((value) => !value)} aria-label="เปิดตัวอย่างโค้ด"><Code2 size={17} /> ดูตัวอย่างโค้ด</button>
+        <button type="button" className="gee-code-toggle" onClick={() => { setCodeOpen((value) => !value); setComparisonOpen(false); setCompareMode('timeline'); }} aria-label="เปิดตัวอย่างโค้ด"><Code2 size={17} /> ดูตัวอย่างโค้ด</button>
       </div>
 
       {/* Bottom-Right: KOK Water Watch Switcher */}
