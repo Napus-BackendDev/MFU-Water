@@ -1,5 +1,6 @@
 // Compatibility exports: browser operations use the same-origin Express API only.
 import { fetchSamplesFromSupabase, downloadPublishedExport } from './publicSamples.js';
+import { createEvidenceForm } from './evidencePhotos.js';
 export { fetchSamplesFromSupabase, downloadPublishedExport };
 let csrfToken = '';
 let csrfExpiresAt = 0;
@@ -46,10 +47,14 @@ async function apiList(path) {
 }
 export async function uploadSampleImage() { throw new Error('รูปหลักฐานต้องส่งพร้อมผลตรวจผ่าน API ที่ปลอดภัย'); }
 export async function saveSampleToSupabase(record, photos = [], idempotencyKey = crypto.randomUUID()) {
-  const formData = new FormData();
-  formData.set('sample', JSON.stringify(record));
-  for (const photo of photos) formData.append('photos', photo, 'evidence.jpg');
-  return { success: true, data: await apiRequest('/api/samples', { method: 'POST', formData, idempotencyKey }) };
+  const formData = await createEvidenceForm(record, photos);
+  const data = await apiRequest('/api/samples', { method: 'POST', formData, idempotencyKey });
+  if (data.success !== true || typeof data.sample_code !== 'string' || !data.sample_code.trim()
+    || !['auto_published', 'approved', 'pending_review', 'rejected', 'withdrawn'].includes(data.status)
+    || !Number.isSafeInteger(data.revision) || data.revision < 1) {
+    throw new Error('ยังยืนยันผลการบันทึกไม่ได้ กรุณาลองส่งข้อมูลเดิมอีกครั้ง');
+  }
+  return { success: true, data };
 }
 export function fetchAdminSamples() { return apiList('/api/admin/samples'); }
 export async function fetchAdminContact(code) { return (await apiRequest(`/api/admin/samples/${encodeURIComponent(code)}/contact`)).data; }

@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   MapPin,
   Camera,
@@ -9,12 +9,14 @@ import {
 } from 'lucide-react';
 import { requestContactRemoval, saveSampleToSupabase } from '../../lib/supabase';
 import { ARSENIC_LEVELS, parseCoordinate } from '../../data/waterWatchData';
+import { compressEvidencePhoto } from '../../lib/evidencePhotos';
 
 export { ARSENIC_LEVELS };
 
 export default function WaterWatchForm({
   onCancel,
-  onSubmitSuccess
+  onSubmitSuccess,
+  onPendingAttemptChange
 }) {
   // Form Fields State
   const [fullName, setFullName] = useState('');
@@ -40,9 +42,16 @@ export default function WaterWatchForm({
   const [removalReason, setRemovalReason] = useState('');
   const [removalStatus, setRemovalStatus] = useState('');
   const idempotencyKey = useRef('');
+  const pendingAttempt = useRef(null);
+  const submitting = useRef(false);
+  const [retryPending, setRetryPending] = useState(false);
+  const formLocked = isSubmitting || retryPending;
+  useEffect(() => () => { if (photo1?.url) URL.revokeObjectURL(photo1.url); }, [photo1]);
+  useEffect(() => () => { if (photo2?.url) URL.revokeObjectURL(photo2.url); }, [photo2]);
 
   // GPS Handler
   const handleGetLiveGPS = () => {
+    if (submitting.current || pendingAttempt.current) return;
     if (!navigator.geolocation) {
       alert('เบราว์เซอร์นี้ไม่รองรับการดึงพิกัด GPS อัตโนมัติ กรุณาระบุพิกัดในช่องละติจูดและลองจิจูด');
       return;
@@ -52,6 +61,7 @@ export default function WaterWatchForm({
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         setIsGettingGps(false);
+        if (submitting.current || pendingAttempt.current) return;
         const lat = pos.coords.latitude.toFixed(6);
         const lng = pos.coords.longitude.toFixed(6);
         const acc = Math.round(pos.coords.accuracy || 10);
@@ -70,6 +80,7 @@ export default function WaterWatchForm({
 
   // Photo handlers
   const handleFileSelect = (e, slot) => {
+    if (submitting.current || pendingAttempt.current) return;
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -78,22 +89,23 @@ export default function WaterWatchForm({
       return;
     }
 
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      const photoObj = {
-        id: 'img-' + Date.now() + '-' + Math.random().toString(36).substr(2, 4),
-        name: file.name,
-        sizeKb: Math.round(file.size / 1024),
-        url: reader.result,
-        rawFile: file
-      };
-      if (slot === 1) setPhoto1(photoObj);
-      else setPhoto2(photoObj);
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+      setErrorMessage('รองรับเฉพาะภาพ JPEG, PNG หรือ WebP');
+      return;
+    }
+    const photoObj = {
+      id: 'img-' + Date.now() + '-' + Math.random().toString(36).substr(2, 4),
+      name: file.name,
+      sizeKb: Math.round(file.size / 1024),
+      url: URL.createObjectURL(file),
+      rawFile: file
     };
-    reader.readAsDataURL(file);
+    if (slot === 1) setPhoto1(photoObj);
+    else setPhoto2(photoObj);
   };
 
   const removePhoto = (slot) => {
+    if (submitting.current || pendingAttempt.current) return;
     if (slot === 1) {
       setPhoto1(null);
       if (fileInputRef1.current) fileInputRef1.current.value = '';
@@ -105,6 +117,7 @@ export default function WaterWatchForm({
 
   // Submit Handler
   const handleSubmit = async () => {
+    if (submitting.current) return;
     setErrorMessage('');
 
     // Validation 1: Arsenic Level is required
@@ -135,6 +148,7 @@ export default function WaterWatchForm({
       return;
     }
 
+    submitting.current = true;
     setIsSubmitting(true);
 
     try {
@@ -193,20 +207,35 @@ export default function WaterWatchForm({
         images: []
       };
 
-      const result = await saveSampleToSupabase(newRecord, photos.map(photo => photo.rawFile).filter(Boolean), idempotencyKey.current);
+      if (!pendingAttempt.current) {
+        const evidence = [];
+        // Sequential processing avoids decoding both full-resolution photos together.
+        for (const photo of photos) evidence.push(await compressEvidencePhoto(photo.rawFile));
+        pendingAttempt.current = { record: newRecord, evidence, key: idempotencyKey.current };
+        onPendingAttemptChange?.(true);
+      }
+      // An ambiguous network failure must retry the exact same payload and key.
+      const attempt = pendingAttempt.current;
+      const result = await saveSampleToSupabase(attempt.record, attempt.evidence, attempt.key);
       idempotencyKey.current = '';
+      pendingAttempt.current = null;
+      onPendingAttemptChange?.(false);
+      setRetryPending(false);
 
       setIsSubmitting(false);
 
       if (onSubmitSuccess) {
-        onSubmitSuccess({ ...newRecord, sample_code: result.data.sample_code, publication_status: result.data.status });
+        onSubmitSuccess({ ...attempt.record, sample_code: result.data.sample_code, publication_status: result.data.status });
       }
       setFullName('');
       setPhone('');
     } catch (err) {
       console.error('Error submitting water watch form:', err);
       setIsSubmitting(false);
+      setRetryPending(Boolean(pendingAttempt.current));
       setErrorMessage(err.message || 'เกิดข้อผิดพลาดในการบันทึกข้อมูล กรุณาลองใหม่อีกครั้ง');
+    } finally {
+      submitting.current = false;
     }
   };
 
@@ -249,6 +278,7 @@ export default function WaterWatchForm({
             <span className="font-medium">{errorMessage}</span>
           </div>
         )}
+        {retryPending && <p role="status" className="text-xs text-amber-800">ยังยืนยันผลการส่งไม่ได้ กดส่งข้อมูลเดิมอีกครั้ง ข้อมูลและรูปถูกล็อกเพื่อป้องกันการส่งซ้ำคนละรายการ ปิดไว้ก่อนแล้วเปิดฟอร์มใหม่ในหน้าเดิมได้ ข้อมูลยังอยู่ในหน่วยความจำ กรุณาอย่ารีเฟรชหรือเปลี่ยนหน้าจนยืนยันผลสำเร็จ</p>}
 
         {/* 1 & 2. ชื่อและเบอร์โทร (Grid 2 คอลัมน์) */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
@@ -260,7 +290,7 @@ export default function WaterWatchForm({
               type="text"
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
-              disabled={isSubmitting}
+              disabled={formLocked}
               placeholder="ระบุชื่อ-นามสกุล"
               className="w-full text-xs sm:text-sm h-11 sm:h-12 px-3.5 rounded-xl border border-slate-300 focus:border-[#A6192E] focus:ring-2 focus:ring-[#A6192E]/20 bg-white text-slate-800 outline-none transition-all placeholder:text-slate-400 disabled:bg-slate-100 font-medium"
             />
@@ -273,7 +303,7 @@ export default function WaterWatchForm({
               type="tel"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
-              disabled={isSubmitting}
+              disabled={formLocked}
               placeholder="เช่น 08X-XXX-XXXX"
               className="w-full text-xs sm:text-sm h-11 sm:h-12 px-3.5 rounded-xl border border-slate-300 focus:border-[#A6192E] focus:ring-2 focus:ring-[#A6192E]/20 bg-white text-slate-800 outline-none transition-all placeholder:text-slate-400 disabled:bg-slate-100 font-medium font-mono"
             />
@@ -311,7 +341,7 @@ export default function WaterWatchForm({
                 <button
                   key={item.level}
                   type="button"
-                  disabled={isSubmitting}
+                  disabled={formLocked}
                   onClick={() => setSelectedLevel(item)}
                   className={`p-1 sm:p-1.5 rounded-xl border flex flex-col items-center justify-between text-center transition-all cursor-pointer h-[70px] sm:h-[82px] select-none ${
                     isSelected
@@ -401,7 +431,7 @@ export default function WaterWatchForm({
           <button
             type="button"
             onClick={handleGetLiveGPS}
-            disabled={isGettingGps || isSubmitting}
+            disabled={isGettingGps || formLocked}
             className="w-full h-11 sm:h-12 px-4 rounded-xl bg-gradient-to-r from-[#E59832] to-[#DF8A20] hover:brightness-105 active:scale-[0.99] text-white font-bold text-xs sm:text-sm shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-75"
           >
             <MapPin className={`w-4 h-4 shrink-0 ${isGettingGps ? 'animate-bounce' : ''}`} />
@@ -420,7 +450,7 @@ export default function WaterWatchForm({
                 type="text"
                 value={latitude}
                 onChange={(e) => setLatitude(e.target.value)}
-                disabled={isSubmitting}
+                disabled={formLocked}
                 placeholder="เช่น 19.910482"
                 className="w-full h-11 bg-[#F8F9FA] border border-slate-300 rounded-xl px-3 text-center text-xs sm:text-sm font-mono font-bold text-slate-800 placeholder:text-slate-400 focus:bg-white focus:border-[#A6192E] focus:ring-2 focus:ring-[#A6192E]/20 outline-none transition-all disabled:opacity-60"
               />
@@ -433,7 +463,7 @@ export default function WaterWatchForm({
                 type="text"
                 value={longitude}
                 onChange={(e) => setLongitude(e.target.value)}
-                disabled={isSubmitting}
+                disabled={formLocked}
                 placeholder="เช่น 99.840517"
                 className="w-full h-11 bg-[#F8F9FA] border border-slate-300 rounded-xl px-3 text-center text-xs sm:text-sm font-mono font-bold text-slate-800 placeholder:text-slate-400 focus:bg-white focus:border-[#A6192E] focus:ring-2 focus:ring-[#A6192E]/20 outline-none transition-all disabled:opacity-60"
               />
@@ -453,11 +483,12 @@ export default function WaterWatchForm({
             </span>
           </div>
 
+          <p className="text-xs text-slate-500">ระบบลดขนาดรูปก่อนส่งเป็น JPEG ไม่เกิน 1.5 MiB ต่อรูป ด้านยาวไม่เกิน 2,048 px รูปที่ส่งอาจมีคุณภาพลดลง ภาพตัวอย่างเป็นรูปต้นฉบับ</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3">
             {/* Slot 1: แถบเทียบสีผลตรวจ */}
             <div className="relative">
               <div
-                onClick={() => !isSubmitting && fileInputRef1.current?.click()}
+                onClick={() => !formLocked && fileInputRef1.current?.click()}
                 className="border border-dashed border-slate-300 hover:border-[#A6192E] rounded-xl p-2.5 flex items-center justify-center h-20 sm:h-22 bg-white cursor-pointer transition-all hover:bg-slate-50 group overflow-hidden"
               >
                 {photo1 ? (
@@ -491,6 +522,7 @@ export default function WaterWatchForm({
                   }}
                   className="absolute top-1.5 right-1.5 p-1 rounded-full bg-red-100 text-red-600 hover:bg-red-200 cursor-pointer shadow-xs"
                   title="ลบรูปภาพนี้"
+                  disabled={formLocked}
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -498,7 +530,7 @@ export default function WaterWatchForm({
               <input
                 ref={fileInputRef1}
                 type="file"
-                accept="image/*"
+                accept="image/jpeg,image/png,image/webp"
                 onChange={(e) => handleFileSelect(e, 1)}
                 className="hidden"
               />
@@ -507,7 +539,7 @@ export default function WaterWatchForm({
             {/* Slot 2: สภาพแวดล้อม / จุดเก็บน้ำ */}
             <div className="relative">
               <div
-                onClick={() => !isSubmitting && fileInputRef2.current?.click()}
+                onClick={() => !formLocked && fileInputRef2.current?.click()}
                 className="border border-dashed border-slate-300 hover:border-[#A6192E] rounded-xl p-2.5 flex items-center justify-center h-20 sm:h-22 bg-white cursor-pointer transition-all hover:bg-slate-50 group overflow-hidden"
               >
                 {photo2 ? (
@@ -541,6 +573,7 @@ export default function WaterWatchForm({
                   }}
                   className="absolute top-1.5 right-1.5 p-1 rounded-full bg-red-100 text-red-600 hover:bg-red-200 cursor-pointer shadow-xs"
                   title="ลบรูปภาพนี้"
+                  disabled={formLocked}
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -548,7 +581,7 @@ export default function WaterWatchForm({
               <input
                 ref={fileInputRef2}
                 type="file"
-                accept="image/*"
+                accept="image/jpeg,image/png,image/webp"
                 onChange={(e) => handleFileSelect(e, 2)}
                 className="hidden"
               />
@@ -564,7 +597,7 @@ export default function WaterWatchForm({
             disabled={isSubmitting}
             className="w-28 sm:w-36 py-3 px-4 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold text-xs sm:text-sm transition-all cursor-pointer disabled:opacity-50"
           >
-            ยกเลิก
+            {retryPending ? 'ปิดไว้ก่อน' : 'ยกเลิก'}
           </button>
           <button
             type="button"
@@ -575,10 +608,10 @@ export default function WaterWatchForm({
             {isSubmitting ? (
               <>
                 <RefreshCw className="w-4 h-4 animate-spin" />
-                <span>กำลังส่งข้อมูล...</span>
+                <span>กำลังลดขนาดรูปและส่งข้อมูล...</span>
               </>
             ) : (
-              <span>ส่งข้อมูลบันทึกผลการตรวจสอบ</span>
+              <span>{retryPending ? 'ลองส่งข้อมูลเดิมอีกครั้ง' : 'ส่งข้อมูลบันทึกผลการตรวจสอบ'}</span>
             )}
           </button>
         </div>

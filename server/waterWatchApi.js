@@ -1,11 +1,12 @@
 import { createClient } from '@supabase/supabase-js';
 import express from 'express';
 import multer from 'multer';
-import sharp from 'sharp';
+import { encodeEvidenceImage } from './evidenceImages.js';
 import nodemailer from 'nodemailer';
 import { randomBytes, createHmac, timingSafeEqual, randomUUID } from 'node:crypto';
 import { csvCell } from '../src/lib/csvCell.js';
 import { submissionLimiter } from './submissionLimiter.js';
+import { submissionReceipt } from './submissionReceipt.js';
 import { parseArsenicPpb, publicationStatusFor, publicSampleDto, validateSampleInput } from './waterWatchRules.js';
 
 const PHOTO_BUCKET = 'water-watch-photos';
@@ -431,8 +432,10 @@ export function createWaterWatchApi({ startWorker = process.env.NODE_ENV === 'pr
       if (!Number.isInteger(index) || index < 0 || index >= paths.length || !paths[index]) return safeError(res, 404, 'ไม่พบรูปหลักฐาน');
       const { data: blob, error: storageError } = await clients.service.storage.from(PHOTO_BUCKET).download(paths[index]);
       if (storageError || !blob) return safeError(res, 404, 'ไม่พบรูปหลักฐาน');
-      res.type(blob.type || 'image/jpeg').set('X-Content-Type-Options', 'nosniff');
-      res.send(Buffer.from(await blob.arrayBuffer()));
+      if (blob.size > 10 * 1024 * 1024) return safeError(res, 413, 'รูปหลักฐานมีขนาดใหญ่เกินไป');
+      const image = await encodeEvidenceImage(Buffer.from(await blob.arrayBuffer()));
+      res.type('image/jpeg').set('X-Content-Type-Options', 'nosniff');
+      res.send(image);
     } catch (error) {
       safeError(res, error.status || 503, 'เปิดรูปหลักฐานไม่สำเร็จ');
     }
@@ -441,6 +444,7 @@ export function createWaterWatchApi({ startWorker = process.env.NODE_ENV === 'pr
 
   router.post('/samples', requireCsrf, submissionLimiter(), upload.array('photos', 2), async (req, res) => {
     const uploadedPaths = [];
+    let rpcDispatched = false;
     try {
       const config = getConfig();
       const clients = createClients(config);
@@ -454,14 +458,7 @@ export function createWaterWatchApi({ startWorker = process.env.NODE_ENV === 'pr
       const status = publicationStatusFor(ppb);
       const photoPaths = [];
       for (const file of req.files || []) {
-        const image = sharp(file.buffer, { failOn: 'error', limitInputPixels: 30_000_000 });
-        const metadata = await image.metadata();
-        if (!['jpeg', 'png', 'webp'].includes(metadata.format)) {
-          const error = new Error('รองรับเฉพาะภาพ JPEG, PNG หรือ WebP');
-          error.status = 415;
-          throw error;
-        }
-        const cleanImage = await image.rotate().jpeg({ quality: 88, mozjpeg: true }).toBuffer();
+        const cleanImage = await encodeEvidenceImage(file.buffer);
         const path = `samples/${randomUUID()}.jpg`;
         const { error: uploadError } = await clients.service.storage.from(PHOTO_BUCKET).upload(path, cleanImage, { contentType: 'image/jpeg', upsert: false, cacheControl: '0' });
         if (uploadError) throw uploadError;
@@ -489,6 +486,8 @@ export function createWaterWatchApi({ startWorker = process.env.NODE_ENV === 'pr
         name: cleanText(record.collector?.name, 160),
         phone: cleanText(record.collector?.phone, 40)
       };
+      // Once dispatched, a missing response is not proof the transaction rolled back.
+      rpcDispatched = true;
       const { data, error } = await clients.service.rpc('create_water_sample', {
         p_sample: samplePayload,
         p_contact: contact,
@@ -498,12 +497,15 @@ export function createWaterWatchApi({ startWorker = process.env.NODE_ENV === 'pr
       });
       if (error) throw error;
       if (data?.duplicate && uploadedPaths.length) {
-        await clients.service.storage.from(PHOTO_BUCKET).remove(uploadedPaths);
+        const { error: cleanupError } = await clients.service.storage.from(PHOTO_BUCKET).remove(uploadedPaths);
+        if (cleanupError) throw cleanupError;
         uploadedPaths.length = 0;
       }
-      res.status(data?.duplicate ? 200 : 201).json({ success: true, status, sample_code: data?.sample_code || samplePayload.sample_code, revision: 1 });
+      const receipt = await submissionReceipt(data, samplePayload, clients.service);
+      res.status(data?.duplicate ? 200 : 201).json(receipt);
     } catch (error) {
-      if (uploadedPaths.length) {
+      // Never delete evidence that an ambiguously completed RPC may reference.
+      if (!rpcDispatched && uploadedPaths.length) {
         try {
           const config = getConfig();
           const clients = createClients(config);

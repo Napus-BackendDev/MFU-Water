@@ -16,7 +16,7 @@ const run = (exe, args) => execFileSync(exe, args, { cwd: root, encoding: 'utf8'
 const g = (...args) => run(git, args);
 const hash = data => createHash('sha256').update(data).digest('hex');
 const forbidden = /(?:^|\/)(?:\.codex[^/]*|\.agents|\.vercel|node_modules|dist|scratch)(?:\/|$)|(?:^|\/)\.env(?!\.example$)|service-account|\.approval\.json|\.log$/i;
-const allowedNew = /^(?:src\/|server\/.*\.(?:js|mjs)$|supabase\/(?:migrations\/.*\.sql|schema\.sql)$|scripts\/.*\.(?:mjs|js|ps1)$|public\/(?:data\/boundaries\/|kok-river-source\.)|PRODUCTION-READINESS\.md$)/;
+const allowedNew = /^(?:src\/|api\/.*\.js$|server\/(?:.*\.(?:js|mjs)$|data\/.*\.geojson$)|supabase\/(?:migrations\/.*\.sql|schema\.sql)$|scripts\/.*\.(?:mjs|js|ps1)$|public\/(?:data\/boundaries\/|kok-river-source\.)|\.vercelignore$|PRODUCTION-READINESS\.md$)/;
 const secrets = [/-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----/, /\beyJ[A-Za-z0-9_-]{15,}\.[A-Za-z0-9_-]{15,}\.[A-Za-z0-9_-]{15,}\b/, /\b(?:gh[pousr]_[A-Za-z0-9]{30,}|github_pat_[A-Za-z0-9_]{40,}|sb_secret_[A-Za-z0-9_-]{20,}|AKIA[A-Z0-9]{16})\b/];
 function safeFile(path) {
   if (forbidden.test(path)) throw new Error(`excluded_path:${path}`);
