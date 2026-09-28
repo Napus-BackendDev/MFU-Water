@@ -7,7 +7,7 @@ import { createHash } from 'node:crypto';
 
 const root = realpathSync(resolve(dirname(fileURLToPath(import.meta.url)), '..'));
 const repository = 'Napus-BackendDev/MFU-Water';
-const branch = 'mfu-water-update-20260929';
+const branch = process.env.GITHUB_TARGET_BRANCH || 'main';
 const git = 'C:/Program Files/Git/cmd/git.exe';
 const gh = 'C:/Program Files/GitHub CLI/gh.exe';
 const mode = process.argv[2];
@@ -51,7 +51,7 @@ if (mode === 'commit') {
     if (!expected || g('rev-parse', `:${path}`) !== expected.blob) throw new Error(`staged_content_mismatch:${path}`);
   }
   if (!staged.length) throw new Error('nothing_to_commit');
-  g('-c', `user.name=${user.login}`, '-c', `user.email=${user.id}+${user.login}@users.noreply.github.com`, 'commit', '-m', 'feat: update water watch maps, privacy and API readiness');
+  g('-c', `user.name=${user.login}`, '-c', `user.email=${user.id}+${user.login}@users.noreply.github.com`, 'commit', '-m', process.env.GIT_COMMIT_MESSAGE || 'feat: update water watch maps, privacy and API readiness');
   console.log(JSON.stringify({ commit: g('rev-parse', 'HEAD'), changedFiles: staged.length }));
 } else {
   const expected = process.argv[3];

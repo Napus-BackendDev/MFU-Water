@@ -45,3 +45,4 @@ server/service-account.json
 *.approval.json*
 /*-20260929.png
 /province-*.png
+*-results.json
