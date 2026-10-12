@@ -23,8 +23,61 @@ export const COUNTRIES = [
 
 export const SELECTABLE_COUNTRIES = COUNTRIES.filter(country => isSelectableCountry(country.iso));
 
+export const KOK_STUDY_AREAS = [
+  {
+    id: 'thaton',
+    name: 'ตำบลท่าตอน',
+    label: 'ตำบลท่าตอน',
+    subtext: 'ต.ท่าตอน อ.แม่อาย จ.เชียงใหม่ · ต้นน้ำกก',
+    center: [99.3620, 20.0600],
+    zoom: 13.9,
+    bounds: [[99.3300, 20.0350], [99.3950, 20.0850]]
+  },
+  {
+    id: 'ruammit',
+    name: 'บ้านกะเหรี่ยงรวมมิตร',
+    label: 'บ้านกะเหรี่ยงรวมมิตร',
+    subtext: 'ต.แม่ยาว อ.เมือง จ.เชียงราย · กลางน้ำกก',
+    center: [99.7350, 19.9520],
+    zoom: 13.8,
+    bounds: [[99.7050, 19.9250], [99.7650, 19.9750]]
+  },
+  {
+    id: 'pongkhong',
+    name: 'บ้านปงของ',
+    label: 'บ้านปงของ',
+    subtext: 'ต.แม่เงิน อ.เชียงแสน จ.เชียงราย · ปลายน้ำกก-โขง',
+    center: [100.2038, 20.3064],
+    zoom: 13.9,
+    bounds: [[100.1700, 20.2800], [100.2350, 20.3300]]
+  },
+  {
+    id: 'banhai',
+    name: 'บ้านไห้',
+    label: 'บ้านไห้',
+    subtext: 'ต.ท่าข้าม อ.เวียงแก่น จ.เชียงราย · ลุ่มน้ำกก-โขง',
+    center: [100.4100, 20.2700],
+    zoom: 13.9,
+    bounds: [[100.3800, 20.2450], [100.4400, 20.2950]]
+  }
+];
+
+export const KOK_STUDY_AREAS_BOUNDS = [
+  [99.3000, 19.8800],
+  [100.5000, 20.3500]
+];
+export const KOK_STUDY_AREAS_CENTER = [99.8500, 20.0800];
+
+export const INITIAL_STUDY_AREA = Object.freeze({
+  level: 'study-area',
+  id: 'all',
+  label: 'ภาพรวม 4 เขตศึกษา',
+  bounds: KOK_STUDY_AREAS_BOUNDS,
+  center: KOK_STUDY_AREAS_CENTER
+});
+
 export function shouldShowAreaSamples(area) {
-  return ['region', 'province', 'district'].includes(area?.level);
+  return ['region', 'province', 'district', 'study-area'].includes(area?.level);
 }
 
 export const QUICK_VIEW_AREAS = [

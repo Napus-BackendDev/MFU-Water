@@ -47,7 +47,7 @@ const WaterHealthChart = lazy(() => import('./WaterHealthChart'));
 import MapAreaSidebar from './MapAreaSidebar';
 import { countPublishedByArea, filterSampleLevel } from './areaSampleCounts.js';
 import { submittedSampleVisibility } from './submittedSampleVisibility.js';
-import { filterSubmissionsByArea, INITIAL_MAP_AREA, isSelectableCountry, provincesForRegion, regionForProvince } from './mapAreaNavigation.js';
+import { filterSubmissionsByArea, INITIAL_MAP_AREA, INITIAL_STUDY_AREA, KOK_STUDY_AREAS, isSelectableCountry, provincesForRegion, regionForProvince } from './mapAreaNavigation.js';
 import './kokWaterWatchModern.css';
 import { 
   fetchSamplesFromSupabase, 
@@ -145,15 +145,16 @@ export default function KokWaterWatchView({ onOpenAdmin }) {
   }, [layerSettings]);
 
   const [showBoundaryLabels, setShowBoundaryLabels] = useState(true);
-  const [selectedArea, setSelectedArea] = useState(INITIAL_MAP_AREA);
+  const [selectedArea, setSelectedArea] = useState(INITIAL_STUDY_AREA);
   const selectedAreaRef = useRef(selectedArea);
   selectedAreaRef.current = selectedArea;
   const [boundaryData, setBoundaryData] = useState(null);
-  const [boundaryLoading, setBoundaryLoading] = useState(true);
+  const [boundaryLoading, setBoundaryLoading] = useState(false);
   const [boundaryError, setBoundaryError] = useState(false);
   const [boundaryRetry, setBoundaryRetry] = useState(0);
   const [districtCache, setDistrictCache] = useState({});
   const areaFeature = useMemo(() => {
+    if (selectedArea.level === 'study-area') return null;
     if (selectedArea.level === 'country') return boundaryData?.countries?.features.find(f => f.properties.shapeISO === 'THA') || null;
     if (selectedArea.level === 'region') return boundaryData?.regions?.features.find(f => f.properties.regionId === selectedArea.regionId) || null;
     if (selectedArea.level === 'province') return boundaryData?.provinces?.features.find(f => f.properties.shapeISO === selectedArea.provinceIso) || null;
@@ -161,6 +162,11 @@ export default function KokWaterWatchView({ onOpenAdmin }) {
   }, [boundaryData?.countries, boundaryData?.regions, boundaryData?.provinces, boundaryData?.districts, selectedArea]);
 
   useEffect(() => {
+    if (selectedArea.level === 'study-area') {
+      setBoundaryLoading(false);
+      setBoundaryError(false);
+      return;
+    }
     let active = true;
     setBoundaryLoading(true);
     setBoundaryError(false);
@@ -179,6 +185,13 @@ export default function KokWaterWatchView({ onOpenAdmin }) {
 
   const selectArea = (selection, clickedFeature = null) => {
     if (!selection || selection.level === 'world') return;
+    if (selection.level === 'study-area') {
+      setSelectedArea(selection);
+      setSelectedSample(null);
+      setSelectedHotspot(null);
+      mapController.current?.fitArea?.(selection, null);
+      return;
+    }
     const next = { ...selection };
     if (next.level === 'region' && !next.regionId) next.regionId = next.id;
     if (next.iso && !next.countryIso && next.iso.length === 3) next.countryIso = next.iso;
@@ -249,7 +262,23 @@ export default function KokWaterWatchView({ onOpenAdmin }) {
     setSelectedHotspot(null);
   }, [submissions]);
 
-  const allAreaSubmissions = useMemo(() => !boundaryLoading && !boundaryError && areaFeature ? filterSubmissionsByArea(submissions, areaFeature) : [], [submissions, areaFeature, boundaryLoading, boundaryError]);
+  const allAreaSubmissions = useMemo(() => {
+    const list = Array.isArray(submissions) ? submissions : [];
+    if (selectedArea?.level === 'study-area') {
+      if (!selectedArea.id || selectedArea.id === 'all') return list;
+      const target = KOK_STUDY_AREAS.find(a => a.id === selectedArea.id);
+      if (!target) return list;
+      const [tLng, tLat] = target.center;
+      return list.filter(s => {
+        const coords = s?.coordinates || [s?.longitude, s?.latitude];
+        if (!coords || !Number.isFinite(Number(coords[0])) || !Number.isFinite(Number(coords[1]))) return false;
+        const dLat = (Number(coords[1]) - tLat) * 111;
+        const dLng = (Number(coords[0]) - tLng) * 111 * Math.cos(tLat * Math.PI / 180);
+        return Math.hypot(dLat, dLng) <= 18;
+      });
+    }
+    return !boundaryLoading && !boundaryError && areaFeature ? filterSubmissionsByArea(list, areaFeature) : list;
+  }, [submissions, selectedArea, areaFeature, boundaryLoading, boundaryError]);
   const referenceTime = useMemo(() => getTimeReference(submissions, referenceClock), [submissions, referenceClock]);
   const selectSample = useCallback(sample => setSelectedSample(sample), []);
   const selectHotspot = useCallback(hotspot => setSelectedHotspot(hotspot), []);
@@ -439,16 +468,13 @@ export default function KokWaterWatchView({ onOpenAdmin }) {
         <MapAreaSidebar
           area={selectedArea}
           onSelect={selectArea}
-          countries={boundaryData?.countries}
-          provinces={boundaryData?.provinces}
-          districts={boundaryData?.districts}
+          submissions={submissions}
           loading={boundaryLoading}
           error={boundaryError}
           samplesError={samplesError}
           samplesLoading={!samplesLoaded && !samplesError}
           onRetrySamples={() => pollingRef.current?.refresh()}
           retryingSamples={isSyncing}
-          areaCounts={areaCounts}
           onRetry={() => setBoundaryRetry(value => value + 1)}
           resultCount={samplesLoaded && !samplesError ? levelFilteredSubmissions.length : null}
         />
@@ -966,12 +992,12 @@ export default function KokWaterWatchView({ onOpenAdmin }) {
           </section>
         )}
 
-        {/* Survey FAB Button (ทำแบบสำรวจ / แบบทดสอบ - วงกลม ล่างขวา) */}
+        {/* Survey FAB Button (ปุ่มบันทึกผลตรวจสารหนู - เด่น ชัดเจน ล่างขวา) */}
         <div className="kok-bottom-right-action">
           <button
             className="survey-button"
             type="button"
-            aria-label="ทำแบบสำรวจ"
+            aria-label="บันทึกผลตรวจสารหนู"
             disabled={serverReadOnly}
             title={serverReadOnly ? 'โหมดอ่านอย่างเดียว ยังไม่เปิดรับผลตรวจ' : 'ทำแบบสำรวจ / บันทึกผลตรวจวัดสารหนู'}
             onClick={() => {
@@ -980,8 +1006,11 @@ export default function KokWaterWatchView({ onOpenAdmin }) {
               setIsFormOpen(true);
             }}
           >
-            <ClipboardList size={20} className="text-white" />
-            <span className="kok-fab-tooltip kok-fab-tooltip-left">ทำแบบสำรวจ</span>
+            <ClipboardList size={19} className="text-white shrink-0" />
+            <span className="survey-button-label">
+              <span className="survey-label-full">บันทึกผลตรวจสารหนู</span>
+              <span className="survey-label-short">บันทึกผล</span>
+            </span>
           </button>
         </div>
         {serverReadOnly && <div role="status" className="fixed bottom-20 right-4 z-40 bg-white px-3 py-2 rounded-xl shadow text-sm">โหมดอ่านอย่างเดียว · แสดงเฉพาะผลตรวจที่เผยแพร่</div>}

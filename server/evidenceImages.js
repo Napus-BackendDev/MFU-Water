@@ -1,4 +1,17 @@
-import sharp from 'sharp';
+let sharp = null;
+let sharpLoadAttempted = false;
+
+async function getSharp() {
+  if (sharpLoadAttempted) return sharp;
+  sharpLoadAttempted = true;
+  try {
+    const mod = await import('sharp');
+    sharp = mod.default || mod;
+  } catch {
+    sharp = null;
+  }
+  return sharp;
+}
 
 export const MAX_EVIDENCE_OUTPUT_BYTES = 1.5 * 1024 * 1024;
 const MAX_INPUT_BYTES = 10 * 1024 * 1024;
@@ -8,16 +21,23 @@ export async function encodeEvidenceImage(input) {
   if (!Buffer.isBuffer(input) || !input.length || input.length > MAX_INPUT_BYTES) {
     throw Object.assign(new Error('ขนาดรูปหลักฐานไม่ถูกต้อง'), { status: 413 });
   }
+  const sharpInstance = await getSharp();
+  if (!sharpInstance) {
+    if (input.length > MAX_EVIDENCE_OUTPUT_BYTES) {
+      throw Object.assign(new Error('ขนาดรูปหลักฐานเกิน 1.5MB'), { status: 413 });
+    }
+    return input;
+  }
   try {
     const options = { failOn: 'error', limitInputPixels: 30_000_000 };
-    const metadata = await sharp(input, options).metadata();
+    const metadata = await sharpInstance(input, options).metadata();
     if (!['jpeg', 'png', 'webp'].includes(metadata.format) || (metadata.pages || 1) > 1) {
       throw Object.assign(new Error('รองรับเฉพาะภาพนิ่ง JPEG, PNG หรือ WebP'), { status: 415 });
     }
     for (let attempt = 0; attempt < 5; attempt++) {
       const edge = Math.round(2048 * 0.75 ** attempt);
       for (const quality of [88, 76, 64]) {
-        const output = await sharp(input, options).rotate()
+        const output = await sharpInstance(input, options).rotate()
           .resize(edge, edge, { fit: 'inside', withoutEnlargement: true })
           .flatten({ background: '#ffffff' })
           .jpeg({ quality, mozjpeg: true }).toBuffer();

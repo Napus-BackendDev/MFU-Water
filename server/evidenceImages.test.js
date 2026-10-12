@@ -1,13 +1,21 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import sharp from 'sharp';
 import { readFile } from 'node:fs/promises';
 import express from 'express';
 import { createServer } from 'node:http';
 import { createWaterWatchApi } from './waterWatchApi.js';
 import { encodeEvidenceImage, MAX_EVIDENCE_OUTPUT_BYTES } from './evidenceImages.js';
 
-test('actual server codec bounds noisy legacy image and strips metadata, preserving aspect ratio', async () => {
+let sharp = null;
+try {
+  const mod = await import('sharp');
+  sharp = mod.default || mod;
+} catch {
+  sharp = null;
+}
+
+test('actual server codec bounds noisy legacy image and strips metadata, preserving aspect ratio', async (t) => {
+  if (!sharp) return t.skip('sharp not available on this platform/environment');
   const width = 2500, height = 1700;
   const pixels = Buffer.alloc(width * height * 3);
   let seed = 17;
@@ -24,7 +32,8 @@ test('actual server codec bounds noisy legacy image and strips metadata, preserv
   assert.equal(metadata.icc, undefined);
 });
 
-test('small transparent PNG becomes white JPEG without enlargement; EXIF orientation rotates', async () => {
+test('small transparent PNG becomes white JPEG without enlargement; EXIF orientation rotates', async (t) => {
+  if (!sharp) return t.skip('sharp not available on this platform/environment');
   const png = await sharp({ create: { width: 100, height: 50, channels: 4, background: '#00000000' } }).png().toBuffer();
   const output = await encodeEvidenceImage(png);
   const { data, info } = await sharp(output).raw().toBuffer({ resolveWithObject: true });
@@ -36,7 +45,8 @@ test('small transparent PNG becomes white JPEG without enlargement; EXIF orienta
   assert.equal(metadata.orientation, undefined);
 });
 
-test('invalid, empty, oversized, SVG and excessive-pixel evidence fail closed', async () => {
+test('invalid, empty, oversized, SVG and excessive-pixel evidence fail closed', async (t) => {
+  if (!sharp) return t.skip('sharp not available on this platform/environment');
   for (const input of [Buffer.alloc(0), Buffer.alloc(10 * 1024 * 1024 + 1)]) {
     await assert.rejects(encodeEvidenceImage(input), { status: 413 });
   }
@@ -56,6 +66,7 @@ test('API upload and legacy download both use bounded codec, without Storage URL
 });
 
 test('real public photo route rechecks publication before Storage access, returns bounded JPEG/no-store', async t => {
+  if (!sharp) return t.skip('sharp not available on this platform/environment');
   let row = { sample_code: 'MOCK-1', latitude: 20, longitude: 99, revision: 1, approved_revision: 1,
     publication_status: 'auto_published', arsenic_ppb: 50, private_photo_paths: ['samples/mock.png'] };
   let downloads = 0;

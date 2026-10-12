@@ -333,6 +333,61 @@
 .map-area-options > button svg:first-child { color: #5e9280; }
 .map-area-options > button svg:last-child { color: #a0ada8; }
 .map-area-back { margin: 0 12px 8px; color: #28705d; font-size: 10px; }
+
+.study-area-btn {
+  display: flex !important;
+  width: 100%;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px !important;
+  margin-bottom: 5px;
+  border-radius: 10px !important;
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(226, 232, 240, 0.85);
+  transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+  text-align: left;
+  cursor: pointer;
+}
+
+.study-area-btn:hover {
+  background: #f0fdf4 !important;
+  border-color: rgba(16, 185, 129, 0.45);
+  transform: translateX(2px);
+}
+
+.study-area-btn.is-active {
+  background: #ecfdf5 !important;
+  border-color: #10b981 !important;
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.16);
+}
+
+.study-area-info {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.study-area-title {
+  font-weight: 700;
+  font-size: 12px;
+  color: #1e293b;
+  line-height: 1.25;
+}
+
+.study-area-btn.is-active .study-area-title {
+  color: #047857;
+}
+
+.study-area-sub {
+  font-size: 9.5px;
+  color: #64748b;
+  margin-top: 1px;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 .map-area-empty,.map-area-error { margin: 8px 12px; color: #7b8984; font-size: 10px; line-height: 1.5; }
 .map-area-error { color: #a53a3a; }
 .map-area-error button { margin-left: 5px; text-decoration: underline; }
@@ -644,32 +699,51 @@
   transform: scale(0.92);
 }
 
-/* Survey FAB Button (ปุ่มทำแบบสำรวจ / แบบทดสอบ วงกลม ล่างขวา) */
+/* Survey FAB Button (ปุ่มบันทึกผลตรวจสารหนู เด่น ชัดเจน ล่างขวา) */
 .survey-button {
   position: relative;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 48px;
+  gap: 8px;
   height: 48px;
-  border-radius: 50%;
+  padding: 0 20px;
+  border-radius: 9999px;
   border: 1.5px solid rgba(255, 255, 255, 0.5);
   background: linear-gradient(135deg, #10b981 0%, #047857 100%);
   color: #fff;
-  box-shadow: 0 4px 18px rgba(22, 63, 52, 0.35);
+  font-family: 'Prompt', -apple-system, sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  white-space: nowrap;
+  box-shadow: 0 4px 20px rgba(16, 185, 129, 0.42), 0 2px 6px rgba(0, 0, 0, 0.12);
   cursor: pointer;
-  padding: 0;
-  transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition: all 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 .survey-button:hover {
-  transform: translateY(-2px) scale(1.08);
+  transform: translateY(-2px) scale(1.04);
   background: linear-gradient(135deg, #059669 0%, #065f46 100%);
-  box-shadow: 0 8px 24px rgba(22, 63, 52, 0.45);
+  box-shadow: 0 8px 28px rgba(16, 185, 129, 0.55), 0 3px 10px rgba(0, 0, 0, 0.16);
 }
 
 .survey-button:active {
-  transform: scale(0.92);
+  transform: scale(0.96);
+}
+
+.survey-button-label {
+  display: inline-block;
+  font-weight: 700;
+  color: #ffffff;
+  letter-spacing: 0.01em;
+}
+
+.survey-label-full {
+  display: inline;
+}
+
+.survey-label-short {
+  display: none;
 }
 
 .survey-button svg,
@@ -1329,102 +1403,155 @@
   }
 
   .map-area-sidebar {
-    top: auto;
-    bottom: 82px;
-    left: 10px;
-    width: min(300px, calc(100vw - 20px));
-    max-height: min(44vh, 370px);
+    top: 12px;
+    bottom: auto;
+    left: 12px;
+    width: min(310px, calc(100vw - 72px));
+    max-height: min(72vh, 480px);
     font-size: 11px;
+    border-radius: 14px;
+    box-shadow: 0 4px 18px rgba(15, 23, 42, 0.16);
+    transition: max-height 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s ease;
+    z-index: 28;
+  }
+
+  .map-area-sidebar.is-collapsed {
+    max-height: 44px;
+    overflow: hidden;
+  }
+
+  .map-area-sidebar.is-collapsed .map-area-options,
+  .map-area-sidebar.is-collapsed .map-area-error {
+    display: none !important;
+  }
+
+  .map-area-sidebar.is-collapsed header {
+    border-bottom: none;
+  }
+
+  .map-area-sidebar header {
+    padding: 8px 12px;
+    cursor: pointer;
+  }
+
+  .map-area-options {
+    max-height: calc(min(72vh, 480px) - 52px);
+    overflow-y: auto;
+    padding: 6px 8px;
   }
 
   .map-area-options > button { padding: 6px 7px; }
 
-  /* เอา Time Range ไว้ข้างล่างตัวของปุ่ม (ชิดล่างสุด) */
-  /* Time Range Capsule บนหน้าจอมือถือ */
+  /* Time Range Capsule บนหน้าจอมือถือ - วางชิดล่างซ้าย ไม่ทับกับปุ่มบันทึกผลขวาล่าง */
   .time-range-capsule {
     position: absolute;
-    left: 50%;
-    bottom: 12px;
-    transform: translateX(-50%);
+    left: 12px;
+    bottom: max(12px, env(safe-area-inset-bottom, 12px));
+    transform: none;
     z-index: 20;
   }
 
   .time-range-capsule-btn {
-    height: 44px;
-    padding: 3px 10px 3px 5px;
-    gap: 7px;
+    height: 42px;
+    padding: 3px 9px 3px 5px;
+    gap: 6px;
+    border-radius: 9999px;
   }
 
   .time-range-icon-badge {
-    width: 32px;
-    height: 32px;
+    width: 30px;
+    height: 30px;
   }
 
   .time-range-icon-badge svg {
-    width: 15px;
-    height: 15px;
+    width: 14px;
+    height: 14px;
   }
 
   .time-range-micro-tag {
-    font-size: 8px;
-    letter-spacing: 0.08em;
+    font-size: 7.5px;
+    letter-spacing: 0.05em;
   }
 
   .time-range-active-title {
-    font-size: 11.5px;
+    font-size: 11px;
+    font-weight: 700;
   }
 
   .time-range-points-badge {
-    font-size: 9px;
-    padding: 0 5px;
+    font-size: 8.5px;
+    padding: 0 4px;
   }
 
   .time-range-v-divider {
-    height: 16px;
+    height: 14px;
     margin: 0 1px;
   }
 
-  /* ปุ่มล่างซ้าย (App Switcher) และ ล่างขวา (Survey FAB วงกลม) */
-  .kok-bottom-left-action {
-    position: absolute;
-    left: 14px;
-    bottom: 12px;
-    z-index: 25;
-  }
-
+  /* ปุ่มบันทึกผล (Survey Action) ชิดล่างขวา บนมือถือ */
   .kok-bottom-right-action {
     position: absolute;
-    right: 14px;
-    bottom: 12px;
+    right: 12px;
+    bottom: max(12px, env(safe-area-inset-bottom, 12px));
     z-index: 25;
   }
 
-  /* ปุ่มทำแบบสำรวจ / แบบทดสอบ วงกลม ล่างขวา */
+  /* บนมือถือใช้ชื่อย่อ "บันทึกผล" เพื่อประหยัดพื้นที่และไม่ชนกับ Time Range */
+  .survey-label-full {
+    display: none;
+  }
+
+  .survey-label-short {
+    display: inline;
+  }
+
   .survey-button {
-    width: 44px;
-    height: 44px;
-    border-radius: 50%;
-    box-shadow: 0 3px 14px rgba(22, 63, 52, 0.32);
-    padding: 0;
+    height: 42px;
+    padding: 0 14px;
+    border-radius: 9999px;
+    font-size: 13px;
+    gap: 6px;
+    box-shadow: 0 3px 14px rgba(16, 185, 129, 0.4);
   }
 
   .survey-button svg {
-    width: 19px;
-    height: 19px;
+    width: 17px;
+    height: 17px;
   }
 
-  /* ปุ่มสลับระบบ (App Switcher) วงกลม ล่างซ้าย */
-  .app-switch-button {
-    width: 44px;
-    height: 44px;
-    border-radius: 50%;
-    box-shadow: 0 3px 14px rgba(2, 132, 199, 0.32);
-    padding: 0;
-  }
+  /* ปรับแต่งสำหรับหน้าจอขนาดเล็กพิเศษ (<= 360px เช่น iPhone SE, Galaxy Fold) */
+  @media (max-width: 360px) {
+    .survey-button {
+      height: 38px;
+      padding: 0 10px;
+      font-size: 11.5px;
+      gap: 4px;
+    }
 
-  .app-switch-button svg {
-    width: 19px;
-    height: 19px;
+    .survey-button svg {
+      width: 15px;
+      height: 15px;
+    }
+
+    .time-range-capsule-btn {
+      height: 38px;
+      padding: 2px 7px 2px 4px;
+      gap: 4px;
+    }
+
+    .time-range-icon-badge {
+      width: 26px;
+      height: 26px;
+    }
+
+    .time-range-micro-tag,
+    .time-range-v-divider {
+      display: none;
+    }
+
+    .map-area-sidebar {
+      width: calc(100vw - 64px);
+    }
   }
 
   .map-controls {

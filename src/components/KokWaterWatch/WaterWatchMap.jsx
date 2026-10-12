@@ -36,7 +36,7 @@ import {
 import { clusterSubmissions } from '../../data/waterWatchData';
 const PPBTrendChart = lazy(() => import('./PPBTrendChart'));
 import { RIVER_BOUNDS, RIVER_GEOMETRY } from './riverFlow';
-import { regionFillExpression, regionForProvince, provinceForCoordinates, boundsForGeometry, shouldShowAreaSamples } from './mapAreaNavigation.js';
+import { regionFillExpression, regionForProvince, provinceForCoordinates, boundsForGeometry, shouldShowAreaSamples, KOK_STUDY_AREAS_BOUNDS } from './mapAreaNavigation.js';
 import { provinceLabelsForArea, districtLabelsForArea } from './provinceLabels.js';
 import { applySoftMapPalette, applyNaturalFeatureVisibility } from './softMapPalette.js';
 
@@ -851,6 +851,39 @@ export default function WaterWatchMap({
         },
         setBoundaryLabels: (visible) => setShowBoundaryLabels(!!visible),
         fitArea: (area, feature) => {
+          if (area?.level === 'study-area') {
+            if (area.id === 'all') {
+              mapRef.current?.fitBounds(KOK_STUDY_AREAS_BOUNDS, {
+                padding: window.innerWidth < 768
+                  ? { top: 60, right: 30, bottom: 80, left: 20 }
+                  : { top: 80, right: 80, bottom: 80, left: Math.min(380, window.innerWidth * 0.3) },
+                duration: 900
+              });
+            } else if (area.center) {
+              // ซูมเข้าตัวหมู่บ้านและแนวลำน้ำให้พอดี ไม่ใกล้จนเกินไป
+              mapRef.current?.flyTo({
+                center: area.center,
+                zoom: area.zoom || 13.9,
+                essential: true,
+                duration: 1000
+              });
+            } else if (area.bounds) {
+              mapRef.current?.fitBounds(area.bounds, {
+                padding: window.innerWidth < 768
+                  ? { top: 50, right: 25, bottom: 60, left: 15 }
+                  : { top: 70, right: 70, bottom: 70, left: Math.min(360, window.innerWidth * 0.3) },
+                duration: 900
+              });
+            } else {
+              mapRef.current?.fitBounds(KOK_STUDY_AREAS_BOUNDS, {
+                padding: window.innerWidth < 768
+                  ? { top: 60, right: 30, bottom: 80, left: 20 }
+                  : { top: 80, right: 80, bottom: 80, left: Math.min(380, window.innerWidth * 0.3) },
+                duration: 900
+              });
+            }
+            return;
+          }
           if (area?.level === 'country' && area.countryIso === 'THA') {
             const bounds = boundsForGeometry(feature);
             if (bounds) mapRef.current?.fitBounds(bounds, {
@@ -950,8 +983,8 @@ export default function WaterWatchMap({
       map = new maplibregl.Map({
         container: mapContainer.current,
         style: '/data/boundaries/shortbread-colorful.style.json',
-        center: [101.8, 17.2],
-        zoom: 4.2,
+        center: [99.85, 20.08],
+        zoom: 9.8,
         pitch: 0,
         maxPitch: 0,
         bearing: 0,
@@ -1107,7 +1140,7 @@ export default function WaterWatchMap({
       map.addSource('bnd-region-src', { type: 'geojson', tolerance: 0.375, data: boundaryDataRef.current?.regions || EMPTY_BOUNDARY });
       map.addLayer({ id: 'bnd-region-fill', type: 'fill', source: 'bnd-region-src', paint: {
         'fill-color': ['match', ['get', 'regionId'], 'north', '#2563eb', 'northeast', '#7c3aed', 'south', '#0891b2', '#16a34a'],
-        'fill-opacity': 0.52
+        'fill-opacity': 0
       } }, 'boundary-country:outline');
       map.on('click', 'bnd-region-fill', event => {
         const feature = event.features?.[0];
@@ -1123,7 +1156,7 @@ export default function WaterWatchMap({
         id: 'bnd-province-region-fill', type: 'fill', source: 'bnd-province-src',
         paint: {
           'fill-color': ['match', regionFillExpression(), 'north', '#2563eb', 'northeast', '#7c3aed', 'south', '#0891b2', '#16a34a'],
-          'fill-opacity': selectedAreaRef.current?.level === 'country' && selectedAreaRef.current?.countryIso === 'THA' ? 0.52 : 0
+          'fill-opacity': 0
         }
       }, 'boundary-country:outline');
       map.addLayer({
@@ -1217,11 +1250,29 @@ export default function WaterWatchMap({
       map.moveLayer('kok-river-route-line');
       setIsMapLoaded(true);
       applyBoundaryVisibility(curFilters);
-      map.fitBounds([[97, 5], [106, 21]], {
-        padding: { top: 65, right: 100, bottom: 90, left: 370 },
-        duration: 0,
-        maxZoom: 6.4
-      });
+      if (selectedAreaRef.current?.level === 'study-area') {
+        if (selectedAreaRef.current.id && selectedAreaRef.current.id !== 'all' && selectedAreaRef.current.center) {
+          map.flyTo({
+            center: selectedAreaRef.current.center,
+            zoom: selectedAreaRef.current.zoom || 13.9,
+            duration: 0
+          });
+        } else {
+          map.fitBounds(KOK_STUDY_AREAS_BOUNDS, {
+            padding: window.innerWidth < 768
+              ? { top: 60, right: 30, bottom: 80, left: 20 }
+              : { top: 80, right: 80, bottom: 80, left: Math.min(380, window.innerWidth * 0.3) },
+            duration: 0
+          });
+        }
+      } else {
+        map.fitBounds(KOK_STUDY_AREAS_BOUNDS, {
+          padding: window.innerWidth < 768
+            ? { top: 60, right: 30, bottom: 80, left: 20 }
+            : { top: 80, right: 80, bottom: 80, left: Math.min(380, window.innerWidth * 0.3) },
+          duration: 0
+        });
+      }
     });
 
     map.on('click', () => {

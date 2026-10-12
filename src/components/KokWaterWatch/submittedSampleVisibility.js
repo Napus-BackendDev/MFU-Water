@@ -6,7 +6,7 @@ export function submittedSampleVisibility(saved, published, area, areaFeature, r
   const sample = Array.isArray(published) && published.find(item => item.sample_code === code);
   if (!sample) return { message: `รับผล ${code} แล้ว แต่ยังตรวจยืนยันการแสดงผลสาธารณะไม่ได้ กรุณารอรีเฟรชหรือตรวจบริการ API ไม่ต้องส่งซ้ำ` };
   const features = Array.isArray(areaFeature) ? areaFeature : areaFeature ? [areaFeature] : [];
-  const inside = shouldShowAreaSamples(area) && features.some(f => pointInGeometry(sample.coordinates, f.geometry));
+  const inside = shouldShowAreaSamples(area) && (area?.level === 'study-area' || features.some(f => pointInGeometry(sample.coordinates, f.geometry)));
   const region = !inside && regions?.features?.find(f => pointInGeometry(sample.coordinates, f.geometry));
   const selection = region ? { level: 'region', countryIso: 'THA', regionId: region.properties.regionId } : null;
   if (!inside && !selection) return { message: `ผล ${code} เผยแพร่แล้ว แต่พิกัดอยู่นอกพื้นที่แผนที่ที่รองรับ` };

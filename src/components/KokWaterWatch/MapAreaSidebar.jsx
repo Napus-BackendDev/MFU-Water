@@ -1,36 +1,166 @@
-import React from 'react';
-import { ArrowLeft, ChevronRight, Globe2, MapPinned, LocateFixed } from 'lucide-react';
-import { COUNTRIES, QUICK_VIEW_AREAS, SELECTABLE_COUNTRIES, THAI_REGIONS, provincesForRegion } from './mapAreaNavigation.js';
-import { THAI_PROVINCE_NAMES, districtDisplayName } from './boundaryThaiLabels.js';
+import React, { useState, useRef, useEffect } from 'react';
+import { Compass, MapPin, Layers, ChevronRight, Check, ChevronDown, ChevronUp } from 'lucide-react';
+import { KOK_STUDY_AREAS, INITIAL_STUDY_AREA } from './mapAreaNavigation.js';
 
-export default function MapAreaSidebar({ area, onSelect, countries, provinces, districts, loading, error, onRetry, resultCount, samplesError, samplesLoading, onRetrySamples, retryingSamples, areaCounts = {} }) {
-  const badge = key => areaCounts[key] > 0 ? <span className="map-area-count" aria-label={`${areaCounts[key]} รายการผลสำรวจ`}>{areaCounts[key]}</span> : null;
-  const items = area.countryIso !== 'THA' && area.level !== 'world' ? []
-    : area.level === 'world' ? SELECTABLE_COUNTRIES.map(country => ({ ...country, level: 'country', countryIso: country.iso }))
-      : area.level === 'country' ? THAI_REGIONS.map(region => ({ ...region, level: 'region', countryIso: 'THA' }))
-        : area.level === 'region' ? provincesForRegion(area.regionId).map(province => ({ ...province, level: 'province', countryIso: 'THA' }))
-          : area.level === 'province' ? (districts?.features || []).filter(feature => feature.properties.provinceCode === area.provinceIso).map(feature => ({ level: 'district', countryIso: 'THA', regionId: area.regionId, provinceIso: area.provinceIso, districtCode: feature.properties.districtCode, districtName: feature.properties.shapeName, label: feature.properties.nameTh }))
-            : [];
-  const path = [
-    ...(area.countryIso ? [{ level: 'country', countryIso: area.countryIso, label: area.countryIso === 'THA' ? 'ประเทศไทย' : COUNTRIES.find(item => item.iso === area.countryIso)?.name }] : []),
-    ...(area.regionId ? [{ level: 'region', countryIso: 'THA', regionId: area.regionId, label: THAI_REGIONS.find(item => item.id === area.regionId)?.label }] : []),
-    ...(area.provinceIso ? [{ level: 'province', countryIso: 'THA', regionId: area.regionId, provinceIso: area.provinceIso, label: `จังหวัด${THAI_PROVINCE_NAMES[area.provinceIso] || ''}` }] : []),
-    ...(area.districtCode ? [{ level: 'district', countryIso: 'THA', regionId: area.regionId, provinceIso: area.provinceIso, districtCode: area.districtCode, districtName: area.districtName, label: area.label || districts?.features?.find(f => f.properties.districtCode === area.districtCode)?.properties.nameTh }] : [])
-  ].filter(item => item.label);
-  return <aside className="map-area-sidebar" aria-label="เลือกพื้นที่แผนที่">
-    <header><div><Globe2 size={17}/><strong>สำรวจพื้นที่</strong></div><span>{loading ? 'กำลังโหลดขอบเขต…' : samplesError ? 'โหลดผลตรวจไม่สำเร็จ' : samplesLoading || resultCount == null ? 'กำลังโหลดผลตรวจ…' : `${resultCount} จุด`}</span></header>
-    <nav className="map-area-breadcrumbs" aria-label="เส้นทางพื้นที่">
-      {path.map((item, index) => <React.Fragment key={`${item.level}-${index}`}>{index > 0 && <ChevronRight size={12}/>}<button type="button" onClick={() => onSelect(item)} aria-current={index === path.length - 1 ? 'location' : undefined}>{item.level === 'district' ? districtDisplayName(item.label) : item.label}</button></React.Fragment>)}
-    </nav>
-    {error && <div className="map-area-error" role="alert">โหลดขอบเขตไม่สำเร็จ <button type="button" onClick={onRetry}>ลองอีกครั้ง</button></div>}
-    {area.countryIso && area.countryIso !== 'THA' && <p className="map-area-empty">ขณะนี้เปิดดูรายละเอียดแผนที่ย่อยได้เฉพาะประเทศไทย</p>}
-    {samplesError && <div className="map-area-error" role="alert">{typeof samplesError === 'string' ? samplesError : 'โหลดผลสำรวจไม่สำเร็จ'} ขอบเขตพื้นที่ยังใช้งานได้ <button type="button" onClick={onRetrySamples} disabled={retryingSamples}>{retryingSamples ? 'กำลังลองใหม่…' : 'ลองโหลดผลตรวจอีกครั้ง'}</button></div>}
-    {!loading && !error && !samplesError && (area.level === 'province' || area.level === 'district') && resultCount === 0 && <p className="map-area-empty">ยังไม่มีข้อมูลสำรวจที่เผยแพร่ในพื้นที่นี้ตามช่วงเวลาที่เลือก</p>}
-    {!loading && !error && items.length > 0 && <div className="map-area-options" key={`${area.level}-${area.regionId || ''}-${area.provinceIso || ''}`}>
-      <span className="map-area-section-title">{area.level === 'world' ? 'เลือกประเทศที่สำรวจ' : area.level === 'country' ? 'เลือกภูมิภาค' : area.level === 'region' ? 'เลือกจังหวัด' : `พื้นที่ใน${THAI_PROVINCE_NAMES[area.provinceIso] || ''}`}</span>
-      {items.map(item => <button type="button" key={item.iso || item.id || item.districtCode} onClick={() => onSelect(item)}><MapPinned size={14}/><span>{item.level === 'district' ? districtDisplayName(item.label) : item.label || item.name}</span>{badge(item.districtCode || item.iso || item.id)}<ChevronRight size={14}/></button>)}
-    </div>}
-    {area.level !== 'world' && area.level !== 'country' && <button className="map-area-back" type="button" onClick={() => onSelect(path[Math.max(0, path.length - 2)])}><ArrowLeft size={14}/>ย้อนกลับหนึ่งระดับ</button>}
-    <div className="map-area-quickviews"><span className="map-area-section-title"><LocateFixed size={13}/>Quick View · เชียงราย</span>{QUICK_VIEW_AREAS.map(item => <button type="button" key={item.id} onClick={() => onSelect({ ...item, level: 'district', countryIso: 'THA', regionId: 'north' })}><span>{item.label} {badge(item.districtCode)}</span><small>{item.provinceLabel}</small></button>)}</div>
-  </aside>;
+export function countSamplesForStudyArea(areaId, submissions = []) {
+  if (!Array.isArray(submissions)) return 0;
+  if (areaId === 'all') return submissions.length;
+  const area = KOK_STUDY_AREAS.find(a => a.id === areaId);
+  if (!area) return 0;
+  const [targetLng, targetLat] = area.center;
+  return submissions.filter(s => {
+    const coords = s?.coordinates || [s?.longitude, s?.latitude];
+    if (!coords || !Number.isFinite(Number(coords[0])) || !Number.isFinite(Number(coords[1]))) return false;
+    const lng = Number(coords[0]);
+    const lat = Number(coords[1]);
+    const dLat = (lat - targetLat) * 111;
+    const dLng = (lng - targetLng) * 111 * Math.cos(targetLat * Math.PI / 180);
+    return Math.hypot(dLat, dLng) <= 18;
+  }).length;
+}
+
+export default function MapAreaSidebar({
+  area,
+  onSelect,
+  submissions = [],
+  loading,
+  error,
+  resultCount,
+  samplesError,
+  samplesLoading,
+  onRetrySamples,
+  retryingSamples
+}) {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const sidebarRef = useRef(null);
+
+  // Close dropdown on mobile when clicking outside
+  useEffect(() => {
+    function handleOutsideClick(event) {
+      if (sidebarRef.current && !sidebarRef.current.contains(event.target)) {
+        setIsExpanded(false);
+      }
+    }
+    document.addEventListener('mousedown', handleOutsideClick);
+    document.addEventListener('touchstart', handleOutsideClick);
+    return () => {
+      document.removeEventListener('mousedown', handleOutsideClick);
+      document.removeEventListener('touchstart', handleOutsideClick);
+    };
+  }, []);
+
+  const getBadge = (count) => {
+    if (count == null || count === undefined || count === 0) return null;
+    return (
+      <span className="map-area-count" aria-label={`${count} รายการผลสำรวจ`}>
+        {count}
+      </span>
+    );
+  };
+
+  const currentAreaId = area?.id || 'all';
+  const activeArea = KOK_STUDY_AREAS.find(a => a.id === currentAreaId);
+  const activeLabel = currentAreaId === 'all' ? 'ภาพรวม 4 เขตศึกษา' : (activeArea?.name || area?.label || '4 เขตพื้นที่ศึกษา');
+
+  const handleSelectArea = (targetArea) => {
+    onSelect(targetArea);
+    setIsExpanded(false);
+  };
+
+  return (
+    <aside
+      ref={sidebarRef}
+      className={`map-area-sidebar ${!isExpanded ? 'is-collapsed' : 'is-expanded'}`}
+      aria-label="เลือกพื้นที่ศึกษาแม่น้ำกก"
+    >
+      <header
+        onClick={() => setIsExpanded(prev => !prev)}
+        className="map-area-sidebar-header cursor-pointer select-none"
+        title={isExpanded ? 'ยุบเมนูพื้นที่' : 'แตะเพื่อเปลี่ยนพื้นที่ศึกษา'}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            setIsExpanded(prev => !prev);
+          }
+        }}
+      >
+        <div className="flex items-center gap-2 min-w-0">
+          <Compass size={17} className="text-emerald-600 shrink-0" />
+          <div className="flex flex-col min-w-0 text-left">
+            <strong className="map-area-desktop-title hidden md:inline truncate font-bold text-slate-800">
+              4 เขตพื้นที่ศึกษา
+            </strong>
+            <strong className="map-area-mobile-title md:hidden truncate font-bold text-slate-900 text-[12px] leading-tight">
+              {activeLabel}
+            </strong>
+            <span className="md:hidden text-[9.5px] text-slate-500 truncate leading-tight">
+              {samplesLoading || resultCount == null ? 'กำลังโหลด…' : `${resultCount} จุดตรวจ · แตะเพื่อเปลี่ยน`}
+            </span>
+          </div>
+        </div>
+        <div className="flex items-center gap-1.5 shrink-0">
+          <span className="hidden md:inline text-[11px] text-slate-500 font-medium">
+            {samplesLoading || resultCount == null
+              ? 'กำลังโหลด…'
+              : `${resultCount} จุดตรวจ`}
+          </span>
+          <div className="map-area-chevron md:hidden p-0.5 text-slate-400">
+            {isExpanded ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
+          </div>
+        </div>
+      </header>
+
+      {samplesError && (
+        <div className="map-area-error" role="alert">
+          {typeof samplesError === 'string' ? samplesError : 'โหลดผลสำรวจไม่สำเร็จ'}
+          <button type="button" onClick={onRetrySamples} disabled={retryingSamples}>
+            {retryingSamples ? 'กำลังลองใหม่…' : 'ลองโหลดใหม่'}
+          </button>
+        </div>
+      )}
+
+      <div className="map-area-options">
+        <span className="map-area-section-title">เลือกพื้นที่ติดตามคุณภาพน้ำ</span>
+
+        {/* ปุ่มภาพรวมทั้ง 4 เขต */}
+        <button
+          type="button"
+          className={`study-area-btn ${currentAreaId === 'all' ? 'is-active' : ''}`}
+          onClick={() => handleSelectArea(INITIAL_STUDY_AREA)}
+        >
+          <Layers size={16} className="text-emerald-600 shrink-0" />
+          <div className="study-area-info">
+            <span className="study-area-title">ภาพรวม 4 เขตศึกษา</span>
+            <small className="study-area-sub">ครอบคลุมลุ่มน้ำกกทั้งหมด</small>
+          </div>
+          {getBadge(submissions?.length ?? resultCount)}
+          {currentAreaId === 'all' ? <Check size={14} className="text-emerald-600 shrink-0" /> : <ChevronRight size={14} className="text-slate-400 shrink-0" />}
+        </button>
+
+        {/* รายการ 4 เขตพื้นที่ */}
+        {KOK_STUDY_AREAS.map(item => {
+          const isActive = currentAreaId === item.id;
+          const count = countSamplesForStudyArea(item.id, submissions);
+          return (
+            <button
+              type="button"
+              key={item.id}
+              className={`study-area-btn ${isActive ? 'is-active' : ''}`}
+              onClick={() => handleSelectArea({ level: 'study-area', ...item })}
+            >
+              <MapPin size={16} className={`shrink-0 ${isActive ? 'text-emerald-600' : 'text-slate-500'}`} />
+              <div className="study-area-info">
+                <span className="study-area-title">{item.label}</span>
+                <small className="study-area-sub">{item.subtext}</small>
+              </div>
+              {getBadge(count)}
+              {isActive ? <Check size={14} className="text-emerald-600 shrink-0" /> : <ChevronRight size={14} className="text-slate-400 shrink-0" />}
+            </button>
+          );
+        })}
+      </div>
+    </aside>
+  );
 }
