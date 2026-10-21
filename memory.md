@@ -1036,3 +1036,27 @@
 - ผู้ใช้ขอ ignore ไฟล์ไม่จำเป็นต่อการรันระบบก่อน commit แก้ .gitignore เท่านั้น: local runtime/cache/build/test reports, .agents, memory.md, KokData source archive, Supabase local state, Python cache/env, credential/private-key filenames และไฟล์บีบอัด/ชั่วคราว ไม่ลบไฟล์จริง ไม่ commit/push
 - ตรวจ git root ตรงโครงการและยังไม่มี commit/tracked files ใช้ git ls-files --others --exclude-standard ตรวจเหลือ133ไฟล์7.67MiB ไม่มีไฟล์>=100MiB ตรวจ runtime app/api/server/src/data/public รวม .env.example/lockfile/migrations คงครบ check-ignore กลุ่ม local/private ผ่าน ไม่ได้สแกนรับรองว่าไม่มี secret ในเนื้อหาทุกไฟล์
 - git add --dry-run . ไม่สำเร็จเพราะ .git/index.lock มีอยู่ คงlockไว้ไม่รบกวนงานGitอื่น การตรวจ eligible files ข้างต้นเป็น read-only ผ่าน ไม่มีข้อสังเกตสกิลใหม่
+
+## 2026-10-21 — ปรับแต่ง UI, จัดการพอร์ต, Commit และ Push ขึ้น GitHub
+- เอา UI กล่องซ้ายขวาบน "สถานการณ์ ลุ่มน้ำวันนี้" และ "เกณฑ์สารหนูในน้ำ" ออกจากหน้าจอ
+- เอาแผนที่ OpenStreetMap (OSM) ออกจากตัวเลือกเลเยอร์พื้นหลัง UI คงเฉพาะภาพถ่ายดาวเทียมและ Esri Canvas
+- ปรับระดับการซูมเริ่มต้น (Initial Zoom) เมื่อเลือกพื้นที่ชุมชน: ท่าตอน (zoom 14), กะเหรี่ยงรวมมิตร (zoom 14), ปงของ (zoom 14) ให้พอดีเห็นทั้งหมู่บ้านตามภาพที่ผู้ใช้กำหนดเพื่อประสิทธิภาพ (performance)
+- เอาหมุดสีฟ้า landmark ออกจาก UI แผนที่
+- ปิดโปรเซสและพอร์ต 5173 เรียบร้อย
+- ยกเว้นโฟลเดอร์ KokData (ขนาด ~32.5 GB) ออกจาก Git tracking เพื่อป้องกันไฟล์ขนาดใหญ่เกินขีดจำกัด GitHub
+- ผูก remote `origin` ไปยัง `https://github.com/Napus-BackendDev/MFU-Water.git` ทำการ commit โค้ดทั้งหมดบนกิ่ง `main` (`ade0fca`)
+- ดำเนินการ `git push origin main` สำเร็จเรียบร้อยบน GitHub repository `Napus-BackendDev/MFU-Water`
+
+## 2026-10-21 — ตรวจข้อมูลอพยพหายหลัง deploy
+- ผู้ใช้ถามสาเหตุและขอเช็ก https://mfu-water-simulation.vercel.app/ เปิดเว็บจริงผ่านbrowser เลือกท่าตอน/อพยพ DOMพบpublicPoints2 household0 route0 ยืนยันตรงอาการ ภาพtest-results/production-evacuation-missing-local-data.png
+- สาเหตุโค้ดonMountedเรียกlocal-reviewเฉพาะimport.meta.dev และlocalReviewRootปิดproductionด้วย404 พร้อมจำกัดloopback ข้อมูลอ่านจากLOCALAPPDATAนอกrepo ไม่ใช่KokDataที่ignore ตรวจไฟล์restrictedยังอยู่ครบ67จุด1route ไม่แสดงพิกัดในlog ไม่ส่งข้อมูลนี้ขึ้นcloud
+- รายงานว่าขาดproduction restricted-data loader/authorization ต้องทำช่องทางเก็บและโหลดที่จำกัดสิทธิ์ก่อนใช้เว็บจริง ไม่ถอดguard/ไม่เอาข้อมูลรายบ้านใส่public ไม่แก้code/deployเพราะคำขอรอบนี้เป็นตรวจสาเหตุ ไม่มีข้อสังเกตสกิลใหม่
+
+## 2026-10-21 — เพิ่ม production restricted evacuation loader
+- ผู้ใช้สั่งทำต่อจากผลตรวจข้อมูลอพยพหาย Implement API GET /api/evacuation/restricted ในโครง Express/Vercelเดิม ใช้รหัสสุ่ม256bitตรวจSHA256แบบtimingSafeEqual ไม่เก็บรหัสในclientstorage URL/cookie ไม่เพิ่มdependency serverenv EVACUATION_ACCESS_KEY_SHA256/EVACUATION_DATA_JSON ไม่ใช้prefixpublic
+- Endpointปฏิเสธ401ไม่มี/ผิดรหัส 405methodอื่น 503ขาดconfig/ข้อมูลผิด ใช้private no-store/VaryAuthorization จำกัดจำนวน/ชนิด/coordinateพื้นที่ท่าตอน คัดเหลือgeometry+kind+syntheticid ไม่มีชื่อ/sourcepaths/sourceRoutes ไม่แก้loopbackguardเดิม
+- UIใช้KokEvacuationAccessเปิดช่องpasswordในlegendอพยพเฉพาะproduction ไม่มีข้อมูลถาวร กรอกผิดแสดงข้อความแล้วclearรหัส กรอกถูกshowRestrictedEvacuationแสดง67pins1routeเหนือflood กดปิดclearpoints/routesและpopup ไม่แสดงlegendเส้นทางขณะไม่มีเส้น ไม่เปลี่ยนflood/sourcegeometry
+- helper scripts/prepare-evacuation-deploy.mjs สร้างdeploymentbundleจากAppDatarestrictedเดิมในโฟลเดอร์ใหม่ใต้AppDataเท่านั้น สร้างไฟล์serverdata/hash/key ไม่พิมพ์รหัสหรือพิกัดและไม่ส่งภายนอก ข้อมูล7052bytes เอกสารdocs/restricted-evacuation-deployment.mdบอกวิธีตั้งค่า/ใช้/เปลี่ยนรหัส และข้อจำกัดsharedteamkeyไม่ใช่useraccounts
+- ตรวจ25testsผ่านรวมAPIsecurity12/Express2/flood11 oxlintผ่าน detector[] Nuxtproductionbuild22.4sผ่าน warningchunkเดิม ตรวจcompiledpublicassetsไม่มีaccesskeyหรือrestrictedpayload ใช้productionbuildบน127.0.0.1:4181/ session30992 ด้วยenvเฉพาะprocess
+- Browserรหัสผิด0pins รหัสถูก67pins1route กดปิดกลับ0/0 Mobile390ไม่ล้น ตรวจDesktop/Mobile ภาพtest-results/restricted-evacuation-desktop.png/-mobile.pngและ-access-mobile.png คืนviewportและmarkdeliverable ไม่ส่งรหัสจริงในchat ไม่เปิดpopupหมุด
+- ติดdeployจริง: ไม่พบCLI/authconfigในเครื่อง Vercelconnectorgetprojectmfu-water-simulation404 listteamsว่าง listprojectsตามrepoNapus-BackendDev/MFU-Waterว่าง บัญชีเชื่อมปัจจุบันไม่มีscopeโปรเจกต์ ยังไม่ตั้งenv/uploadprivatedata/commit/push/deploy ต้องเชื่อมบัญชีเจ้าของโปรเจกต์หรือยืนยันทีมที่ถูกต้องก่อน ไม่มีข้อสังเกตสกิลใหม่
