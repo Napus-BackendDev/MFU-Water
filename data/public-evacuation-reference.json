@@ -1,0 +1,12 @@
+{
+  "communityId": "thaton",
+  "source": "SWG5_ThaTon_Vulnerable_Populations_Evacuation_Map.pdf",
+  "page": 1,
+  "method": "visual_affine_alignment",
+  "verificationStatus": "approximate_not_field_verified",
+  "sourceDate": null,
+  "points": [
+    { "id": "TH-SHELTER-01", "kind": "shelter", "label": "ศูนย์พักพิงตามแผน", "latitude": 20.05842, "longitude": 99.35875 },
+    { "id": "TH-ASSEMBLY-01", "kind": "assembly", "label": "จุดรวมพลตามแผน", "latitude": 20.04983, "longitude": 99.36727 }
+  ]
+}

@@ -10,7 +10,14 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
+.vercel
+.nuxt
+.output
 *.local
+test-results/
+.env
+.env.*
+!.env.example
 
 # Editor directories and files
 .vscode/*
@@ -22,27 +29,54 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
-vite.config.js.timestamp*
 
-# Scratch & Dev artifacts
-scratch/
-.playwright-cli/
-.agents/
-*.py
-tmp_*
+# Framework output and local runtime storage
+/.data/
+/.cache/
+/.nitro/
+/.netlify/
+/coverage/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+/.playwright-cli/
+*.tsbuildinfo
 
-# Credentials & Secrets (Strict L0)
+# Local agent tools, chat memory and research source archive.
+# Keep data/ and public/: the running website imports/loads those files.
+/.agents/
+/memory.md
+/KokData/
+
+# Supabase CLI local state; keep config, migrations and SQL tests.
+/supabase/.temp/
+/supabase/.branches/
+
+# Python processing cache and local environments
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+
+# Credentials and private keys (configure outside Git).
+*.pem
+*.key
+*.p12
+*.pfx
+credentials.json
+credentials-*.json
 service-account*.json
-server/service-account.json
-.env
-.env.*
-!.env.example
-.vercel
-.npm-cache-production-ready/
+service_account*.json
+*-service-account.json
+application_default_credentials.json
 
-# Local agent previews, approval receipts and UI verification screenshots.
-.codex*/
-*.approval.json*
-/*-20260929.png
-/province-*.png
-*-results.json
+# Temporary files and source download archives
+*.tmp
+*.temp
+*.bak
+*.zip
+*.7z
+*.rar
+Thumbs.db
+Desktop.ini

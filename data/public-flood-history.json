@@ -1,0 +1,86 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              99.35367,
+              20.058818
+            ],
+            [
+              99.362654,
+              20.058818
+            ],
+            [
+              99.362654,
+              20.067256
+            ],
+            [
+              99.35367,
+              20.067256
+            ],
+            [
+              99.35367,
+              20.058818
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "id": "FH01",
+        "records": 22,
+        "floodedRows": 8
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              99.362654,
+              20.050379
+            ],
+            [
+              99.371637,
+              20.050379
+            ],
+            [
+              99.371637,
+              20.058818
+            ],
+            [
+              99.362654,
+              20.058818
+            ],
+            [
+              99.362654,
+              20.050379
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "id": "FH02",
+        "records": 57,
+        "floodedRows": 44
+      }
+    }
+  ],
+  "metadata": {
+    "communityId": "thaton",
+    "source": "MyMaps_KML.kml — flood-history responses",
+    "sourceSha256": "7cb104d99f99c3cb62d74f689fc1e7ba3e4897a19078c1c05a59f6689279900d",
+    "sourceRows": 129,
+    "cellSizeMetres": 1000,
+    "gridCrs": "EPSG:3857",
+    "minimumGroupSize": 5,
+    "surveyDate": null,
+    "note": "Historical survey rows, not households, live flood extent, or evacuation areas. KML coordinates differ from E04; do not join or sum with E04 grids."
+  }
+}

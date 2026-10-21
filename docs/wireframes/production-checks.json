@@ -1,0 +1,31 @@
+{
+  "boards": 32,
+  "requirements": 29,
+  "contrast": [
+    {
+      "foreground": "ink",
+      "background": "bg",
+      "contrast": 10.58
+    },
+    {
+      "foreground": "muted",
+      "background": "white",
+      "contrast": 6.16
+    },
+    {
+      "foreground": "white",
+      "background": "green",
+      "contrast": 8.58
+    },
+    {
+      "foreground": "amber",
+      "background": "pale",
+      "contrast": 5.58
+    },
+    {
+      "foreground": "red",
+      "background": "rose",
+      "contrast": 6.01
+    }
+  ]
+}

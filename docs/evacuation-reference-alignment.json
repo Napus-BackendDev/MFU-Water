@@ -1,0 +1,21 @@
+{
+  "status": "approximate_visual_alignment_not_field_verified",
+  "authorization": "User requested visual comparison of the supplied PDF with the browser basemap on 2026-10-19.",
+  "sourcePdf": "SWG5_ThaTon_Vulnerable_Populations_Evacuation_Map.pdf",
+  "sourcePage": 1,
+  "sourceRenderSize": [2160, 1215],
+  "basemapScreenshot": "test-results/evac-alignment-basemap.png",
+  "basemapViewport": [1536, 1000],
+  "basemapTileAnchor": { "zoom": 15, "x": 25427, "y": 14519, "screenX": 497, "screenY": 295, "tileSize": 256 },
+  "controlPoints": [
+    { "feature": "main road bridge", "pdfPixel": [624, 294], "basemapPixel": [791, 421] },
+    { "feature": "western secondary road junction", "pdfPixel": [531, 493], "basemapPixel": [747, 517] },
+    { "feature": "river bend", "pdfPixel": [1010, 514], "basemapPixel": [965, 526] }
+  ],
+  "affineRowsForSourceXY1": [[0.4554762834878796, -0.0023130538478935447], [-0.008244751937824965, 0.48133108538766783], [509.2067561732836, 280.9320064971112]],
+  "digitizedPublicSymbols": [
+    { "id": "TH-SHELTER-01", "pdfPixel": [461, 435], "basemapPixel": [715.5948557682423, 489.2447108168678] },
+    { "id": "TH-ASSEMBLY-01", "pdfPixel": [905, 880], "basemapPixel": [914.1574110245288, 702.4100479059152] }
+  ],
+  "limitations": ["Control points were visually selected, not surveyed.", "Three-point fitting does not establish positional accuracy; no independent ground validation or metre-level accuracy is claimed.", "No household symbols, personal vulnerability, PDF raster, or inferred evacuation route is published.", "No current operational shelter status or official place name was supplied by this PDF."]
+}

@@ -1,0 +1,73 @@
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - generic [ref=e5]:
+      - generic [ref=e12]:
+        - generic [ref=e13]: MFU KOK WATER WATCH · TELEMETRY PORTAL
+        - heading "ระบบติดตามคุณภาพน้ำแม่น้ำกกและข้อมูลชุมชนต้นแบบ" [level=1] [ref=e14]
+      - button "เข้าสู่ระบบติดตาม" [ref=e16] [cursor=pointer]
+  - main [ref=e20]:
+    - generic [ref=e21]:
+      - generic [ref=e22]: 4 TARGET COMMUNITIES · REQUIREMENT R02
+      - heading "เลือกพื้นที่เป้าหมาย 4 ชุมชนลุ่มน้ำกก" [level=2] [ref=e27]
+      - paragraph [ref=e28]: โครงการวิจัยมหาวิทยาลัยแม่ฟ้าหลวงมุ่งเน้น 4 ชุมชนหลักตามทะเบียนฐานข้อมูล Village!B1:E2 เพื่อเชื่อมต่อผลตรวจน้ำภาคประชาชน ข้อมูลสำรวจครัวเรือน แผนเผชิญเหตุน้ำท่วม และการแจ้งเตือน
+    - generic [ref=e29]:
+      - generic [ref=e30] [cursor=pointer]:
+        - generic [ref=e31]:
+          - generic [ref=e32]:
+            - generic [ref=e33]: ต้นน้ำ (เชียงใหม่)
+            - generic [ref=e34]: 20.058°N, 99.361°E
+          - heading "บ้านท่าตอน (เน้นหมู่ 3)" [level=3] [ref=e35]
+          - paragraph [ref=e36]: ต.ท่าตอน อ.แม่อาย จ.เชียงใหม่
+          - generic [ref=e37]:
+            - generic [ref=e38]:
+              - generic [ref=e39]: ชุดสำรวจยืนยัน
+              - generic [ref=e43]: 129 ครัวเรือน
+            - generic [ref=e44]: มีชุดสำรวจชุมชนยืนยัน 129 แถว (123 รหัสไม่ซ้ำ) แสดงเป็นกริด 1 กม. 5 ช่อง (G01–G05 รวม 128 แถว ซ่อน 1 แถวตามกติกา k>=5) และมีแผนเผชิญเหตุ 9 หย่อมบ้าน (E04, E07)
+        - button "เข้าสู่ข้อมูลท่าตอน" [ref=e46]
+      - generic [ref=e50] [cursor=pointer]:
+        - generic [ref=e51]:
+          - generic [ref=e52]:
+            - generic [ref=e53]: กลางน้ำ (เชียงราย)
+            - generic [ref=e54]: 19.960°N, 99.708°E
+          - heading "บ้านกะเหรี่ยงรวมมิตร" [level=3] [ref=e55]
+          - paragraph [ref=e56]: ต.แม่ยาว อ.เมืองเชียงราย จ.เชียงราย
+          - generic [ref=e57]:
+            - generic [ref=e58]:
+              - generic [ref=e59]: ชุดสำรวจภาคสนาม
+              - generic [ref=e63]: รอบถัดไป
+            - generic [ref=e64]: อยู่ในทะเบียน 4 พื้นที่เป้าหมาย (Village!B1:E2) แต่ยังไม่มีชุดสำรวจรายครัวเรือนที่ยืนยันในรอบนี้ จึงไม่ปั้นตัวเลขจำลอง
+        - button "เข้าสู่ข้อมูลกะเหรี่ยงรวมมิตร" [ref=e66]
+      - generic [ref=e70] [cursor=pointer]:
+        - generic [ref=e71]:
+          - generic [ref=e72]:
+            - generic [ref=e73]: ปลายน้ำ (เชียงแสน)
+            - generic [ref=e74]: 20.308°N, 100.210°E
+          - heading "บ้านปงของ" [level=3] [ref=e75]
+          - paragraph [ref=e76]: ต.แม่เงิน อ.เชียงแสน จ.เชียงราย
+          - generic [ref=e77]:
+            - generic [ref=e78]:
+              - generic [ref=e79]: ชุดสำรวจภาคสนาม
+              - generic [ref=e83]: รอบถัดไป
+            - generic [ref=e84]: อยู่ในทะเบียน 4 พื้นที่เป้าหมาย (Village!B1:E2) แต่ยังไม่มีชุดสำรวจรายครัวเรือนที่ยืนยันในรอบนี้ จึงไม่ปั้นตัวเลขจำลอง
+        - button "เข้าสู่ข้อมูลปงของ" [ref=e86]
+      - generic [ref=e90] [cursor=pointer]:
+        - generic [ref=e91]:
+          - generic [ref=e92]:
+            - generic [ref=e93]: ปลายน้ำ (เชียงของ)
+            - generic [ref=e94]: 20.204°N, 100.449°E
+          - heading "บ้านปากอิงใต้" [level=3] [ref=e95]
+          - paragraph [ref=e96]: ต.ศรีดอนชัย อ.เชียงของ จ.เชียงราย
+          - generic [ref=e97]:
+            - generic [ref=e98]:
+              - generic [ref=e99]: ชุดสำรวจภาคสนาม
+              - generic [ref=e103]: รอบถัดไป
+            - generic [ref=e104]: ใช้บ้านปากอิงใต้ตามชีต Village!B1:E2 และโปรโตไทป์ V9 (ไม่ใช้บ้านไห้) ยังไม่มีชุดสำรวจรายครัวเรือนที่ยืนยันในรอบนี้
+        - button "เข้าสู่ข้อมูลปากอิงใต้" [ref=e106]
+  - contentinfo [ref=e110]:
+    - generic [ref=e111]:
+      - generic [ref=e112]:
+        - strong [ref=e113]: MFU Kok Water Watch · มหาวิทยาลัยแม่ฟ้าหลวง (R12, R29)
+        - paragraph [ref=e114]: "แหล่งทุนและพันธมิตรโครงการ: Oxfam · ADPC · DFAT รัฐบาลออสเตรเลีย · SDC รัฐบาลสวิตเซอร์แลนด์ · มหาวิทยาลัยแม่ฟ้าหลวง"
+      - generic [ref=e115]:
+        - generic [ref=e116]: "4 ชุมชนโฟกัส: ท่าตอน (129) · กะเหรี่ยงรวมมิตร · ปงของ · ปากอิงใต้"
+        - generic [ref=e117]: "Contract: 5.0.0-evidence-20261013 · แผนที่ OpenStreetMap (OSM)"

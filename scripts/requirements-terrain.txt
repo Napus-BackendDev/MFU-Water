@@ -1,0 +1,6 @@
+# Offline preprocessing only; no frontend/runtime dependency.
+numpy
+Pillow
+contourpy==1.4.0
+shapely==2.2.0
+rasterio==1.5.2

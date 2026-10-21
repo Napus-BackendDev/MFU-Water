@@ -1,0 +1,76 @@
+- generic [active] [ref=f1e1]:
+  - generic [ref=f1e3]:
+    - banner [ref=f1e4]:
+      - generic [ref=f1e5]:
+        - generic [ref=f1e12]:
+          - generic [ref=f1e13]: MFU KOK WATER WATCH · TELEMETRY PORTAL
+          - heading "ระบบติดตามคุณภาพน้ำแม่น้ำกกและข้อมูลชุมชนต้นแบบ" [level=1] [ref=f1e14]
+        - button "เข้าสู่ระบบติดตาม" [ref=f1e16] [cursor=pointer]
+    - main [ref=f1e20]:
+      - generic [ref=f1e21]:
+        - generic [ref=f1e22]: 4 TARGET COMMUNITIES · REQUIREMENT R02
+        - heading "เลือกพื้นที่เป้าหมาย 4 ชุมชนลุ่มน้ำกก" [level=2] [ref=f1e27]
+        - paragraph [ref=f1e28]: โครงการวิจัยมหาวิทยาลัยแม่ฟ้าหลวงมุ่งเน้น 4 ชุมชนหลักตามทะเบียนฐานข้อมูล Village!B1:E2 เพื่อเชื่อมต่อผลตรวจน้ำภาคประชาชน ข้อมูลสำรวจครัวเรือน แผนเผชิญเหตุน้ำท่วม และการแจ้งเตือน
+      - generic [ref=f1e29]:
+        - generic [ref=f1e30] [cursor=pointer]:
+          - generic [ref=f1e31]:
+            - generic [ref=f1e32]:
+              - generic [ref=f1e33]: ต้นน้ำ (เชียงใหม่)
+              - generic [ref=f1e34]: 20.058°N, 99.361°E
+            - heading "บ้านท่าตอน (เน้นหมู่ 3)" [level=3] [ref=f1e35]
+            - paragraph [ref=f1e36]: ต.ท่าตอน อ.แม่อาย จ.เชียงใหม่
+            - generic [ref=f1e37]:
+              - generic [ref=f1e38]:
+                - generic [ref=f1e39]: ชุดสำรวจยืนยัน
+                - generic [ref=f1e43]: 129 ครัวเรือน
+              - generic [ref=f1e44]: มีชุดสำรวจชุมชนยืนยัน 129 แถว (123 รหัสไม่ซ้ำ) แสดงเป็นกริด 1 กม. 5 ช่อง (G01–G05 รวม 128 แถว ซ่อน 1 แถวตามกติกา k>=5) และมีแผนเผชิญเหตุ 9 หย่อมบ้าน (E04, E07)
+          - button "เข้าสู่ข้อมูลท่าตอน" [ref=f1e46]
+        - generic [ref=f1e50] [cursor=pointer]:
+          - generic [ref=f1e51]:
+            - generic [ref=f1e52]:
+              - generic [ref=f1e53]: กลางน้ำ (เชียงราย)
+              - generic [ref=f1e54]: 19.963°N, 99.742°E
+            - heading "บ้านกะเหรี่ยงรวมมิตร" [level=3] [ref=f1e55]
+            - paragraph [ref=f1e56]: ต.แม่ยาว อ.เมืองเชียงราย จ.เชียงราย
+            - generic [ref=f1e57]:
+              - generic [ref=f1e58]:
+                - generic [ref=f1e59]: ชุดสำรวจภาคสนาม
+                - generic [ref=f1e63]: รอบถัดไป
+              - generic [ref=f1e64]: อยู่ในทะเบียน 4 พื้นที่เป้าหมาย (Village!B1:E2) แต่ยังไม่มีชุดสำรวจรายครัวเรือนที่ยืนยันในรอบนี้ จึงไม่ปั้นตัวเลขจำลอง
+          - button "เข้าสู่ข้อมูลกะเหรี่ยงรวมมิตร" [ref=f1e66]
+        - generic [ref=f1e70] [cursor=pointer]:
+          - generic [ref=f1e71]:
+            - generic [ref=f1e72]:
+              - generic [ref=f1e73]: ปลายน้ำ (เชียงแสน)
+              - generic [ref=f1e74]: 20.308°N, 100.211°E
+            - heading "บ้านปงของ" [level=3] [ref=f1e75]
+            - paragraph [ref=f1e76]: ต.แม่เงิน อ.เชียงแสน จ.เชียงราย
+            - generic [ref=f1e77]:
+              - generic [ref=f1e78]:
+                - generic [ref=f1e79]: ชุดสำรวจภาคสนาม
+                - generic [ref=f1e83]: รอบถัดไป
+              - generic [ref=f1e84]: อยู่ในทะเบียน 4 พื้นที่เป้าหมาย (Village!B1:E2) แต่ยังไม่มีชุดสำรวจรายครัวเรือนที่ยืนยันในรอบนี้ จึงไม่ปั้นตัวเลขจำลอง
+          - button "เข้าสู่ข้อมูลปงของ" [ref=f1e86]
+        - generic [ref=f1e90] [cursor=pointer]:
+          - generic [ref=f1e91]:
+            - generic [ref=f1e92]:
+              - generic [ref=f1e93]: ปลายน้ำ (เชียงของ)
+              - generic [ref=f1e94]: 20.214°N, 100.402°E
+            - heading "บ้านปากอิงใต้" [level=3] [ref=f1e95]
+            - paragraph [ref=f1e96]: ต.ศรีดอนชัย อ.เชียงของ จ.เชียงราย
+            - generic [ref=f1e97]:
+              - generic [ref=f1e98]:
+                - generic [ref=f1e99]: ชุดสำรวจภาคสนาม
+                - generic [ref=f1e103]: รอบถัดไป
+              - generic [ref=f1e104]: ใช้บ้านปากอิงใต้ตามชีต Village!B1:E2 และโปรโตไทป์ V9 (ไม่ใช้บ้านไห้) ยังไม่มีชุดสำรวจรายครัวเรือนที่ยืนยันในรอบนี้
+          - button "เข้าสู่ข้อมูลปากอิงใต้" [ref=f1e106]
+    - contentinfo [ref=f1e110]:
+      - generic [ref=f1e111]:
+        - generic [ref=f1e112]:
+          - strong [ref=f1e113]: MFU Kok Water Watch · มหาวิทยาลัยแม่ฟ้าหลวง (R12, R29)
+          - paragraph [ref=f1e114]: "แหล่งทุนและพันธมิตรโครงการ: Oxfam · ADPC · DFAT รัฐบาลออสเตรเลีย · SDC รัฐบาลสวิตเซอร์แลนด์ · มหาวิทยาลัยแม่ฟ้าหลวง"
+        - generic [ref=f1e115]:
+          - generic [ref=f1e116]: "4 ชุมชนโฟกัส: ท่าตอน (129) · กะเหรี่ยงรวมมิตร · ปงของ · ปากอิงใต้"
+          - generic [ref=f1e117]: "Contract: 5.0.0-evidence-20261013 · แผนที่ OpenStreetMap (OSM)"
+  - region "Notifications (F8)":
+    - list
