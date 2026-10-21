@@ -8,8 +8,7 @@ import { hasPublicMapLayer, publicFloodHistory, publicEvacuationReference, type 
 import { existingWaterColor, floodDepthLevels, floodImpactStages, loadFloodSimulation, loadFloodScenario, sampleFloodGrid, floodDepthAtPoint, type FloodScenario, type FloodSimulation, type FloodView } from '../utils/flood-simulation'
 import type { MyMapsReview, MyMapsRecord } from '../utils/mymaps-review'
 import KokMyMapsControl from './KokMyMapsControl.vue'
-import KokEvacuationAccess from './KokEvacuationAccess.vue'
-import type { EvacuationPoint, RestrictedEvacuation } from '../utils/restricted-evacuation'
+import { loadPublicEvacuation, type EvacuationPoint } from '../utils/public-evacuation'
 import { loadObservationRegions, observationDates, observationWaterColor, type ObservationDate, type ObservationRegions } from '../utils/flood-observations'
 
 const props = withDefaults(
@@ -46,10 +45,10 @@ const emit = defineEmits<{
 }>()
 
 const mapContainer = ref<HTMLDivElement | null>(null)
-const developmentReview = import.meta.dev
-const localReviewPoints = ref<EvacuationPoint[]>([])
-const localReviewRoutes = ref<Array<Array<[number, number]>>>([])
-const localRoutesRoadAligned = ref(false)
+const evacuationError = ref(false)
+const evacuationPoints = ref<EvacuationPoint[]>([])
+const evacuationRoutes = ref<Array<Array<[number, number]>>>([])
+const routesRoadAligned = ref(false)
 const myMapsData = shallowRef<MyMapsReview | null>(null)
 const myMapsLayerId = ref('')
 const floodSimulationData = shallowRef<FloodSimulation | null>(null)
@@ -115,20 +114,6 @@ function communityPinIcon(color: string, path: string, className: string) {
     className, iconSize: [24, 30], iconAnchor: [12, 30], popupAnchor: [0, -27],
     html: `<svg width="20" height="27" viewBox="0 0 26 34" style="position:absolute;left:2px;bottom:0" aria-hidden="true"><path d="M13 1C6.4 1 1 6.4 1 13c0 8 12 20 12 20s12-12 12-20C25 6.4 19.6 1 13 1Z" fill="${color}" stroke="white" stroke-width="1.5"/><svg x="6" y="5" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${path}</svg></svg>`,
   })
-}
-
-function showRestrictedEvacuation(data: RestrictedEvacuation) {
-  localReviewPoints.value = data.points
-  localReviewRoutes.value = data.routes
-  localRoutesRoadAligned.value = data.routeAlignment === 'offline_osm_road_alignment'
-  renderCommunityMapLayer()
-}
-
-function hideRestrictedEvacuation() {
-  localReviewPoints.value = []
-  localReviewRoutes.value = []
-  localRoutesRoadAligned.value = false
-  renderCommunityMapLayer()
 }
 
 function renderObservationLayer() {
@@ -268,10 +253,10 @@ function renderCommunityMapLayer() {
 
   if (props.communityMapType === 'evacuation') {
     evacuationRenderer ??= L.svg({ pane: 'evacuation-routes' })
-    for (const route of localReviewRoutes.value) {
+    for (const route of evacuationRoutes.value) {
       L.polyline(route, { renderer: evacuationRenderer, color: '#FFFFFF', weight: 6, opacity: 0.85, interactive: false, smoothFactor:0 }).addTo(communityMapGroup)
       const popup = document.createElement('div')
-      popup.textContent = localRoutesRoadAligned.value
+      popup.textContent = routesRoadAligned.value
         ? 'เส้นทางตามแผน PDF และช่วงเชื่อมตามถนน OpenStreetMap · ยังไม่ยืนยันภาคสนาม ไม่ใช่การนำทางหรือการยืนยันว่าถนนปลอดภัยในปัจจุบัน'
         : 'เส้นทางอพยพตามภาพ PDF · ตำแหน่งประมาณ ยังไม่ยืนยันภาคสนาม ไม่ใช่เส้นทางนำทางหรือประกาศความปลอดภัยปัจจุบัน'
       L.polyline(route, { renderer: evacuationRenderer, color: '#D97706', weight: 3.5, dashArray: '7 5', smoothFactor:0, className: 'community-evacuation-route' })
@@ -288,7 +273,7 @@ function renderCommunityMapLayer() {
       L.marker([point.latitude, point.longitude], { icon, alt: label, interactive:false, keyboard:false })
         .addTo(communityMapGroup)
     }
-    for (const point of localReviewPoints.value) {
+    for (const point of evacuationPoints.value) {
       const symbol = reviewSymbols[point.kind]
       if (!symbol) continue
       const icon = communityPinIcon(symbol.color, symbol.path, 'community-household-review-marker')
@@ -510,18 +495,14 @@ onMounted(async () => {
         const data = await response.json()
         if (data.visibility==='local-review-only' && Array.isArray(data.layers)) myMapsData.value = data
       }).catch(() => { /* Restricted source data stays unavailable outside local review. */ })
-    // No coordinates are imported into the bundle. The endpoint is disabled in production.
-    void fetch('/local-review/evacuation', { cache: 'no-store', credentials: 'same-origin' })
-      .then(async (response) => {
-        if (!response.ok) return
-        const data = await response.json()
-        if (data.visibility !== 'local-review-only' || !Array.isArray(data.points)) return
-        localReviewPoints.value = data.points
-        localReviewRoutes.value = Array.isArray(data.routes) ? data.routes : []
-        localRoutesRoadAligned.value = data.routeAlignment === 'offline_osm_road_alignment'
-        renderCommunityMapLayer()
-      }).catch(() => { /* Optional local review is unavailable on public deployments. */ })
   }
+
+  void loadPublicEvacuation().then((data) => {
+    evacuationPoints.value = data.points
+    evacuationRoutes.value = data.routes
+    routesRoadAligned.value = data.routeAlignment === 'offline_osm_road_alignment'
+    renderCommunityMapLayer()
+  }).catch(() => { evacuationError.value = true })
 
   const resizeHandler = () => {
     mapInstance?.invalidateSize()
@@ -588,9 +569,9 @@ onBeforeUnmount(() => {
       <span v-if="simulationVisible" class="block">{{ floodSimulationError ? 'โหลดแบบจำลองไม่สำเร็จ ลองเปิดหน้าใหม่' : `คาดการณ์ตามระดับน้ำ · +${floodStage} ม. · แบบจำลองทดลอง` }}</span>
       <span v-if="observationsVisible" class="block">{{ observationError ? 'โหลดภาพดาวเทียมไม่สำเร็จ ลองสลับวันที่อีกครั้ง' : `ภาพดาวเทียม · ${observationDates.find((item) => item.date === observationDate)?.label} · ${loadedObservationDate !== observationDate ? 'กำลังโหลด…' : observationDate === '2024-09-10' ? 'เมฆบัง ประเมินไม่ได้' : 'พื้นที่น้ำประเมินเบื้องต้น'}` }}</span>
     </div>
-    <div v-if="selectedCommunityId === 'thaton' && communityMapType === 'evacuation' && localReviewPoints.length"
+    <div v-if="selectedCommunityId === 'thaton' && communityMapType === 'evacuation' && (evacuationPoints.length || evacuationError)"
       class="absolute left-3 top-36 sm:top-16 z-[1000] rounded-lg bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-900 shadow"
-      role="status">{{ developmentReview ? 'ข้อมูลจำกัดสิทธิ์ในเครื่อง' : 'ข้อมูลสำหรับผู้ได้รับสิทธิ์' }} · บ้าน {{ localReviewPoints.length }} จุด</div>
+      role="status">{{ evacuationError ? 'โหลดข้อมูลอพยพไม่สำเร็จ กรุณาเปิดหน้าใหม่' : `ข้อมูลตามแผนอพยพ · บ้าน ${evacuationPoints.length} จุด` }}</div>
     <section
       ref="mapContainer"
       role="region"
@@ -602,13 +583,13 @@ onBeforeUnmount(() => {
       <strong>สีและสัญลักษณ์</strong>
       <div><span style="background:#B45309" />ศูนย์พักพิง</div>
       <div><span style="background:#047857" />จุดรวมพล</div>
-      <template v-if="localReviewPoints.length">
+      <template v-if="evacuationPoints.length">
         <div><span :style="{background:reviewSymbols.elderly.color}" />บ้านที่มีผู้สูงอายุ</div>
         <div><span :style="{background:reviewSymbols.disability.color}" />บ้านที่มีคนพิการ</div>
         <div><span :style="{background:reviewSymbols.children.color}" />บ้านที่มีเด็กอายุต่ำกว่า 15 ปี</div>
         <div><span :style="{background:reviewSymbols.children_elderly.color}" />เด็ก &lt;15 ปี และผู้สูงอายุ &gt;1 คน</div>
       </template>
-      <div v-if="localReviewRoutes.length"><span class="route-swatch" />เส้นทางตามแผน</div>
+      <div v-if="evacuationRoutes.length"><span class="route-swatch" />เส้นทางตามแผน</div>
       <section v-if="simulationVisible || observationsVisible" class="water-legend" aria-label="สีน้ำท่วม">
         <template v-if="simulationVisible">
           <strong>น้ำจำลอง +{{ floodStage }} ม.</strong>
@@ -617,10 +598,7 @@ onBeforeUnmount(() => {
         </template>
         <div v-if="observationsVisible"><span :style="{background:observationWaterColor}" />ข้อมูลน้ำท่วมจริง</div>
       </section>
-      <template v-if="!developmentReview">
-        <button v-if="localReviewPoints.length" type="button" class="lock-evacuation" @click="hideRestrictedEvacuation">ปิดข้อมูลจำกัดสิทธิ์</button>
-        <KokEvacuationAccess v-else @loaded="showRestrictedEvacuation" />
-      </template>
+
     </aside>
 
     <!-- Map Controls: Zoom Controls -->
@@ -659,8 +637,6 @@ onBeforeUnmount(() => {
 .evacuation-legend strong { display:block; margin-bottom:6px; font-size:12px; }
 .evacuation-legend div { display:flex; align-items:center; gap:7px; margin-top:4px; }
 .evacuation-legend span { width:10px; height:10px; flex-shrink:0; border-radius:50%; }
-.lock-evacuation { pointer-events:auto; width:100%; min-height:40px; margin-top:8px; padding:6px 10px; border:1px solid #94a3b8; border-radius:8px; cursor:pointer; }
-.lock-evacuation:focus-visible { outline:2px solid #386ca9; outline-offset:2px; }
 .water-legend { margin-top:8px; padding-top:8px; border-top:1px solid #94a3b844; }
 .evacuation-legend .route-swatch { height:0; border-top:2px dashed #D97706; border-radius:0; }
 @media (max-width:767px) { .evacuation-legend { bottom:208px; right:12px; padding:8px 10px; font-size:10px; } }

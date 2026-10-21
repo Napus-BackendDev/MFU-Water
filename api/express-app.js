@@ -5,7 +5,6 @@ import waypointsHandler from './surveys/waypoints.js'
 import prepareHandler from './surveys/prepare.js'
 import completeHandler from './surveys/complete.js'
 import earthEngineStatusHandler from './earth-engine/status.js'
-import evacuationHandler from './evacuation/restricted.js'
 
 const serverEnvKeys = [
   'SUPABASE_URL',
@@ -16,8 +15,6 @@ const serverEnvKeys = [
   'TURNSTILE_ALLOWED_HOSTNAMES',
   'GOOGLE_APPLICATION_CREDENTIALS',
   'GOOGLE_APPLICATION_CREDENTIALS_JSON',
-  'EVACUATION_ACCESS_KEY_SHA256',
-  'EVACUATION_DATA_JSON',
 ]
 
 function resolveProjectFile(rootDir, relativePath) {
@@ -71,7 +68,6 @@ export function createExpressApp(rootDir = process.cwd()) {
   app.all('/api/surveys/waypoints', (req, res) => waypointsHandler(req, res))
   app.all('/api/surveys/prepare', (req, res) => prepareHandler(req, res))
   app.all('/api/surveys/complete', (req, res) => completeHandler(req, res))
-  app.all('/api/evacuation/restricted', (req, res) => evacuationHandler(req, res))
   app.all('/api/earth-engine/status', (req, res) => earthEngineStatusHandler(req, res))
 
   app.get('/api/contract', (_req, res) => {
