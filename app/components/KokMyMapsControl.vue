@@ -31,7 +31,7 @@ const layer = computed(() => props.data.layers.find((item) => item.id===selected
           <span class="flex-1">{{ item.label }}</span><span class="tabular-nums">{{ item.rows }}</span>
         </div>
       </template>
-      <p class="mt-3 text-xs">ข้อมูลสำรวจตามต้นฉบับ ไม่ใช่ข้อมูลสดหรือผลจำลอง · ดูเฉพาะในเครื่อง</p>
+      <p class="mt-3 text-xs">ข้อมูลสำรวจตามต้นฉบับ ไม่ใช่ข้อมูลสดหรือผลจำลอง</p>
       <a :href="data.sourceUrl" target="_blank" rel="noreferrer" class="mt-2 inline-block text-xs underline underline-offset-2">เปิด My Maps ต้นทาง</a>
     </section>
   </div>

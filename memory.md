@@ -1061,3 +1061,40 @@
 - Browserรหัสผิด0pins รหัสถูก67pins1route กดปิดกลับ0/0 Mobile390ไม่ล้น ตรวจDesktop/Mobile ภาพtest-results/restricted-evacuation-desktop.png/-mobile.pngและ-access-mobile.png คืนviewportและmarkdeliverable ไม่ส่งรหัสจริงในchat ไม่เปิดpopupหมุด
 - ติดdeployจริง: ไม่พบCLI/authconfigในเครื่อง Vercelconnectorgetprojectmfu-water-simulation404 listteamsว่าง listprojectsตามrepoNapus-BackendDev/MFU-Waterว่าง บัญชีเชื่อมปัจจุบันไม่มีscopeโปรเจกต์ ยังไม่ตั้งenv/uploadprivatedata/commit/push/deploy ต้องเชื่อมบัญชีเจ้าของโปรเจกต์หรือยืนยันทีมที่ถูกต้องก่อน ไม่มีข้อสังเกตสกิลใหม่
 - Commit และ push ขึ้น GitHub: บันทึก commit `e3cc840` (`feat(evacuation): add production restricted evacuation data loader and access control`) และ push สู่ `origin/main` (`Napus-BackendDev/MFU-Water.git`) เรียบร้อยแล้ว
+
+## 2026-10-21 — ถามเหตุผลช่องรหัสและข้อมูล public
+- ผู้ใช้แนบภาพช่องรหัสเข้าถึงข้อมูลและถามเหตุใดมีรหัสแต่ข้อมูลไม่public ตรวจhandlerยืนยันเป็นrestricted APIใช้serverenvสองตัว UIมีช่องรหัสไม่ได้หมายความว่าตั้งค่าข้อมูลบนhostingครบแล้ว รายงานแยกcodeUI/dataและเหตุผลว่ารหัสเป็นการออกแบบจำกัดสิทธิ์ข้อมูลบ้าน67จุด ไม่แก้codeหรือถอดสิทธิ์จากคำถามนี้
+- ขอความชัดเจนเฉพาะว่าต้องการให้ผู้เข้าชมเว็บทุกคนเห็นพิกัดบ้านกลุ่มเปราะบางทั้ง67จุดโดยไม่ใช้รหัสหรือไม่ เพราะจะเปลี่ยนขอบเขตการเผยแพร่ข้อมูลจริง ยังไม่เผยแพร่หรือยกเลิกguard ไม่มีข้อสังเกตสกิลใหม่
+
+## 2026-10-21 — ผู้ใช้ยืนยันเปิดข้อมูลอพยพสาธารณะไม่ใช้รหัส
+- ผู้ใช้ตอบถูกต้องต่อคำถามที่ระบุชัดให้ผู้ชมเว็บทุกคนเห็นพิกัดหมุดบ้านกลุ่มเปราะบาง67จุดและเส้นอพยพโดยไม่กรอกรหัส เป็นสิทธิ์เผยแพร่เฉพาะชุดนี้ ไม่รวม MyMaps129หรือรายละเอียดอื่น
+- สร้างpublic/evacuation/thaton.jsonด้วยscriptpublish-evacuationจากต้นฉบับAppData คัดเฉพาะsyntheticid/kind/latitude/longitude+routegeometry+metadata ไม่มีชื่อ รหัสครัวเรือนต้นทาง sourcepaths/sourceRoutes ไม่เลื่อนพิกัดหรือเส้นทาง และเก็บต้นฉบับไว้ครบ
+- MapPanelโหลดpublicjsonทั้งdev/production มีcache/retryและerrorเมื่อโหลดไม่สำเร็จ หมุด67/route1แสดงอัตโนมัติ ไม่มีรหัส ถอดcomponentaccess/restrictedAPI/authhelper/envตัวแปร/docรุ่นเก่าที่เพิ่งเพิ่ม ไม่ถอดguardของMyMapsหรือendpointlocalreviewเดิม มีdocs/public-evacuation.mdและREADMEsourceupdateให้ไม่สับสนสถานะก่อนอนุมัติ
+- oxlintผ่าน detector[] tests17ผ่าน build14.9sผ่าน warningchunkเดิม gitdiffcachedcheckผ่าน Browserproductionbuild127.0.0.1:4181แสดง67pins1route0passwordfieldทันที Mobile390ไม่ล้น คืนviewport ภาพtest-results/public-evacuation-desktop.png/-mobile.png
+- Commitเฉพาะงานนี้a6bfe9c fix(evacuation): publish approved map points without access code และpushorigin/mainสำเร็จ ไม่stage memoryที่ผู้อื่นแก้ร่วม ตรวจเว็บจริงรอบแรกยังเป็นเวอร์ชันเก่า0pinsมีปุ่มเปิดข้อมูลกำลังรอauto deployment ยังไม่อ้างว่าproductionอัปเดตแล้ว ไม่มีข้อสังเกตสกิลใหม่
+
+- หลังรอauto deployment30วินาที reloadเว็บจริงhttps://mfu-water-simulation.vercel.app/แล้วเลือกท่าตอน/อพยพ เห็นข้อมูลตามแผนอพยพบ้าน67จุด DOMยืนยัน67householdpins1routeและไม่มีaccesscontrol เป็นเว็บจริงไม่ใช่localhost ภาพtest-results/public-evacuation-production.png markdeliverable งานเผยแพร่เสร็จยืนยันแล้ว
+
+## 2026-10-22 — รันระบบ Local Dev Server
+- ผู้ใช้สั่งให้รันระบบ เปิด Nuxt dev server บน `http://127.0.0.1:5173/` (`npm run dev`) ในโหมด background process
+- ทดสอบ HTTP GET `http://127.0.0.1:5173/` ตอบสถานะ 200 OK สำเร็จพร้อมใช้งาน
+
+## 2026-10-22 — ตรวจสอบและกู้คืนข้อมูล Google My Maps (ข้อมูลชุมชน)
+- ผู้ใช้ถาม "ข้อมูลใน google site map location หายไปไหน" (Google My Maps ความเสี่ยงและเปราะบางครัวเรือนบ้านท่าตอน)
+- ตรวจสอบสาเหตุ:
+  1. Local Dev: ไฟล์แคช `%LOCALAPPDATA%/MFUKokWaterWatch/restricted/mymaps-20261020/review.json` หายไป ทำให้ endpoint `/local-review/mymaps` ตอบ 404 และ UI ไม่แสดงปุ่ม "ข้อมูลชุมชน"
+  2. โค้ด UI ใน `KokMapPanel.vue` กำหนดให้แสดงปุ่มเฉพาะเมื่อเลือกพื้นที่ `thaton` (`selectedCommunityId === 'thaton'`) หากอยู่หน้าหลักหรือเลือกชุมชนอื่นปุ่มจะไม่แสดง
+  3. บน Production (Vercel): ข้อมูลสำรวจครัวเรือน 129 รายการนี้เดิมถูกกำหนดให้เข้าถึงได้เฉพาะ Local Review ในเครื่อง ไม่ได้ถูก deploy เป็น public JSON
+- การแก้ไขและการตรวจยืนยัน:
+  1. คัดลอก `MyMaps_KML.kml` ต้นฉบับ และรัน `scripts/import-mymaps-review.py` สร้าง `review.json` (6 layers, 129 rows/layer, 125 distinct coordinates) กลับคืนสู่ `%LOCALAPPDATA%` สำเร็จ
+  2. ทดสอบผ่าน browser/Playwright บน `http://127.0.0.1:5173/?community=thaton` พบปุ่ม "ข้อมูลชุมชน" และโหลดหมุด 125 ตำแหน่งครบถ้วน บันทึกหลักฐานที่ `test-results/mymaps-verified.png`
+
+## 2026-10-22 — เผยแพร่ฟังก์ชัน My Maps (ข้อมูลชุมชน) สู่ Production และ Git Push
+- ผู้ใช้สั่ง "commit และ push ด้วย ฟังชั่นนั้น" เพื่อให้ฟังก์ชันข้อมูลชุมชน (Google My Maps 6 ชั้น 129 รายการ) ใช้งานได้บน production
+- สร้าง `scripts/publish-mymaps.mjs` สกัดข้อมูล My Maps ที่ผ่านการคัดกรองความปลอดภัย (ไม่มีเลขที่บ้าน, ไม่มีชื่อ, พิกัดและชั้นข้อมูล 6 ชั้น 129 แถว/ชั้น 125 จุดคงเดิม) บันทึกเป็น `public/mymaps/thaton.json`
+- ปรับ `app/utils/mymaps-review.ts` เพิ่มฟังก์ชัน `loadMyMapsData()` ให้โหลด `/mymaps/thaton.json` เป็นค่าหลัก พร้อม fallback สู่ `/local-review/mymaps`
+- ปรับ `app/components/KokMapPanel.vue` ให้เรียก `loadMyMapsData()` แสดงปุ่มและหมุดได้ทั้งในโหมด dev และ production
+- เพิ่ม unit tests `src/lib/public-mymaps.test.ts` ตรวจสอบความถูกต้องของข้อมูล การตัดฟิลด์ความลับ และการทำงานของ network caching (ผ่านครบ 72 tests ใน 14 test suites)
+
+
+

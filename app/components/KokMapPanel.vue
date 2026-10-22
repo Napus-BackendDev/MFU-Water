@@ -6,7 +6,7 @@ import type { SurveyWaypoint } from '../../src/lib/survey'
 import { communityTargets, publicSurveyGridCells, type CommunityTarget, type PublicGridCell } from '../utils/kok-contract'
 import { hasPublicMapLayer, publicFloodHistory, publicEvacuationReference, type CommunityMapType } from '../utils/community-map-layers'
 import { existingWaterColor, floodDepthLevels, floodImpactStages, loadFloodSimulation, loadFloodScenario, sampleFloodGrid, floodDepthAtPoint, type FloodScenario, type FloodSimulation, type FloodView } from '../utils/flood-simulation'
-import type { MyMapsReview, MyMapsRecord } from '../utils/mymaps-review'
+import { loadMyMapsData, type MyMapsReview, type MyMapsRecord } from '../utils/mymaps-review'
 import KokMyMapsControl from './KokMyMapsControl.vue'
 import { loadPublicEvacuation, type EvacuationPoint } from '../utils/public-evacuation'
 import { loadObservationRegions, observationDates, observationWaterColor, type ObservationDate, type ObservationRegions } from '../utils/flood-observations'
@@ -488,14 +488,9 @@ onMounted(async () => {
   renderCommunityMapLayer()
   applyScopeAndCommunity()
 
-  if (import.meta.dev) {
-    void fetch('/local-review/mymaps',{cache:'no-store',credentials:'same-origin'})
-      .then(async (response) => {
-        if (!response.ok) return
-        const data = await response.json()
-        if (data.visibility==='local-review-only' && Array.isArray(data.layers)) myMapsData.value = data
-      }).catch(() => { /* Restricted source data stays unavailable outside local review. */ })
-  }
+  void loadMyMapsData().then((data) => {
+    myMapsData.value = data
+  }).catch(() => { /* My Maps data unavailable */ })
 
   void loadPublicEvacuation().then((data) => {
     evacuationPoints.value = data.points
