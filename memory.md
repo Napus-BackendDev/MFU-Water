@@ -1095,6 +1095,9 @@
 - ปรับ `app/utils/mymaps-review.ts` เพิ่มฟังก์ชัน `loadMyMapsData()` ให้โหลด `/mymaps/thaton.json` เป็นค่าหลัก พร้อม fallback สู่ `/local-review/mymaps`
 - ปรับ `app/components/KokMapPanel.vue` ให้เรียก `loadMyMapsData()` แสดงปุ่มและหมุดได้ทั้งในโหมด dev และ production
 - เพิ่ม unit tests `src/lib/public-mymaps.test.ts` ตรวจสอบความถูกต้องของข้อมูล การตัดฟิลด์ความลับ และการทำงานของ network caching (ผ่านครบ 72 tests ใน 14 test suites)
+- Lint (`oxlint`) 0 errors/warnings, Nuxt production build ผ่านฉลุย
+- Commit `5e69a6f` (`feat(mymaps): publish thaton community survey layers to public map`) และ `git push origin main` สู่ GitHub repository `Napus-BackendDev/MFU-Water` สำเร็จเรียบร้อย
+
 
 
 
