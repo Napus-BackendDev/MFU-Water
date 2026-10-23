@@ -90,7 +90,6 @@ const selectedStatusFilter = ref<'all' | 'normal' | 'alert'>('all')
 const waterwayTrigger = ref(0)
 const waterwayMessage = ref<string | null>(null)
 const virtualPolygonActive = ref(false)
-const mapStatusBadge = ref<string | null>(null)
 
 watch(activeCommunityMapType, (newType) => {
   if ((newType === 'flood' || newType === 'evacuation') && selectedCommunityId.value === 'all') {
@@ -504,13 +503,12 @@ onMounted(() => {
           @select-waypoint="handleSelectWaypoint($event)"
           @select-grid-cell="selectedGridCell = $event"
           @waterway-loaded="waterwayMessage = $event"
-          @update:status-badge="mapStatusBadge = $event"
         />
       </div>
 
       <!-- Floating Top Header Bar -->
       <header class="no-print absolute top-3 left-3 right-3 z-20 flex items-start justify-between gap-3 pointer-events-none">
-        <div class="pointer-events-auto flex items-center gap-2 shrink-0">
+        <div class="pointer-events-auto flex items-center gap-1 shrink-0">
           <!-- Back to Landing Button -->
           <button
             type="button"
@@ -568,9 +566,16 @@ onMounted(() => {
 
 
 
-      <!-- Floating Bottom Center: Unified Stack -->
-      <div class="pointer-events-none absolute bottom-3 sm:bottom-4 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center gap-2.5 w-max max-w-[calc(100vw-20px)]">
-        <!-- 1. แบบสอบถาม (Survey Button) - Above Yellow Button, Centered, High-Contrast CTA -->
+      <!-- Desktop Bottom Bar: Tabs centered at bottom-[9px], Survey Button on right at bottom-[9px] (+4px lifted) -->
+      <div class="pointer-events-none hidden sm:flex absolute bottom-[9px] left-1/2 -translate-x-1/2 z-20 items-center justify-center">
+        <KokMapTypesControl
+          v-model="activeCommunityMapType"
+          :community-id="selectedCommunityId"
+          class="pointer-events-auto"
+        />
+      </div>
+
+      <div class="pointer-events-none hidden sm:block absolute bottom-[9px] right-4 z-20">
         <button
           type="button"
           class="survey-button pointer-events-auto"
@@ -579,22 +584,26 @@ onMounted(() => {
           <ClipboardList class="h-5 w-5" />
           <span>ทำแบบสำรวจ</span>
         </button>
+      </div>
 
-        <!-- 2. ปุ่มสีเหลือง (Yellow Telemetry Button) - Enlarged by 1 level, Below Survey, Centered -->
-        <div
-          v-if="mapStatusBadge"
-          class="pointer-events-auto flex items-center gap-2 rounded-xl border-2 border-amber-400 bg-amber-200/95 px-4 py-2 text-sm font-bold text-amber-950 shadow-md backdrop-blur-md dark:border-amber-600 dark:bg-amber-900/90 dark:text-amber-100 transition-all duration-200"
-          role="status"
+      <!-- Mobile: Floating Survey Button (Taken out of bottom bar) -->
+      <div class="pointer-events-none sm:hidden absolute bottom-[68px] right-3 z-20">
+        <button
+          type="button"
+          class="survey-button pointer-events-auto shadow-xl"
+          @click="surveyModalOpen = true"
         >
-          <Waves class="h-4 w-4 text-amber-800 dark:text-amber-300 shrink-0" />
-          <span class="whitespace-nowrap">{{ mapStatusBadge }}</span>
-        </div>
+          <ClipboardList class="h-5 w-5" />
+          <span>ทำแบบสำรวจ</span>
+        </button>
+      </div>
 
-        <!-- 3. แถบเลือกโหมด 4 ช่อง (KokMapTypesControl) -->
+      <!-- Mobile: Bottom Navigation Button Menu (4 tabs as native bottom menu bar) -->
+      <div class="sm:hidden fixed bottom-0 left-0 right-0 z-30 pointer-events-auto">
         <KokMapTypesControl
           v-model="activeCommunityMapType"
           :community-id="selectedCommunityId"
-          class="pointer-events-auto"
+          variant="bottom-nav"
         />
       </div>
 

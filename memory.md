@@ -1571,3 +1571,78 @@
 ## 2026-10-23 22:35 - Commit and Push to GitHub
 - Commit: `b5b2598` `refactor(ui): streamline mobile controls and center bottom action stack`
 - Push: `origin main` สำเร็จครบถ้วน
+
+## 2026-10-23 23:10 - ลบป้ายคาดการณ์ตามระดับน้ำ (ปุ่มสีเหลือง) ออก
+- คำขอผู้ใช้: "คาดการณ์ตามระดับน้ำ · +2.5 ม. · แบบจำลองทดลอง ลบออกหน่อย"
+- สิ่งที่ทำจริง:
+  - `app/app.vue`: นำบล็อกปุ่มสีเหลืองแสดงสถานะ `mapStatusBadge` ออกจาก bottom-center stack
+  - `app/components/KokMapPanel.vue`: ทำความสะอาดโค้ด computed `statusBadgeText` และ event emit `update:statusBadge` ออก
+- ผลการตรวจ:
+  - `oxlint`: 0 errors
+  - `vitest`: 15 files passed, 75/75 tests passed
+  - ภาพถ่ายหน้าจอจริง Mobile และ Desktop ยืนยันว่าป้ายสีเหลืองถูกลบออกเรียบร้อย หน้าจอด้านล่างมีเพียงปุ่มทำแบบสำรวจเด่นอยู่ตรงกลางเหนือแถบ 4 ช่อง
+
+## 2026-10-23 23:23 - ปรับตำแหน่ง Desktop ขวาล่าง และทำ Mobile Bottom Sheet
+- คำขอผู้ใช้:
+  1. Desktop: "เอาปุ่ม ทำแบบสำรวจ ไว้ขวา ล่าง ขนานกับ tab และ ยกขึ้นมาจาก ขอบ ข้างล่าง มา 2 px"
+  2. Mobile: "ทำเป็น sidebar มือถือได้ไหม" -> สอบถามและผู้ใช้เลือก "ทำเป็น Bottom Sheet แบบไม่ต้องดึงขึ้น แต่ โชว์ไว้อยู่แล้ว"
+- สิ่งที่ทำจริง:
+  - `app/app.vue`:
+    - ฝั่ง Desktop (`sm:flex`, `sm:block`):
+      - แถบประเภทแผนที่ 4 ช่อง (`KokMapTypesControl`) อยู่ตรงกลางล่างที่ `bottom-[2px]`
+      - ปุ่มทำแบบสำรวจ (`survey-button`) อยู่ฝั่งขวาล่างที่ `right-4 bottom-[2px]` ขนานกับแท็บแผนที่ ยกระดับจากขอบล่าง 2px พอดี
+    - ฝั่ง Mobile (`sm:hidden`):
+      - ทำเป็น Bottom Sheet การ์ดโค้งมนด้านบน (`rounded-t-2xl shadow-lg backdrop-blur-xl bg-white/95 dark:bg-[#1E1E1E]/95`) โชว์อยู่ล่างสุดตลอดเวลา
+      - มีแถบขีดจับ (grab indicator) ด้านบน
+      - ปุ่มทำแบบสำรวจขนาดเต็มมือกึ่งกลาง
+      - แถบเลือกแผนที่ 4 ช่องอยู่ด้านล่างปุ่มสำรวจ
+- ผลการตรวจ:
+  - `oxlint`: 0 errors
+  - `vitest`: 15 files passed, 75/75 tests passed
+  - ภาพถ่ายหน้าจอจริง Mobile และ Desktop สวยงาม ใช้งานสะดวก ถูกต้องตามข้อกำหนด 100%
+
+## 2026-10-23 23:56 - ปรับยก Desktop ขึ้น 3px และทำ Mobile Button Menu Bar ล่างสุด
+- คำขอผู้ใช้:
+  1. Desktop: "ขยับขึ้นมาหน่อยประมาณ 3 พิกเซล" -> ย้ายจาก `bottom-[2px]` เป็น `bottom-[5px]`
+  2. Mobile: "เอาปุ่มทำแบบสำรวจออกมา แล้วข้างล่าง 4 อัน ให้มันเป็นตัวของเมนูไว้กดเป็น button menu ไม่ใช่ไอ้ที่คุณทำตอนนี้"
+- สิ่งที่ทำจริง:
+  - `app/components/KokMapTypesControl.vue`:
+    - เพิ่ม `variant="bottom-nav"` สำหรับ Mobile ให้แสดงเป็น Bottom Navigation Menu Bar เต็มความกว้างล่างสุด แบ่ง 4 คอลัมน์ชัดเจน (`grid grid-cols-4`) มีไอคอนด้านบนและชื่อด้านล่าง พร้อมสถานะเลือก/ปิดการใช้งานตามเลเยอร์
+    - คง `variant="pill"` สำหรับ Desktop แบบแคปซูลแนวนอนเดิม
+  - `app/app.vue`:
+    - Desktop: ขยับแถบประเภทแผนที่และปุ่มทำแบบสำรวจขึ้น 3px (`bottom-[5px]`) ขนานกันที่ด้านล่างจอ
+    - Mobile:
+      - นำปุ่ม **ทำแบบสำรวจ** ออกมาลอยเป็น Floating Button เด่นชัดอยู่เหนือแถบเมนูด้านขวา (`bottom-[68px] right-3`)
+      - แถบ 4 อันด้านล่างเปลี่ยนเป็น Button Menu Bar ติดขอบล่างจอ (`bottom-0 left-0 right-0`) เป็นเมนูปุ่มกดใช้งานง่าย ไม่มีการ์ดขาวครอบและไม่มีแถบขีดลาก
+- ผลการตรวจ:
+  - `oxlint`: 0 errors
+  - `vitest`: 15 files passed, 75/75 tests passed
+  - ภาพถ่ายหน้าจอจริง Mobile และ Desktop สวยงาม ใช้งานสะดวก ถูกต้องตามข้อกำหนด 100%
+
+## 2026-10-24 00:05 - นำปุ่มข้อมูลชุมชนออก, ขยับโลโก้ชิดปุ่มย้อนกลับ, และยก Desktop ขึ้นอีก 4px
+- คำขอผู้ใช้:
+  1. Desktop ซ้ายบน: "เข้าชึ้นไปให้ใกล้กับ ปุ่มย้อนกลับ"
+  2. Mobile ซ้ายบน: ป้าย "ข้อมูลชุมชน" -> "เอาออกไป"
+  3. Desktop ล่าง: "เอา ปุ่ม และ tab ขึ้นมาจากข้างหน้าจอข้างล่าง มา 4 px"
+- สิ่งที่ทำจริง:
+  - `app/components/KokMapPanel.vue`:
+    - นำ `<KokMyMapsControl>` ออกจากเทมเพลต ทำให้ปุ่มลอย "ข้อมูลชุมชน" หายไปทั้งระบบ
+    - ทำความสะอาด import ที่ไม่ได้ใช้งาน
+  - `app/app.vue`:
+    - ปรับระยะห่างปุ่มซ้ายบน `gap-1` ให้ `MFU Kok Water Watch` ขยับเข้ามาชิดปุ่มย้อนกลับ `เลือกพื้นที่ (หน้าแรก)`
+    - ปรับระยะล่างของ Desktop เป็น `bottom-[9px]` (ยกเพิ่มอีก 4px จาก 5px) ทั้งแถบแท็บและปุ่มทำแบบสำรวจ
+- ผลการตรวจ:
+  - `oxlint`: 0 errors
+  - `vitest`: 15 files passed, 75/75 tests passed
+  - ภาพถ่ายหน้าจอจริง Mobile และ Desktop สวยงาม สะอาดตา ถูกต้องตามสั่ง 100%
+
+## 2026-10-24 00:13 - นำปุ่มข้อมูลชุมชนกลับมา
+- คำขอผู้ใช้: "เอาปุ่มชุมชล กลับมา"
+- สิ่งที่ทำจริง:
+  - `app/components/KokMapPanel.vue`:
+    - นำเข้า `import KokMyMapsControl from './KokMyMapsControl.vue'`
+    - นำ `<KokMyMapsControl v-if="(selectedCommunityId === 'thaton' || selectedCommunityId === 'all') && myMapsData" v-model="myMapsLayerId" :data="myMapsData" />` กลับมาใส่ในเทมเพลต
+- ผลการตรวจ:
+  - `oxlint`: 0 errors
+  - `vitest`: 15 files passed, 75/75 tests passed
+  - ภาพถ่ายหน้าจอจริง Mobile และ Desktop: ปุ่ม "ข้อมูลชุมชน" แสดงผลสวยงาม ไม่ทับซ้อนกับเมนูด้านบนทั้งบน Desktop และ Mobile กดเปิดเมนูเลือกหัวข้อสำรวจชุมชนและแสดงเลเยอร์ได้สมบูรณ์

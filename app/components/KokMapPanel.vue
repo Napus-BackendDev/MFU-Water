@@ -6,9 +6,9 @@ import { communityTargets, publicSurveyGridCells, type CommunityTarget, type Pub
 import { hasPublicMapLayer, publicFloodHistory, publicEvacuationReference, type CommunityMapType } from '../utils/community-map-layers'
 import { existingWaterColor, floodDepthLevels, floodImpactStages, loadFloodSimulation, loadFloodScenario, sampleFloodGrid, floodDepthAtPoint, type FloodScenario, type FloodSimulation, type FloodView } from '../utils/flood-simulation'
 import { loadMyMapsData, type MyMapsReview, type MyMapsRecord } from '../utils/mymaps-review'
-import KokMyMapsControl from './KokMyMapsControl.vue'
 import { loadPublicEvacuation, type EvacuationPoint } from '../utils/public-evacuation'
 import { loadObservationRegions, observationDates, observationWaterColor, type ObservationDate, type ObservationRegions } from '../utils/flood-observations'
+import KokMyMapsControl from './KokMyMapsControl.vue'
 
 const props = withDefaults(
   defineProps<{
@@ -42,7 +42,6 @@ const emit = defineEmits<{
   (e: 'selectWaypoint', waypoint: SurveyWaypoint): void
   (e: 'selectGridCell', cell: PublicGridCell): void
   (e: 'waterwayLoaded', message: string): void
-  (e: 'update:statusBadge', value: string | null): void
 }>()
 
 const mapContainer = ref<HTMLDivElement | null>(null)
@@ -67,36 +66,6 @@ const reviewSymbols = {
   children_elderly: { label: 'บ้านที่มีเด็กอายุต่ำกว่า 15 ปีและผู้สูงอายุมากกว่า 1 คนอาศัย', color: '#1F2937', path: '<circle cx="9" cy="6" r="3"/><circle cx="18" cy="9" r="2"/><path d="M3 21v-5a6 6 0 0 1 12 0v5m2-7a4 4 0 0 1 5 4v3"/>' },
 }
 
-const statusBadgeText = computed(() => {
-  if (props.selectedCommunityId !== 'thaton' && props.selectedCommunityId !== 'all') return null
-  if (props.communityMapType === 'flood') {
-    if (props.simulationVisible) {
-      return floodSimulationError.value
-        ? 'โหลดแบบจำลองไม่สำเร็จ ลองเปิดหน้าใหม่'
-        : `คาดการณ์ตามระดับน้ำ · +${props.floodStage} ม. · แบบจำลองทดลอง`
-    }
-    if (props.observationsVisible) {
-      if (observationError.value) return 'โหลดภาพดาวเทียมไม่สำเร็จ ลองสลับวันที่อีกครั้ง'
-      const dateLabel = observationDates.find((item) => item.date === props.observationDate)?.label ?? ''
-      const statusDesc = loadedObservationDate.value !== props.observationDate
-        ? 'กำลังโหลด…'
-        : props.observationDate === '2024-09-10'
-          ? 'เมฆบัง ประเมินไม่ได้'
-          : 'พื้นที่น้ำประเมินเบื้องต้น'
-      return `ภาพดาวเทียม · ${dateLabel} · ${statusDesc}`
-    }
-  }
-  if (props.communityMapType === 'evacuation' && (evacuationPoints.value.length || evacuationError.value)) {
-    return evacuationError.value
-      ? 'โหลดข้อมูลอพยพไม่สำเร็จ กรุณาเปิดหน้าใหม่'
-      : `ข้อมูลตามแผนอพยพ · บ้าน ${evacuationPoints.value.length} จุด`
-  }
-  return null
-})
-
-watch(statusBadgeText, (val) => {
-  emit('update:statusBadge', val)
-}, { immediate: true })
 let L: typeof import('leaflet') | null = null
 let mapInstance: import('leaflet').Map | null = null
 let baseTileLayer: import('leaflet').TileLayer | null = null
@@ -656,7 +625,7 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="relative w-full h-full" :class="{ 'fixed inset-0': isFullScreen }">
-    <KokMyMapsControl v-if="(selectedCommunityId==='thaton' || selectedCommunityId==='all') && myMapsData" v-model="myMapsLayerId" :data="myMapsData" />
+    <KokMyMapsControl v-if="(selectedCommunityId === 'thaton' || selectedCommunityId === 'all') && myMapsData" v-model="myMapsLayerId" :data="myMapsData" />
     <section
       ref="mapContainer"
       role="region"

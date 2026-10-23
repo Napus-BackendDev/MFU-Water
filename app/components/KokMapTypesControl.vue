@@ -3,7 +3,15 @@ import { watch } from 'vue'
 import { House, Waves, MapPin, Accessibility } from 'lucide-vue-next'
 import { hasPublicMapLayer, type CommunityMapType } from '../utils/community-map-layers'
 
-const props = defineProps<{ communityId: string }>()
+const props = withDefaults(
+  defineProps<{
+    communityId: string
+    variant?: 'pill' | 'bottom-nav'
+  }>(),
+  {
+    variant: 'pill',
+  },
+)
 const selectedId = defineModel<CommunityMapType | null>({ default: null })
 const mapTypes: Array<{ id: CommunityMapType; label: string; shortLabel: string; icon: typeof House; color: string }> = [
   { id: 'hamlets', label: 'หย่อมบ้าน', shortLabel: 'หย่อมบ้าน', icon: House, color: '#6D28D9' },
@@ -25,7 +33,41 @@ function label(id: CommunityMapType, name: string) {
 </script>
 
 <template>
-  <div class="map-types-control pointer-events-auto" role="group" aria-label="เลือกประเภทแผนที่">
+  <!-- Variant 1: Mobile Bottom Navigation Bar (4-Button Menu Bar) -->
+  <nav
+    v-if="variant === 'bottom-nav'"
+    class="w-full border-t border-slate-200/90 bg-white/95 px-2 pt-1.5 pb-[max(6px,env(safe-area-inset-bottom))] shadow-lg backdrop-blur-xl pointer-events-auto dark:border-[#2C2C2E] dark:bg-[#1C1C1E]/95"
+    role="navigation"
+    aria-label="เมนูประเภทแผนที่"
+  >
+    <div class="grid grid-cols-4 gap-1 w-full max-w-md mx-auto">
+      <button
+        v-for="type in mapTypes"
+        :key="type.id"
+        type="button"
+        class="flex flex-col items-center justify-center py-1 px-1 rounded-xl transition-all"
+        :class="[
+          selectedId === type.id
+            ? 'font-bold shadow-xs'
+            : !hasPublicMapLayer(communityId, type.id)
+              ? 'opacity-40 cursor-not-allowed text-slate-400 dark:text-zinc-600'
+              : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white'
+        ]"
+        :style="selectedId === type.id && hasPublicMapLayer(communityId, type.id) ? { color: type.color, backgroundColor: `color-mix(in srgb, ${type.color} 14%, transparent)` } : {}"
+        :disabled="!hasPublicMapLayer(communityId, type.id)"
+        :aria-pressed="selectedId === type.id"
+        :aria-label="label(type.id, type.label)"
+        :title="label(type.id, type.label)"
+        @click="selectedId = selectedId === type.id ? null : type.id"
+      >
+        <component :is="type.icon" :size="20" class="mb-0.5" />
+        <span class="text-[11px] leading-tight font-medium">{{ type.shortLabel }}</span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- Variant 2: Desktop Horizontal Capsule Pill Bar -->
+  <div v-else class="map-types-control pointer-events-auto" role="group" aria-label="เลือกประเภทแผนที่">
     <button
       v-for="type in mapTypes" :key="type.id" type="button"
       class="map-type-option" :class="{ selected: selectedId === type.id, disabled: !hasPublicMapLayer(communityId, type.id) }"
