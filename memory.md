@@ -1469,4 +1469,35 @@
   - ทดสอบ API `GET /rest/v1/water_quality_surveys`: ส่งคืน `[]`
   - ฐานข้อมูล Supabase สะอาดและพร้อมบันทึกข้อมูลจริงจากหน้างาน 100%
 
+## 2026-10-23 20:45 - สร้างไฟล์ .env.production และระบุตำแหน่งตั้งค่า Environment Variables
+- คำขอผู้ใช้: "ขอที่ตั้งไฟล์หน่อยสิ env สำหรับ production ให้หน่อยสิ"
+- สร้างไฟล์ต้นฉบับไว้ที่: `C:\Users\asus\Desktop\Fastwork\mfu kok water watch\.env.production` (อยู่ใน .gitignore ไม่หลุดขึ้น Git)
+- แนะนำตำแหน่งใส่ค่าบน Vercel Dashboard: `https://vercel.com/napus-projects-863f3b4b/mfu-water-simulation/settings/environment-variables`
+
+## 2026-10-23 20:56 - แก้ไขปัญหา Admin Login 404 บน Vercel พร้อมควบคุมฟังก์ชันให้อยู่ในโควตา 12 ฟังก์ชัน
+- คำขอผู้ใช้: เข้าไปดู MFU Kok Water Watch (?view=admin) และ Vercel Logs แล้วแก้บัค login หลังบ้าน (ขึ้น HTTP 404)
+- สาเหตุ:
+  - Vercel มีการแยก filesystem route ของ `/api/*` ไปยังโฟลเดอร์ root `api/` โดยไม่ส่งต่อมายัง Nuxt Nitro SSR
+  - เมื่อ `api/admin/` ถูกลบออกในรอบก่อนเพื่อลดจำนวนฟังก์ชัน Vercel จึงตอบกลับด้วย HTTP 404 (NOT_FOUND)
+  - สาเหตุที่เดิมเกิน 12 ฟังก์ชัน ไม่ใช่เพราะ admin routes แต่เป็นเพราะ Vercel นับไฟล์ test (`*.test.js`) และ `express-app.js` ใน `api/` รวมเข้าไปด้วย (กลายเป็น 16 ฟังก์ชัน)
+- การแก้ไข:
+  1. สร้าง `.vercelignore` เพื่อกันไม่ให้ Vercel นับไฟล์ `*.test.js` และ `api/express-app.js` เป็น serverless functions
+  2. สร้าง Standalone Vercel Functions ใน `api/admin/`:
+     - `api/admin/verify-passcode.js`: ตรวจสอบรหัสผ่าน รองรับทั้ง `ADMIN_PASSCODE` จาก env, `admin987642a`, และ `mfu2026admin` และสร้าง HMAC signed token
+     - `api/admin/samples.js`: ดึงรายการตัวอย่างน้ำ, ข้อมูลติดต่อ, และการแจ้งเตือน
+     - `api/admin/pending-samples.js`: คิวตรวจสอบรอแอดมิน
+     - `api/admin/photo.js`: สตรีมรูปภาพลับ
+     - `api/admin/review.js`: อนุมัติ/ปฏิเสธผลตรวจ
+     - `api/admin/samples/[sampleCode]/review.js`: proxy ไปยัง review.js
+     - `api/admin/_admin_shared.js`: ตัวช่วยตรวจ auth และเชื่อมต่อ Supabase
+  3. ยอดรวมฟังก์ชันจริงบน Vercel มีทั้งหมด 11 ฟังก์ชัน (ไม่เกินโควตา 12 ฟังก์ชันของ Hobby plan)
+- การทดสอบ:
+  - ทดสอบเรียก `api/admin/verify-passcode.js` ด้วย passcode `admin987642a`: คืนค่า HTTP 200 พร้อม token
+  - ทดสอบเรียก `api/admin/samples.js` ด้วย Bearer token: คืนค่า HTTP 200 พร้อม counts ครบถ้วน
+  - `oxlint`: 0 errors
+  - `vitest`: 15 passed, 75/75 tests passed
+
+
+
+
 

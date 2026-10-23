@@ -1,0 +1,10 @@
+# Vercel deployment ignore file
+# Ignore test files and local wrappers so Vercel Serverless Function scanner does not count them
+**/*.test.js
+**/*.test.ts
+**/*.test.tsx
+api/**/*.test.js
+api/express-app.js
+api/express-app.d.ts
+tests/
+test/
