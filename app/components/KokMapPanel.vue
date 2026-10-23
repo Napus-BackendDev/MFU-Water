@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue'
-import { ZoomIn, ZoomOut } from 'lucide-vue-next'
 import { clusterSurveyWaypoints } from '../../src/lib/waypoints'
 import type { SurveyWaypoint } from '../../src/lib/survey'
 import { communityTargets, publicSurveyGridCells, type CommunityTarget, type PublicGridCell } from '../utils/kok-contract'
@@ -43,6 +42,7 @@ const emit = defineEmits<{
   (e: 'selectWaypoint', waypoint: SurveyWaypoint): void
   (e: 'selectGridCell', cell: PublicGridCell): void
   (e: 'waterwayLoaded', message: string): void
+  (e: 'update:statusBadge', value: string | null): void
 }>()
 
 const mapContainer = ref<HTMLDivElement | null>(null)
@@ -66,6 +66,37 @@ const reviewSymbols = {
   children: { label: 'บ้านที่มีเด็กอายุต่ำกว่า 15 ปี', color: '#A16207', path: '<circle cx="12" cy="5" r="3"/><path d="m5 10 7 3 7-3m-7 3v5m0 0-4 4m4-4 4 4"/>' },
   children_elderly: { label: 'บ้านที่มีเด็กอายุต่ำกว่า 15 ปีและผู้สูงอายุมากกว่า 1 คนอาศัย', color: '#1F2937', path: '<circle cx="9" cy="6" r="3"/><circle cx="18" cy="9" r="2"/><path d="M3 21v-5a6 6 0 0 1 12 0v5m2-7a4 4 0 0 1 5 4v3"/>' },
 }
+
+const statusBadgeText = computed(() => {
+  if (props.selectedCommunityId !== 'thaton' && props.selectedCommunityId !== 'all') return null
+  if (props.communityMapType === 'flood') {
+    if (props.simulationVisible) {
+      return floodSimulationError.value
+        ? 'โหลดแบบจำลองไม่สำเร็จ ลองเปิดหน้าใหม่'
+        : `คาดการณ์ตามระดับน้ำ · +${props.floodStage} ม. · แบบจำลองทดลอง`
+    }
+    if (props.observationsVisible) {
+      if (observationError.value) return 'โหลดภาพดาวเทียมไม่สำเร็จ ลองสลับวันที่อีกครั้ง'
+      const dateLabel = observationDates.find((item) => item.date === props.observationDate)?.label ?? ''
+      const statusDesc = loadedObservationDate.value !== props.observationDate
+        ? 'กำลังโหลด…'
+        : props.observationDate === '2024-09-10'
+          ? 'เมฆบัง ประเมินไม่ได้'
+          : 'พื้นที่น้ำประเมินเบื้องต้น'
+      return `ภาพดาวเทียม · ${dateLabel} · ${statusDesc}`
+    }
+  }
+  if (props.communityMapType === 'evacuation' && (evacuationPoints.value.length || evacuationError.value)) {
+    return evacuationError.value
+      ? 'โหลดข้อมูลอพยพไม่สำเร็จ กรุณาเปิดหน้าใหม่'
+      : `ข้อมูลตามแผนอพยพ · บ้าน ${evacuationPoints.value.length} จุด`
+  }
+  return null
+})
+
+watch(statusBadgeText, (val) => {
+  emit('update:statusBadge', val)
+}, { immediate: true })
 let L: typeof import('leaflet') | null = null
 let mapInstance: import('leaflet').Map | null = null
 let baseTileLayer: import('leaflet').TileLayer | null = null
@@ -507,14 +538,6 @@ function updateVirtualPolygon(active: boolean) {
   }
 }
 
-function zoomIn() {
-  mapInstance?.zoomIn()
-}
-
-function zoomOut() {
-  mapInstance?.zoomOut()
-}
-
 function applyScopeAndCommunity() {
   if (!mapInstance) return
   if (props.selectedCommunityId === 'all') {
@@ -634,14 +657,6 @@ onBeforeUnmount(() => {
 <template>
   <div class="relative w-full h-full" :class="{ 'fixed inset-0': isFullScreen }">
     <KokMyMapsControl v-if="(selectedCommunityId==='thaton' || selectedCommunityId==='all') && myMapsData" v-model="myMapsLayerId" :data="myMapsData" />
-    <div v-if="(selectedCommunityId === 'thaton' || selectedCommunityId === 'all') && communityMapType === 'flood' && (simulationVisible || observationsVisible)"
-      class="absolute left-3 top-36 sm:top-16 z-[1000] max-w-[calc(100vw-24px)] rounded-lg bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-900 shadow" role="status">
-      <span v-if="simulationVisible" class="block">{{ floodSimulationError ? 'โหลดแบบจำลองไม่สำเร็จ ลองเปิดหน้าใหม่' : `คาดการณ์ตามระดับน้ำ · +${floodStage} ม. · แบบจำลองทดลอง` }}</span>
-      <span v-if="observationsVisible" class="block">{{ observationError ? 'โหลดภาพดาวเทียมไม่สำเร็จ ลองสลับวันที่อีกครั้ง' : `ภาพดาวเทียม · ${observationDates.find((item) => item.date === observationDate)?.label} · ${loadedObservationDate !== observationDate ? 'กำลังโหลด…' : observationDate === '2024-09-10' ? 'เมฆบัง ประเมินไม่ได้' : 'พื้นที่น้ำประเมินเบื้องต้น'}` }}</span>
-    </div>
-    <div v-if="(selectedCommunityId === 'thaton' || selectedCommunityId === 'all') && communityMapType === 'evacuation' && (evacuationPoints.length || evacuationError)"
-      class="absolute left-3 top-36 sm:top-16 z-[1000] rounded-lg bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-900 shadow"
-      role="status">{{ evacuationError ? 'โหลดข้อมูลอพยพไม่สำเร็จ กรุณาเปิดหน้าใหม่' : `ข้อมูลตามแผนอพยพ · บ้าน ${evacuationPoints.length} จุด` }}</div>
     <section
       ref="mapContainer"
       role="region"
@@ -670,34 +685,6 @@ onBeforeUnmount(() => {
       </section>
 
     </aside>
-
-    <!-- Map Controls: Zoom Controls -->
-    <div
-      class="pointer-events-none absolute z-[400] flex flex-wrap items-start justify-between gap-2"
-      :class="isFullScreen ? 'bottom-12 left-3' : 'inset-x-3 top-3'"
-    >
-      <!-- Zoom Controls -->
-      <div class="pointer-events-auto flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white/95 dark:border-[#2C2C2E] dark:bg-[#121212]/92 p-1.5 shadow-lg backdrop-blur-md">
-        <button
-          type="button"
-          aria-label="ซูมเข้า"
-          class="rounded-lg p-1.5 text-slate-700 dark:text-white hover:bg-slate-100 dark:hover:bg-[#252525]"
-          @click="zoomIn"
-        >
-          <ZoomIn class="h-4 w-4" />
-        </button>
-        <div class="mx-0.5 h-4 w-[1px] bg-slate-200 dark:bg-[#2C2C2E]" />
-        <button
-          type="button"
-          aria-label="ซูมออก"
-          class="rounded-lg p-1.5 text-slate-700 dark:text-white hover:bg-slate-100 dark:hover:bg-[#252525]"
-          @click="zoomOut"
-        >
-          <ZoomOut class="h-4 w-4" />
-        </button>
-      </div>
-    </div>
-
 
   </div>
 </template>

@@ -47,5 +47,5 @@ const layer = computed(() => props.data.layers.find((item) => item.id===selected
 .legend-line { display:flex; gap:8px; align-items:center; margin:10px 0; font-size:12px; line-height:1.5; }
 .legend-swatch { flex-shrink:0; width:12px; height:12px; border-radius:3px; }
 button:focus-visible,select:focus-visible,a:focus-visible { outline:2px solid #0284c7; outline-offset:3px; }
-@media(max-width:639px) { .mymaps-control { top:184px; } .source-panel { max-height:calc(100svh - 410px); } }
+@media(max-width:639px) { .mymaps-control { top:104px; } .source-panel { max-height:calc(100svh - 260px); } }
 </style>

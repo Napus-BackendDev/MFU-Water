@@ -82,5 +82,5 @@ watch(stage, (rise) => {
 .layer-toggle input:focus-visible, .observation-select:focus-visible { outline: 2px solid #0369a1; outline-offset: 3px; }
 .level-row { display: flex; gap: 8px; align-items: center; padding: 8px 0; }
 :global(html.dark) .flood-layer-menu p { color: #cbd5e1; }
-@media (max-width: 767px) { .flood-layer-menu { top: 128px; } }
+@media (max-width: 767px) { .flood-layer-menu { top: 64px; } }
 </style>

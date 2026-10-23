@@ -9,8 +9,6 @@ import {
   CheckCircle2,
   ClipboardCheck,
   ClipboardList,
-  Database,
-  Download,
   FileText,
   Filter,
   FlaskConical,
@@ -18,15 +16,11 @@ import {
   Layers,
   MapPin,
   Megaphone,
-  Moon,
   Printer,
   Radio,
   Satellite,
   Search,
-  Settings,
   ShieldAlert,
-  Sparkles,
-  Sun,
   TrendingUp,
   Users,
   Waves,
@@ -76,12 +70,11 @@ const moduleTabs: Array<{ id: ModuleTab; code: string; label: string; reqs: stri
 const waypoints = ref<SurveyWaypoint[]>([])
 const loadingWaypoints = ref(true)
 const waypointLoadError = ref<string | null>(null)
-const exportFeedback = ref<string | null>(null)
 const surveyFeedback = ref<string | null>(null)
 
 // Survey Modal & Quick Panels
 const surveyModalOpen = ref(false)
-const activeQuickPanel = ref<'guide' | 'summary' | 'settings' | null>(null)
+const activeQuickPanel = ref<'guide' | 'summary' | null>(null)
 
 // Map & Filter State (R02, R03, R08, R23)
 const activeThematicLayer = ref<'arsenic' | 'survey_grid'>('arsenic')
@@ -97,6 +90,7 @@ const selectedStatusFilter = ref<'all' | 'normal' | 'alert'>('all')
 const waterwayTrigger = ref(0)
 const waterwayMessage = ref<string | null>(null)
 const virtualPolygonActive = ref(false)
+const mapStatusBadge = ref<string | null>(null)
 
 watch(activeCommunityMapType, (newType) => {
   if ((newType === 'flood' || newType === 'evacuation') && selectedCommunityId.value === 'all') {
@@ -107,7 +101,6 @@ watch(activeCommunityMapType, (newType) => {
 // Selected Map Item for Right Inspector
 const selectedWaypoint = ref<SurveyWaypoint | null>(null)
 const showPointDetailModal = ref(false)
-const showRecordedSamplesModal = ref(false)
 const showAdminModal = ref(false)
 
 function handleSelectWaypoint(wp: SurveyWaypoint) {
@@ -401,24 +394,7 @@ function handleSurveySubmitted(payload: {
   }
 }
 
-function exportPublicCsv() {
-  exportFeedback.value = null
-  if (filteredWaypoints.value.length === 0) {
-    exportFeedback.value = 'ยังไม่มีผลตรวจให้ส่งออก'
-    return
-  }
-  const csvContent = createPublicWaypointsCsv(filteredWaypoints.value)
-  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  link.href = url
-  link.download = `kok-public-waypoints-${new Date().toISOString().slice(0, 10)}.csv`
-  link.click()
-  URL.revokeObjectURL(url)
-  exportFeedback.value = `ส่งออก CSV สาธารณะ ${filteredWaypoints.value.length} รายการเรียบร้อย (ไม่มีชื่อ-เบอร์โทร และไม่รวมรายการรอตรวจ >50 ppb)`
-}
-
-function toggleQuickPanel(panel: 'guide' | 'summary' | 'settings') {
+function toggleQuickPanel(panel: 'guide' | 'summary') {
   activeQuickPanel.value = activeQuickPanel.value === panel ? null : panel
 }
 
@@ -460,11 +436,6 @@ function returnToLanding() {
 }
 
 const colorMode = useColorMode()
-const isDark = computed(() => colorMode.value === 'dark')
-
-function toggleTheme() {
-  colorMode.preference = colorMode.value === 'dark' ? 'light' : 'dark'
-}
 
 onMounted(() => {
   void loadPublicWaypoints()
@@ -533,12 +504,13 @@ onMounted(() => {
           @select-waypoint="handleSelectWaypoint($event)"
           @select-grid-cell="selectedGridCell = $event"
           @waterway-loaded="waterwayMessage = $event"
+          @update:status-badge="mapStatusBadge = $event"
         />
       </div>
 
       <!-- Floating Top Header Bar -->
-      <header class="no-print absolute top-3 left-3 right-3 z-20 flex flex-wrap items-center justify-between gap-3 pointer-events-none">
-        <div class="pointer-events-auto flex items-center gap-2">
+      <header class="no-print absolute top-3 left-3 right-3 z-20 flex items-start justify-between gap-3 pointer-events-none">
+        <div class="pointer-events-auto flex items-center gap-2 shrink-0">
           <!-- Back to Landing Button -->
           <button
             type="button"
@@ -557,8 +529,8 @@ onMounted(() => {
           </div>
         </div>
 
-        <!-- Header Actions / Map Actions -->
-        <div class="map-actions pointer-events-auto flex items-center gap-2">
+        <!-- Header Actions / Map Actions (Vertical on mobile, horizontal on sm+) -->
+        <div class="map-actions pointer-events-auto flex flex-col sm:flex-row items-center gap-2 shrink-0">
           <KokFloodLayersControl v-if="(selectedCommunityId === 'thaton' || selectedCommunityId === 'all') && (activeCommunityMapType === 'flood' || activeCommunityMapType === 'evacuation')"
             v-model:stage="floodStage" v-model:simulation-visible="simulationVisible" v-model:observations-visible="observationsVisible" v-model:date="observationDate" />
           <button
@@ -583,16 +555,6 @@ onMounted(() => {
           </button>
           <button
             type="button"
-            aria-label="ประวัติผลตรวจที่บันทึกไว้"
-            title="ประวัติผลตรวจที่บันทึกไว้"
-            class="round-control"
-            :class="{ 'ring-2 ring-[#0284C7] dark:ring-[#00E5FF]': showRecordedSamplesModal }"
-            @click="showRecordedSamplesModal = true"
-          >
-            <Database class="h-4 w-4 text-[#0284C7] dark:text-[#00E5FF]" />
-          </button>
-          <button
-            type="button"
             aria-label="ระบบแอดมิน Data Table (>50 ppb)"
             title="ระบบแอดมิน Data Table (>50 ppb)"
             class="round-control"
@@ -601,55 +563,39 @@ onMounted(() => {
           >
             <ShieldAlert class="h-4 w-4 text-[#DC2626] dark:text-[#FF453A]" />
           </button>
-          <button
-            type="button"
-            aria-label="ตั้งค่า"
-            title="ตั้งค่า"
-            class="round-control"
-            :class="{ 'ring-2 ring-[#0284C7] dark:ring-[#00E5FF]': activeQuickPanel === 'settings' }"
-            @click="toggleQuickPanel('settings')"
-          >
-            <Settings class="h-4 w-4 text-slate-600 dark:text-[#98A2A8]" />
-          </button>
-          <button
-            type="button"
-            aria-label="สลับโหมดสว่าง/โหมดมืด"
-            title="สลับโหมดสว่าง/โหมดมืด"
-            class="round-control"
-            @click="toggleTheme"
-          >
-            <Sun v-if="!isDark" class="h-4 w-4 text-[#F59E0B]" />
-            <Moon v-else class="h-4 w-4 text-[#00E5FF]" />
-          </button>
-          <button
-            type="button"
-            aria-label="Export ข้อมูล"
-            title="Export ข้อมูล"
-            class="round-control"
-            @click="exportPublicCsv"
-          >
-            <Download class="h-4 w-4 text-[#0284C7] dark:text-[#00E5FF]" />
-          </button>
         </div>
       </header>
 
 
 
-      <!-- Floating Bottom Center: Map Types -->
-      <div class="pointer-events-none absolute bottom-24 sm:bottom-4 left-1/2 -translate-x-1/2 z-10 flex flex-col items-center gap-3">
-        <KokMapTypesControl v-model="activeCommunityMapType" :community-id="selectedCommunityId" />
-      </div>
-
-      <!-- Floating Bottom Right: Survey Button -->
-      <div class="absolute bottom-4 right-4 z-20">
+      <!-- Floating Bottom Center: Unified Stack -->
+      <div class="pointer-events-none absolute bottom-3 sm:bottom-4 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center gap-2.5 w-max max-w-[calc(100vw-20px)]">
+        <!-- 1. แบบสอบถาม (Survey Button) - Above Yellow Button, Centered, High-Contrast CTA -->
         <button
           type="button"
-          class="survey-button"
+          class="survey-button pointer-events-auto"
           @click="surveyModalOpen = true"
         >
           <ClipboardList class="h-5 w-5" />
           <span>ทำแบบสำรวจ</span>
         </button>
+
+        <!-- 2. ปุ่มสีเหลือง (Yellow Telemetry Button) - Enlarged by 1 level, Below Survey, Centered -->
+        <div
+          v-if="mapStatusBadge"
+          class="pointer-events-auto flex items-center gap-2 rounded-xl border-2 border-amber-400 bg-amber-200/95 px-4 py-2 text-sm font-bold text-amber-950 shadow-md backdrop-blur-md dark:border-amber-600 dark:bg-amber-900/90 dark:text-amber-100 transition-all duration-200"
+          role="status"
+        >
+          <Waves class="h-4 w-4 text-amber-800 dark:text-amber-300 shrink-0" />
+          <span class="whitespace-nowrap">{{ mapStatusBadge }}</span>
+        </div>
+
+        <!-- 3. แถบเลือกโหมด 4 ช่อง (KokMapTypesControl) -->
+        <KokMapTypesControl
+          v-model="activeCommunityMapType"
+          :community-id="selectedCommunityId"
+          class="pointer-events-auto"
+        />
       </div>
 
       <!-- Floating Quick Panels (Guide, Summary, Settings Modals) -->
@@ -743,56 +689,7 @@ onMounted(() => {
               </div>
             </div>
           </div>
-
-          <!-- Settings Modal -->
-          <div v-else-if="activeQuickPanel === 'settings'" class="space-y-4">
-            <div class="flex items-center justify-between border-b border-slate-200 dark:border-[#2C2C2E] pb-3">
-              <h2 class="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                <Settings class="h-5 w-5 text-[#0284C7] dark:text-[#00E5FF]" />
-                <span>ตั้งค่าแผนที่ เส้นทางน้ำ OSM และพื้นที่จำลอง</span>
-              </h2>
-              <button type="button" class="wv-btn-secondary text-xs" @click="activeQuickPanel = null">ปิด</button>
-            </div>
-            <p class="text-xs text-slate-600 dark:text-[#98A2A8]">
-              หมายเหตุความซื่อสัตย์ของข้อมูล: ระบบยังไม่เชื่อมข้อมูลสถานีวัดการไหลของน้ำแบบเรียลไทม์ เส้นทางน้ำดึงจาก OpenStreetMap Overpass API เพื่อใช้เป็นบริบทเชิงพื้นที่เท่านั้น
-            </p>
-            <div class="flex flex-wrap items-center gap-3">
-              <button
-                type="button"
-                class="wv-btn-primary text-xs"
-                @click="waterwayTrigger += 1"
-              >
-                <Waves class="h-4 w-4" />
-                <span>โหลดเส้นทางน้ำในแผนที่</span>
-              </button>
-              <button
-                type="button"
-                class="wv-btn-secondary text-xs"
-                :class="{ 'is-active': virtualPolygonActive }"
-                @click="virtualPolygonActive = !virtualPolygonActive"
-              >
-                <Sparkles class="h-4 w-4 text-[#16A34A] dark:text-[#32D74B]" />
-                <span>พื้นที่จำลอง</span>
-              </button>
-            </div>
-            <p v-if="virtualPolygonActive" class="text-xs text-[#16A34A] dark:text-[#32D74B]">
-              โหมดพื้นที่จำลองทำงานอยู่บนเบราว์เซอร์เท่านั้น (ไม่บันทึก/ไม่ส่งออกเป็นขอบเขตหมู่บ้านจริงตามกติกา R09)
-            </p>
-            <p v-if="waterwayMessage" class="text-xs text-[#0284C7] dark:text-[#00E5FF]">
-              {{ waterwayMessage }}
-            </p>
-          </div>
         </div>
-      </div>
-
-      <!-- Export Toast Feedback -->
-      <div
-        v-if="exportFeedback"
-        role="status"
-        class="wv-info-box absolute top-16 right-4 z-40 max-w-md shadow-xl flex items-center justify-between gap-3 text-xs"
-      >
-        <span>{{ exportFeedback }}</span>
-        <button type="button" class="underline ml-2" @click="exportFeedback = null">ปิด</button>
       </div>
 
       <!-- Survey Submission Toast Feedback -->
@@ -822,15 +719,6 @@ onMounted(() => {
         :all-waypoints="waypoints"
         @close="showPointDetailModal = false"
         @focus="handleFocusWaypoint"
-      />
-
-      <!-- Recorded Samples History Modal -->
-      <KokRecordedSamplesModal
-        :open="showRecordedSamplesModal"
-        :waypoints="waypoints"
-        @close="showRecordedSamplesModal = false"
-        @select-waypoint="handleSelectWaypoint"
-        @focus-waypoint="handleFocusWaypoint"
       />
 
       <!-- Admin Review Modal (>50 ppb) -->

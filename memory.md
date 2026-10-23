@@ -1497,8 +1497,73 @@
   - ทดสอบเรียก `GET /api/admin/samples` และ `GET /api/admin/pending-samples` ด้วย token บน production: คืนค่า HTTP 200 ปกติ
   - ล้างข้อมูลตัวอย่างทดสอบใน Supabase สะอาด 100% (ทุกตารางเหลือ 0 แถว)
 
+## 2026-10-23 21:46 - ปรับปุ่มควบคุมฝั่งขวาเป็นแนวตั้งสำหรับหน้าจอมือถือ (Responsive Vertical Column)
+- คำขอผู้ใช้: "จากภาพ มันคือ มือถือ เอาไอจุดๆ ไว้ทางขวา ขอแบบ แนวตั้ง นะ ทำระบบเผื่อ respoive"
+- ไฟล์ที่แก้ไข:
+  - `app/app.vue`:
+    - ปรับ `<header>` เป็น `flex items-start justify-between` ไม่ wrap
+    - ปรับ `.map-actions` เป็น `flex flex-col sm:flex-row items-center gap-2`
+  - `app/components/KokMapPanel.vue`: ปรับตำแหน่ง telemetry badge เป็น `top-16` ไม่ชนปุ่มขวา
+  - `app/components/KokMyMapsControl.vue`: ปรับตำแหน่งปุ่มข้อมูลชุมชนเป็น `top: 104px` บนหน้าจอมือถือ
+  - `app/components/KokFloodLayersControl.vue`: ปรับเมนูเปิดที่ `top: 64px`
+- ผลการตรวจ:
+  - หน้าจอมือถือ: ปุ่มกลม 4 ปุ่ม (Layers, คู่มือ, กราฟ, แอดมิน) เรียงแถวแนวตั้งชิดขวาจออย่างเป็นระเบียบ ไม่เบียดปุ่มย้อนกลับและไม่บังข้อมูล
+  - หน้าจอคอมพิวเตอร์ (Desktop): ปรับเป็นแนวนอนบนขวาอัตโนมัติ (`sm:flex-row`)
+  - ภาพหลักฐาน:
+    - มือถือ: [mobile_view_vertical_right.png](file:///C:/Users/asus/.gemini/antigravity/brain/167a548e-f031-4202-b894-c6a1adcd750e/mobile_view_vertical_right.png)
+    - เดสก์ท็อป: [desktop_view_responsive.png](file:///C:/Users/asus/.gemini/antigravity/brain/167a548e-f031-4202-b894-c6a1adcd750e/desktop_view_responsive.png)
+  - `oxlint`: 0 errors
+## 2026-10-23 21:50 - ย่อปุ่มประเภทแผนที่ด้านล่างเป็น 1 แถวเดี่ยวบนหน้าจอมือถือ (Single Row Map Types)
+- คำขอผู้ใช้: "ผมอยากให้ ไอช่อง 4 เหลี่ยมๆนี้ ในภาพ ผมอยากให้มันย่อ แถบ 1 แถว เท่านั้น"
+- ไฟล์ที่แก้ไข:
+  - `app/components/KokMapTypesControl.vue`:
+    - ปรับ CSS จากเดิม `grid-template-columns: repeat(2, minmax(0, 1fr))` ใน `@media (max-width: 767px)` เป็น `display: flex; flex-wrap: nowrap; overflow-x: auto;`
+    - เพิ่ม `shortLabel` สำหรับหน้าจอมือถือ (`สถานที่`, `อพยพ`) และใช้ข้อความเต็มบนจอใหญ่ (`sm:inline`)
+    - ปรับ padding และ font-size ให้กะทัดรัด (สูง 38px)
+  - `app/app.vue`: ปรับระยะห่าง `bottom-20 sm:bottom-4` วางตัวเหนือปุ่มทำแบบสำรวจอย่างพอดี
+- ผลการตรวจ:
+  - หน้าจอมือถือ (390px และ 360px): ปุ่มทั้ง 4 ตัว (`หย่อมบ้าน`, `น้ำท่วม`, `สถานที่`, `อพยพ`) เรียงเป็นแนวนอน 1 แถวเดี่ยวสวยงาม ไม่กินพื้นที่แผนที่
+  - ภาพหลักฐาน:
+    - มือถือ 390px: [mobile_single_row_map_types.png](file:///C:/Users/asus/.gemini/antigravity/brain/167a548e-f031-4202-b894-c6a1adcd750e/mobile_single_row_map_types.png)
+    - มือถือเล็ก 360px: [xs_single_row_map_types.png](file:///C:/Users/asus/.gemini/antigravity/brain/167a548e-f031-4202-b894-c6a1adcd750e/xs_single_row_map_types.png)
+  - `oxlint`: 0 errors
+## 2026-10-23 21:55 - นำปุ่มซูม (+ และ -) ออกจากหน้าแผนที่
+- คำขอผู้ใช้: "เอาปุ่ม + และ - ออก"
+- ไฟล์ที่แก้ไข: `app/components/KokMapPanel.vue`
+  - นำ icon imports `ZoomIn`, `ZoomOut` ออก
+  - นำฟังก์ชัน `zoomIn()`, `zoomOut()` ออก
+  - นำ template block กล่องควบคุมปุ่มซูมมุมซ้ายล่างออก
+- ผลการตรวจ:
+  - มุมซ้ายล่างโล่งสะอาดตา ผู้ใช้ยังคงซูมแผนที่ผ่านการ pinch-to-zoom (บนมือถือ) หรือล้อเมาส์ scroll (บนเดสก์ท็อป) ได้ปกติ
+  - ภาพหลักฐาน: [after_zoom_buttons_removed.png](file:///C:/Users/asus/.gemini/antigravity/brain/167a548e-f031-4202-b894-c6a1adcd750e/after_zoom_buttons_removed.png)
+  - `oxlint`: 0 errors
+  - `vitest`: 15 passed, 75/75 tests passed
 
 
 
 
 
+
+
+
+
+
+
+
+## 2026-10-23 22:33 - ปรับปุ่มสีเหลืองและปุ่มแบบสอบถามลอยตรงกลางด้านล่าง
+- คำขอผู้ใช้: "ปรับปุ่มสีเหลืองให้ใหญ่ขึ้น 1 ระดับ แล้วเอาไว้ข้างล่างตรงกลาง และเอาแบบสอบถามเอาไว้ข้างบนปุ่มสีเหลือง วางไว้ตรงกลาง และปรับสีให้มันเด่นด้วย"
+- สิ่งที่ทำจริง:
+  - `app/components/KokMapPanel.vue`:
+    - นำ badge เดิมที่ `left-3 top-16` ออก
+    - เพิ่ม `statusBadgeText` computed และ emit `update:statusBadge` ส่งสถานะคาดการณ์น้ำท่วม / ภาพดาวเทียม / ข้อมูลอพยพ ออกมายัง parent
+  - `app/app.vue`:
+    - จัด floating bottom-center container รวม:
+      1. ปุ่มแบบสอบถาม (`ทำแบบสำรวจ`): อยู่ด้านบนปุ่มสีเหลือง วางกึ่งกลางเด่นชัด
+      2. ปุ่มสีเหลือง (`คาดการณ์ตามระดับน้ำ...`): ขยายขนาดขึ้น 1 ระดับ (`text-sm font-bold px-4 py-2 rounded-xl bg-amber-200/95 border-2 border-amber-400 text-amber-950 shadow-md`) แสดงอยู่ตรงกลางด้านล่าง
+      3. แถบประเภทแผนที่ 4 ช่อง (`KokMapTypesControl`): อยู่ล่างสุดเป็น dock bar
+  - `app/assets/css/main.css`:
+    - ปรับ `.survey-button` ให้เด่นชัด เป็น pill gradient royal blue (`linear-gradient(135deg, #0284C7 0%, #1D4ED8 100%)`), ตัวอักษรสีขาวหนา, เส้นขอบขาวนวล และเงาเรืองแสงรอบปุ่ม พร้อม hover scale effect
+- ผลการตรวจ:
+  - `oxlint`: 0 errors
+  - `vitest`: 15 files passed, 75/75 tests passed
+  - Playwright visual test: ภาพ mobile (390px) และ desktop (1440px) แสดงตำแหน่งกึ่งกลางสวยงาม ปุ่มเด่นชัด
