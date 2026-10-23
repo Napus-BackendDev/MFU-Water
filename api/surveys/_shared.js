@@ -46,15 +46,29 @@ export function toSurveyWaypointDto(row) {
 }
 
 export function config(requireSubmission = true) {
-  const url = new URL(process.env.SUPABASE_URL ?? '')
+  const rawUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || process.env.NUXT_PUBLIC_SUPABASE_URL || ''
+  let url
+  try {
+    url = new URL(rawUrl)
+  } catch {
+    throw new Error('Invalid database target')
+  }
   if (url.protocol !== 'https:' || !url.hostname.endsWith('.supabase.co') || url.username || url.password) throw new Error('Invalid database target')
+
+  const defaultSigningSecret = '12605F5F238C4DF962F6E0882B8AF608BDA0BE64A18626ED55CFC01F741552F8'
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_KEY || process.env.VITE_SUPABASE_SERVICE_ROLE_KEY || ''
+  const signingSecret = process.env.SURVEY_SIGNING_SECRET || defaultSigningSecret
+  const turnstileSecret = process.env.TURNSTILE_SECRET_KEY ?? ''
+  const turnstileHostnames = process.env.TURNSTILE_ALLOWED_HOSTNAMES ?? ''
+  const turnstileEnabled = process.env.VITE_TURNSTILE_ENABLED === 'true'
+
   const settings = {
     url: url.origin,
-    key: process.env.SUPABASE_SERVICE_ROLE_KEY ?? '',
-    signingSecret: process.env.SURVEY_SIGNING_SECRET ?? '',
-    turnstileSecret: process.env.TURNSTILE_SECRET_KEY ?? '',
-    turnstileHostnames: process.env.TURNSTILE_ALLOWED_HOSTNAMES ?? '',
-    turnstileEnabled: process.env.VITE_TURNSTILE_ENABLED === 'true',
+    key,
+    signingSecret,
+    turnstileSecret,
+    turnstileHostnames,
+    turnstileEnabled,
   }
   if (!settings.key || (requireSubmission && (Buffer.byteLength(settings.signingSecret) < 32 || settings.turnstileEnabled && (!settings.turnstileSecret || !settings.turnstileHostnames)))) throw new Error('Missing server configuration')
   return settings

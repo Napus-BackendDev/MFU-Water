@@ -142,7 +142,13 @@ async function verifyPasscode() {
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ passcode: code }),
     })
-    const data = await res.json()
+    const text = await res.text()
+    let data: any = {}
+    try {
+      data = JSON.parse(text)
+    } catch {
+      data = { error: `เซิร์ฟเวอร์ตอบกลับไม่ถูกต้อง (HTTP ${res.status})` }
+    }
     if (!res.ok || !data.token) {
       loginError.value = data.error || 'รหัสผ่านผู้ดูแลระบบไม่ถูกต้อง'
       return
