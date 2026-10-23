@@ -1646,3 +1646,10 @@
   - `oxlint`: 0 errors
   - `vitest`: 15 files passed, 75/75 tests passed
   - ภาพถ่ายหน้าจอจริง Mobile และ Desktop: ปุ่ม "ข้อมูลชุมชน" แสดงผลสวยงาม ไม่ทับซ้อนกับเมนูด้านบนทั้งบน Desktop และ Mobile กดเปิดเมนูเลือกหัวข้อสำรวจชุมชนและแสดงเลเยอร์ได้สมบูรณ์
+
+## 2026-10-24 00:16 - Commit และ Push สู่ GitHub
+- คำขอผู้ใช้: "commit และ push ให้หน่อยนะ"
+- สิ่งที่ทำจริง:
+  - Commit `9edc52f`: `refactor(ui): mobile bottom nav and desktop layout`
+  - Push ขึ้น `origin/main` (https://github.com/Napus-BackendDev/MFU-Water.git) สำเร็จเรียบร้อย
+  - โค้ดทั้งหมดผ่าน `oxlint` (0 errors) และ `vitest` (75/75 tests passed)
