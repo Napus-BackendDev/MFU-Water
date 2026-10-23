@@ -1442,3 +1442,16 @@
   - Vitest: 75/75 tests passed
   - Oxlint: 0 errors
   - Commit & Push ไปยัง GitHub `origin/main` (commit `185b123`)
+
+## 2026-10-23 14:50 - แก้ไข TS1543 และแก้ไขข้อผิดพลาดฟังก์ชันเกิน 12 บน Vercel Hobby Plan
+- ข้อผิดพลาดเดิมบน Vercel Deployment:
+  1. `app/utils/kok-contract.ts`: `TS1543: Importing a JSON file into an ECMAScript module requires a 'type: "json"' import attribute when 'module' is set to 'NodeNext'` -> แก้ไขด้วย `import ... with { type: 'json' }` (Commit `993946d`)
+  2. `No more than 12 Serverless Functions can be added to a Deployment on the Hobby plan. Create a team (Pro plan) to deploy more.`
+- สาเหตุ:
+  - ใน commit `af05886` มีการสร้างไฟล์แยกเดี่ยวใน `api/admin/` จำนวน 6 ไฟล์ (`verify-passcode.js`, `samples.js`, `pending-samples.js`, `photo.js`, `review.js`, `samples/[sampleCode]/review.js`)
+  - Vercel นับไฟล์ใน `api/` เป็น Serverless Function แยกแต่ละตัว ทำให้รวมกับ `api/surveys/` และ Nuxt SSR ฟังก์ชัน กลายเป็น 13-18 ฟังก์ชัน ซึ่งเกินโควตา 12 ฟังก์ชันของ Vercel Hobby
+- การแก้ไข:
+  - ลบโฟลเดอร์ `api/admin/` ออกทั้งหมด (`git rm -r api/admin`)
+  - API ทุกตัวของ Admin ทำงานผ่าน Nuxt Nitro อยู่แล้วใน `server/routes/api/admin/` ซึ่งคอมไพล์รวมอยู่ใน Serverless Function ของ Nuxt เพียงตัวเดียว ไม่นับแยกฟังก์ชัน
+  - ทดสอบ `oxlint` (0 errors), `vitest` (15 files / 75 tests passed), และ `nuxt build` (คอมไพล์ .output สมบูรณ์)
+
