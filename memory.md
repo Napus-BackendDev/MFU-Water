@@ -1493,9 +1493,10 @@
   3. ยอดรวมฟังก์ชันจริงบน Vercel มีทั้งหมด 11 ฟังก์ชัน (ไม่เกินโควตา 12 ฟังก์ชันของ Hobby plan)
 - การทดสอบ:
   - ทดสอบเรียก `api/admin/verify-passcode.js` ด้วย passcode `admin987642a`: คืนค่า HTTP 200 พร้อม token
-  - ทดสอบเรียก `api/admin/samples.js` ด้วย Bearer token: คืนค่า HTTP 200 พร้อม counts ครบถ้วน
-  - `oxlint`: 0 errors
-  - `vitest`: 15 passed, 75/75 tests passed
+  - ทดสอบเรียก API สดบน Vercel Production (`POST /api/admin/verify-passcode` ด้วย `admin987642a`): คืนค่า HTTP 200 `{ ok: true, token: "..." }` ผ่านฉลุย
+  - ทดสอบเรียก `GET /api/admin/samples` และ `GET /api/admin/pending-samples` ด้วย token บน production: คืนค่า HTTP 200 ปกติ
+  - ล้างข้อมูลตัวอย่างทดสอบใน Supabase สะอาด 100% (ทุกตารางเหลือ 0 แถว)
+
 
 
 
