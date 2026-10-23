@@ -1410,3 +1410,14 @@
 - ทดสอบ:
   - Vitest: 75/75 tests passed
   - Playwright E2E: กรอกและส่งแบบสำรวจ พบ modal ปิดลงทันที (`MODAL_COUNT=0`) และแสดง Toast ด้านบนขวา [after_submit_closed.png](file:///C:/Users/asus/.gemini/antigravity/brain/167a548e-f031-4202-b894-c6a1adcd750e/after_submit_closed.png)
+
+## 2026-10-23 13:28 - Git commit และ Push ขึ้น GitHub เรียบร้อย
+- Commit hash: `2e36f1d`
+- Branch: `main`
+- Remote: `https://github.com/Napus-BackendDev/MFU-Water.git`
+- รายการสำคัญที่บันทึกขึ้น GitHub:
+  - ลดขนาดจุดตรวจ (radius 5/7, border 1.5)
+  - นำ dropdown 4 ชุมชน, ปุ่ม "ทั้งลุ่มน้ำ", ป้ายชื่อชุมชนบนแผนที่ และกรอบประขอบเขตจำลองออก
+  - ระบบรูปถ่ายตัวอย่างน้ำสาธารณะที่ปลอดภัย (API `/api/surveys/photo` พร้อม tests + แสดงใน Point Detail Modal)
+  - ปิด Survey Modal ทันทีที่ส่งสำเร็จ พร้อมแจ้งเตือน Toast สำเร็จมุมขวาบน
+  - หน้ารายการและคิวตรวจสอบแอดมิน (Admin Review Queue & Data Table)
