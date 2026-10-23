@@ -1567,3 +1567,7 @@
   - `oxlint`: 0 errors
   - `vitest`: 15 files passed, 75/75 tests passed
   - Playwright visual test: ภาพ mobile (390px) และ desktop (1440px) แสดงตำแหน่งกึ่งกลางสวยงาม ปุ่มเด่นชัด
+
+## 2026-10-23 22:35 - Commit and Push to GitHub
+- Commit: `b5b2598` `refactor(ui): streamline mobile controls and center bottom action stack`
+- Push: `origin main` สำเร็จครบถ้วน
