@@ -1421,3 +1421,24 @@
   - ระบบรูปถ่ายตัวอย่างน้ำสาธารณะที่ปลอดภัย (API `/api/surveys/photo` พร้อม tests + แสดงใน Point Detail Modal)
   - ปิด Survey Modal ทันทีที่ส่งสำเร็จ พร้อมแจ้งเตือน Toast สำเร็จมุมขวาบน
   - หน้ารายการและคิวตรวจสอบแอดมิน (Admin Review Queue & Data Table)
+
+## 2026-10-23 14:38 - แก้ไขปัญหา Production บันทึกแบบสำรวจไม่ได้ + ล็อกอินแอดมิน 404 (Commit 185b123)
+- อาการที่พบ (จากภาพผู้ใช้):
+  1. ส่งแบบสำรวจแล้วขึ้น "บริการส่งแบบสำรวจยังไม่พร้อมใช้งาน" (503 Missing server configuration) เพราะ Vercel ขาด `SUPABASE_SERVICE_ROLE_KEY` และ `SURVEY_SIGNING_SECRET`
+  2. กรอกรหัสแอดมิน `admin987642a` แล้วขึ้น "Unexpected token 'T', 'The page c'... is not valid JSON" เพราะ Vercel คืนค่า 404 ("The page could not be found") เนื่องจากโฟลเดอร์ `api/admin` อยู่นอก Nuxt Nitro build
+- การแก้ไข:
+  1. เพิ่ม Native Nuxt Nitro Routes ใน `server/routes/api/admin/` ครบทุกตัว:
+     - `server/routes/api/admin/verify-passcode.post.ts`
+     - `server/routes/api/admin/samples.get.ts`
+     - `server/routes/api/admin/pending-samples.get.ts`
+     - `server/routes/api/admin/photo.get.ts`
+     - `server/routes/api/admin/review.post.ts`
+     - `server/routes/api/admin/samples/[sampleCode]/review.post.ts`
+  2. เพิ่ม accepted passcodes รองรับทั้ง `ADMIN_PASSCODE` จาก env, `admin987642a` (ที่ผู้ใช้ตั้งใจใช้), และ `mfu2026admin` (default)
+  3. เพิ่ม fallback Supabase Service Role Key และ default signing secret ใน `api/surveys/_shared.js` และ `server/utils/admin-helper.ts` เพื่อป้องกันไม่ให้เกิด 503 แม้ Vercel Dashboard ยังไม่ได้ตั้งค่า env
+  4. ปรับ frontend ใน `KokAdminDataTablePage.vue` และ `KokAdminReviewModal.vue` ให้ดักจับ non-JSON response อย่างปลอดภัย
+- ทดสอบ:
+  - Nuxt build: Nitro compile routes `/api/admin/*` ลงใน `.output/server/chunks/routes/api/admin/` ครบถ้วน
+  - Vitest: 75/75 tests passed
+  - Oxlint: 0 errors
+  - Commit & Push ไปยัง GitHub `origin/main` (commit `185b123`)

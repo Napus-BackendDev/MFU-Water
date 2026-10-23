@@ -1,5 +1,5 @@
-import contractRaw from '../../data/contract-v5.json'
-import aggregateRaw from '../../data/public-aggregate.json'
+import contractRaw from '../../data/contract-v5.json' with { type: 'json' }
+import aggregateRaw from '../../data/public-aggregate.json' with { type: 'json' }
 
 export const contractData = contractRaw
 export const aggregateData = aggregateRaw
