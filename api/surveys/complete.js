@@ -10,6 +10,7 @@ import {
   safeWaypointColumns,
   stableSurveyHash,
   supabaseRequest,
+  toSurveyWaypointDto,
   validateSurvey,
 } from './_shared.js'
 
@@ -34,6 +35,7 @@ export default async function handler(request, response) {
     if (!existing.ok) return respond(response, 503, { error: 'ตรวจรายการสำรวจไม่สำเร็จ' })
     const [saved] = await existing.json()
     if (saved) return respond(response, 200, saved)
+
     for (const path of claims.photoPaths.filter(Boolean)) {
       const check = await supabaseRequest(settings, `/storage/v1/object/survey-photos/${encodeStoragePath(path)}`, { method: 'HEAD' })
       if (!check.ok) return respond(response, 400, { error: 'อัปโหลดรูปภาพไม่ครบ กรุณาลองใหม่' })
@@ -54,12 +56,16 @@ export default async function handler(request, response) {
       if (!validImage) return respond(response, 400, { error: 'เนื้อหาไฟล์ไม่ตรงกับชนิดรูปภาพ' })
     }
 
+    // กำหนด publication_status: ค่าเกิน 50 ppb จะต้องรอแอดมินยืนยัน (pending_review)
+    const publicationStatus = body.arsenicLevelPpb > 50 ? 'pending_review' : 'auto_published'
+
     const values = publicSurveyPayload(body)
     values.id = claims.surveyId
     values.sample_code = claims.sampleCode
     values.public_consent_at = claims.consentAt
     values.photo_1_path = claims.photoPaths[0]
     values.photo_2_path = claims.photoPaths[1]
+
     const inserted = await supabaseRequest(settings,
       `/rest/v1/water_quality_surveys?select=${safeWaypointColumns}`, {
         method: 'POST',
@@ -67,13 +73,80 @@ export default async function handler(request, response) {
         body: JSON.stringify(values),
       })
     if (!inserted.ok) {
-      // A concurrent retry may have committed the same survey. Keep its private files.
       return respond(response, 503, { error: 'บันทึกแบบสำรวจไม่สำเร็จ กรุณาลองใหม่' })
     }
     const [waypoint] = await inserted.json()
-    return respond(response, 201, waypoint)
+
+    // ซิงค์เข้าตาราง kok_water_samples
+    try {
+      const samplePayload = {
+        sample_code: claims.sampleCode,
+        station_id: 'COORDINATE-POINT',
+        station_name: `จุดตรวจ ${claims.sampleCode}`,
+        latitude: Number(body.coordinates.latitude),
+        longitude: Number(body.coordinates.longitude),
+        collection_time: body.sampleCollectedAt || new Date().toISOString(),
+        gps_accuracy_meters: body.gpsAccuracyMeters,
+        entry_type: 'realtime',
+        sample_nature: {
+          water_source: body.waterSourceType || 'แม่น้ำกก',
+          water_appearance: body.rainContext ? `บริบทฝน: ${body.rainContext}` : ''
+        },
+        measurements: {
+          arsenic: {
+            value: body.arsenicLevelPpb,
+            unit: 'ppb',
+            status: body.arsenicLevelPpb > 10 ? 'danger' : body.arsenicLevelPpb >= 5 ? 'watch' : 'normal'
+          }
+        },
+        arsenic_ppb: body.arsenicLevelPpb,
+        publication_status: publicationStatus,
+        revision: 1,
+        approved_revision: publicationStatus === 'auto_published' ? 1 : null,
+        private_photo_paths: claims.photoPaths.filter(Boolean)
+      }
+      await supabaseRequest(settings, '/rest/v1/kok_water_samples', {
+        method: 'POST',
+        headers: { prefer: 'resolution=merge-duplicates' },
+        body: JSON.stringify(samplePayload)
+      })
+
+      // เก็บข้อมูลติดต่อภายใน kok_sample_contacts
+      await supabaseRequest(settings, '/rest/v1/kok_sample_contacts', {
+        method: 'POST',
+        headers: { prefer: 'resolution=merge-duplicates' },
+        body: JSON.stringify({
+          sample_code: claims.sampleCode,
+          name: body.fullName.trim(),
+          phone: body.phoneNumber.trim()
+        })
+      })
+
+      // หากค่าเกิน 50 ppb ให้สร้างแจ้งเตือนแอดมินใน kok_admin_alerts
+      if (body.arsenicLevelPpb > 50) {
+        await supabaseRequest(settings, '/rest/v1/kok_admin_alerts', {
+          method: 'POST',
+          body: JSON.stringify({
+            sample_code: claims.sampleCode,
+            arsenic_ppb: body.arsenicLevelPpb,
+            publication_status: 'pending_review',
+            email_status: 'queued'
+          })
+        })
+      }
+    } catch {
+      // Non-fatal sync error; citizen survey already recorded in water_quality_surveys
+    }
+
+    const responseDto = toSurveyWaypointDto({
+      ...waypoint,
+      water_source_type: body.waterSourceType,
+      rain_context: body.rainContext,
+      publication_status: publicationStatus,
+    })
+
+    return respond(response, 201, responseDto)
   } catch {
     return respond(response, 503, { error: 'บริการบันทึกแบบสำรวจยังไม่พร้อมใช้งาน' })
   }
 }
-

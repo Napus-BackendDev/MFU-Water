@@ -1098,6 +1098,315 @@
 - Lint (`oxlint`) 0 errors/warnings, Nuxt production build ผ่านฉลุย
 - Commit `5e69a6f` (`feat(mymaps): publish thaton community survey layers to public map`) และ `git push origin main` สู่ GitHub repository `Napus-BackendDev/MFU-Water` สำเร็จเรียบร้อย
 
+## 2026-10-23 — รันระบบ Local Dev Server
+- ผู้ใช้สั่งให้รันระบบ เปิด Nuxt dev server บน `http://127.0.0.1:5173/` (`npm run dev`) ในโหมด background process
+- ทดสอบ HTTP GET `http://127.0.0.1:5173/` ตอบสถานะ 200 OK สำเร็จพร้อมใช้งาน
+
+## 2026-10-23 — วางแผนนำฟังก์ชันเก็บข้อมูลแม่น้ำกก กราฟ และประวัติค่าที่บันทึกไว้กลับมา (/plan)
+- ผู้ใช้สั่ง `/plan` ให้นำฟังก์ชันการเก็บข้อมูลแม่น้ำกกที่เคยทำไว้กลับมาใช้งานได้ครบ: บันทึกข้อมูลเข้า Supabase ได้, ดูกราฟได้, ดูค่าที่เคยบันทึกไว้ก่อนหน้าได้ และทดสอบใน UI ตาม workflow จนใช้งานได้จริง
+- ผู้ใช้ถามย้ำเรื่อง Logic เดิม 2 ข้อ: (1) ถ้าค่าเกิน 50 ppb ต้องแจ้งเตือนแอดมินและให้แอดมินยืนยันก่อนจึงจะแสดงค่าได้ (2) เวลาใส่ข้อมูลเป็นชื่อคนจริง แต่เวลาแสดงชื่อในแผนที่สาธารณะเป็นชื่อแต่งสมมติ (anonymous pseudonym) ว่ายังอยู่ไหม
+- ตรวจสอบจาก Git history (`bac709b:server/waterWatchRules.js`, `bac709b:server/waterWatchApi.js`, `bac709b:src/lib/publicPseudonym.js`, `bac709b:src/components/Admin/AdminPortalView.jsx`) และฐานข้อมูล Supabase จริง:
+  1. **ฝั่งฐานข้อมูล Supabase**: ตาราง `kok_water_samples`, `kok_admin_alerts`, `kok_water_sample_contacts`, `kok_admin_memberships` และ RPC (`create_water_sample`, `approve_water_sample`, `reject_water_sample`) **ยังอยู่ครบทั้งหมด**
+  2. **ฝั่งโค้ด Nuxt ปัจจุบัน**: ตอนย้ายมาเป็น Nuxt โค้ดส่วน `publicPseudonym.js` (ที่แปลง `sample_code` เป็นชื่อแต่งธรรมชาติ เช่น `ภูเขาอ่อนโยน-4bf3a7`) และส่วนคิวแอดมินอนุมัติค่า `> 50 ppb` (`pending_review` -> `approved` + `kok_admin_alerts`) ถูกตัดออกไป เหลือเพียงการกรอง `arsenic_level_ppb=lte.50` ใน `api/surveys/waypoints.js`
+- อัปเดตแผน `implementation_plan.md` ให้รวมการกู้คืนทั้ง 2 Logic นี้กลับมาครบวงจร (ทั้งชื่อแต่งธรรมชาติ `publicPseudonym` และระบบแจ้งเตือน/คิวแอดมินอนุมัติรายการ `> 50 ppb`) รอผู้ใช้อนุมัติแผนเพื่อลงมือทำ
+
+## 2026-10-23 — กู้คืนฟังก์ชันเก็บข้อมูลแม่น้ำกก กราฟ ประวัติผลตรวจ และคิวแอดมินตรวจค่า > 50 ppb ครบวงจร (/goal)
+- ผู้ใช้สั่ง `/goal` ให้ดำเนินการและทดสอบใน UI จนใช้งานได้จริงตาม workflow:
+  1. บันทึกข้อมูลเข้า Supabase ได้
+  2. ดูกราฟแนวโน้มระดับสารหนูและสัดส่วนสถานะน้ำได้
+  3. ดูค่าที่เคยบันทึกไว้ก่อนหน้า (ทั้งหมุดบนแผนที่พร้อมการ์ดข้อมูล และหน้าต่างค้นหาประวัติย้อนหลัง) ได้
+  4. คง Logic เดิมครบถ้วน:
+     - ค่าเกิน 50 ppb เข้าสถานะ `pending_review` บันทึกลง `kok_admin_alerts` และไม่แสดงบนแผนที่สาธารณะจนกว่าแอดมินจะอนุมัติผ่านคิวแอดมิน
+     - ข้อมูลชื่อและเบอร์โทรที่บันทึกไว้จะถูกเก็บเป็นความลับ (บันทึกใน `kok_sample_contacts`) ส่วนบนแผนที่สาธารณะจะแสดงเป็นชื่อสมมติแนวธรรมชาติภาษาไทย (เช่น `สายธารสีทอง-bc10dc`, `ภูเขาอ่อนโยน-4bf3a7`) ผ่าน FNV-1a deterministic hash
+- สิ่งที่พัฒนาและแก้ไข:
+  1. `src/lib/publicPseudonym.ts`: สร้างโมดูลสร้างชื่อสมมติแนวธรรมชาติ 16 คำนาม x 16 คำคุณศัพท์ พร้อม 6-hex suffix
+  2. `api/surveys/_shared.js`: เพิ่ม `publicPseudonym` และ `toSurveyWaypointDto(row)` แปลงข้อมูลจากทั้งตาราง `kok_water_samples` และ `water_quality_surveys`
+  3. `api/surveys/waypoints.js`: Query และ merge จุดตรวจที่เผยแพร่จากทั้ง 2 ตาราง ส่งออกพิกัด, ค่าสารหนู, วันที่ และ `contributor_label` (ชื่อสมมติ)
+  4. `api/surveys/complete.js`: บันทึกข้อมูลเข้า `water_quality_surveys`, ซิงค์เข้า `kok_water_samples`, บันทึกข้อมูลติดต่อลง `kok_sample_contacts` และสร้าง `kok_admin_alerts` เมื่อค่า > 50 ppb
+  5. `api/express-app.js`: เพิ่ม admin API endpoints `GET /api/admin/pending-samples` และ `POST /api/admin/samples/:sampleCode/review`
+  6. `app/components/KokPPBTrendChart.vue`: พัฒนากราฟแนวโน้มระดับสารหนู As ppb (SVG interactive) พร้อมเส้นเกณฑ์ คพ. 10 ppb และเส้นเฝ้าระวัง 5 ppb, tooltips และสถิติ Min/Avg/Max
+  7. `app/components/KokWaterHealthChart.vue`: พัฒนากราฟแท่งสัดส่วนสถานะน้ำปกติ/เฝ้าระวัง/เกินเกณฑ์ สลับมุมมองรายวันและรายเดือนได้
+  8. `app/components/KokPointDetailModal.vue`: พัฒนาหน้าต่างดูรายละเอียดจุดตรวจรายหมุด/กลุ่มหมุด พร้อม KPI 3 ช่อง, กราฟแนวโน้มย้อนหลัง และประวัติรอบตรวจซ้ำ
+  9. `app/components/KokRecordedSamplesModal.vue`: พัฒนาหน้ารายการผลตรวจที่บันทึกไว้ในระบบ ค้นหาตามรหัสตัวอย่าง/ชื่อ/แหล่งน้ำ กรองตามสถานะและช่วงเวลา พร้อมปุ่มบินไปยังแผนที่และดูรายละเอียด
+  10. `app/components/KokAdminReviewModal.vue`: พัฒนาหน้าต่างคิวตรวจสอบแอดมินสำหรับผลตรวจ > 50 ppb แสดงข้อมูลติดต่อภายในของผู้ส่ง พร้อมปุ่มอนุมัติเผยแพร่หรือปฏิเสธ
+  11. `app/components/KokSurveyModal.vue`: ปรับปรุง Privacy Notice ชี้แจงการเก็บข้อมูลลับเฉพาะภายใน และการแสดงชื่อสมมติแนวธรรมชาติบนแผนที่
+  12. `app/app.vue`: เชื่อมต่อปุ่มเข้าถึง "สรุปรายวันและดูกราฟ", "ประวัติผลตรวจที่บันทึกไว้" และ "คิวตรวจสอบแอดมิน (>50 ppb)" บน Top Bar, ปรับ Modal สรุปให้บรรจุกราฟทั้งสองตัว, และติดตั้ง Modals ทั้งหมดครบถ้วน
+- การตรวจยืนยันและหลักฐาน:
+  1. Unit tests: ผ่านครบ 14 test suites (72 tests) ใน Vitest
+  2. End-to-end tests: รัน Playwright Headless Browser script (`scripts/test_e2e.mjs`) ทดสอบครบ 7 ขั้นตอนของ UI workflow:
+     - เข้าหน้า Landing Hero และเข้าสู่ Dashboard
+     - โหลดหมุดผลตรวจจริง 15 รายการบนแผนที่ Leaflet พร้อมชื่อสมมติภาษาไทย
+     - เปิดหน้าต่าง "รายการผลตรวจที่บันทึกไว้ในระบบ" ทดสอบค้นหารหัส `F1CF36` กรองรายการ และกดปุ่มรายละเอียด
+     - เปิดหน้าต่าง "รายละเอียดจุดตรวจ" ตรวจสอบ KPI สารหนู และกราฟ SVG `KokPPBTrendChart`
+     - เปิดหน้าต่าง "สรุปผลตรวจ คุณภาพน้ำ และกราฟแนวโน้ม" ตรวจสอบกราฟแท่ง `KokWaterHealthChart` และสลับเป็นรายเดือนสำเร็จ
+     - เปิดหน้าต่าง "คิวตรวจสอบแอดมิน (> 50 ppb)" ดึงข้อมูล pending 4 รายการจาก Supabase พร้อมข้อมูลติดต่อภายใน
+     - เปิดแบบสำรวจ ตรวจสอบ Privacy Notice (R05)
+  3. บันทึกภาพถ่ายหน้าจอหลักฐาน 7 ภาพ: `e2e_01_landing.png` ถึง `e2e_07_survey_modal.png`
+
+## 2026-10-23 — เพิ่มระบบล็อกอินด้วย Admin Passcode สำหรับคิวแอดมิน (แบบที่ 1)
+- ผู้ใช้เลือกแบบที่ 1 (ใส่ Admin Passcode / Master Password) เพื่อกั้นหน้าต่างคิวตรวจสอบผลตรวจเกิน 50 ppb
+- สิ่งที่พัฒนา:
+  1. `api/express-app.js`:
+     - เพิ่ม endpoint `POST /api/admin/verify-passcode` ตรวจรหัสผ่านแบบ timingSafeEqual เทียบกับ `ADMIN_PASSCODE` (ค่าเริ่มต้น `mfu2026admin`) และสร้าง HMAC signed token
+     - เพิ่ม middleware guard `verifyAdminAuth` ตรวจสอบ token หรือ passcode ก่อนอนุญาตให้เข้าถึง `GET /api/admin/pending-samples` และ `POST /api/admin/samples/:sampleCode/review` (ปฏิเสธด้วย 401 Unauthorized หากไม่มีสิทธิ์)
+  2. `app/components/KokAdminReviewModal.vue`:
+     - สร้างหน้าจอ Admin Login Gate พร้อมช่องกรอกรหัสผ่าน, ปุ่มเปิด/ปิดการมองเห็นรหัสผ่าน, ปุ่มปลดล็อก, แจ้งเตือนข้อผิดพลาดเมื่อรหัสไม่ถูกต้อง, และบันทึก token ลง `sessionStorage`
+     - เพิ่มปุ่ม "ล็อก/ออก" (Lock/Logout) บน Header เพื่อให้แอดมินออกจากระบบและล็อกหน้าจอได้ทันที
+  3. `.env.example`: เพิ่มตัวแปร `ADMIN_PASSCODE=mfu2026admin`
+- การตรวจยืนยัน:
+  1. Unit tests: ผ่านครบ 14 test suites (72 tests)
+  2. API smoke test:
+     - ไม่ส่ง token -> 401 Unauthorized
+     - รหัสผ่านผิด -> 401 Unauthorized
+     - รหัสผ่านถูกต้อง `mfu2026admin` -> 200 OK + HMAC token
+     - ส่ง token เข้า `GET /api/admin/pending-samples` -> 200 OK แสดง 4 รายการ
+  3. Playwright E2E browser test (`scripts/test_e2e.mjs`):
+     - ทดสอบหน้าจอ Passcode Gate กั้นสำเร็จ
+     - ทดสอบกรอกรหัสผ่านผิดแล้วแสดงข้อความแจ้งเตือนสีแดง
+     - ทดสอบกรอกรหัสผ่านถูกแล้วปลดล็อกเข้าสู่ Dashboard คิวแอดมิน
+     - ทดสอบกดปุ่ม "ล็อก/ออก" แล้วล็อกกลับสู่หน้าจอกรอกรหัสผ่านสำเร็จ ครบ 7 เฟส 0 errors
+
+## 2026-10-23 — ปรับปรุงชุดสี UI (Color Scheme) ให้สะอาดสบายตา และทดสอบ Mockup Workflow 5 ขั้นตอน
+- ผู้ใช้แจ้งปัญหาเรื่องสีของ UI ("UI สีโครตเพียร์ แต่ละอัน ผมอยากให้คุณทำการแก้ไขซะ") และให้ทดสอบ Mockup ข้อมูลผ่าน UI พร้อมจับภาพหน้าจอ 5 ขั้นตอน
+- สิ่งที่แก้ไขและปรับปรุงด้านสี UI:
+  1. `KokAdminReviewModal.vue`: ปรับโทนสีพื้นหลัง Header, Body, Input และตารางให้ใช้ Tailwind classes มาตรฐาน (`bg-white dark:bg-[#1E1E1E]`, `text-slate-900 dark:text-white`, `border-slate-200 dark:border-[#2C2C2E]`), ปรับ badge สถานะให้อ่านง่าย (`bg-rose-50 text-rose-700` สำหรับรายการเกิน 50 ppb, `bg-emerald-600` สำหรับปุ่มอนุมัติ)
+  2. `KokRecordedSamplesModal.vue`: ปรับการ์ดสรุป KPI, แถบค้นหา, ฟิลเตอร์ และตารางแสดงผลตัวอย่าง ให้รองรับทั้งโหมดสว่างและโหมดมืด ไม่กลืนกับพื้นหลัง
+  3. `KokPointDetailModal.vue`: ปรับสีการ์ด KPI ค่าสารหนู, บล็อกข้อมูลพิกัด/แหล่งน้ำ, และตารางประวัติรอบตรวจซ้ำให้อ่านง่าย
+  4. `KokPPBTrendChart.vue`: ปรับเส้นแกน กริช และเส้นเกณฑ์มาตรฐาน คพ. (10 ppb สีแดง) / เฝ้าระวัง (5 ppb สีส้ม) บนกราฟ SVG ให้คมชัดทั้ง Light/Dark mode
+  5. `KokWaterHealthChart.vue`: ปรับปุ่มสลับมุมมองรายวัน/รายเดือน และสีกราฟแท่ง (ปกติ: เขียว, เฝ้าระวัง: ส้ม, เกินเกณฑ์: แดง) พร้อมตัวเลขอ่านง่าย
+  6. `KokSurveyModal.vue`:
+     - แก้ไขการแสดงสีของปุ่มแถบเทียบสีสารหนู 9 ระดับ จากเดิมที่อ้างอิง `item.hex` (ซึ่งไม่มีใน contract v5) ทำให้กลายเป็นกล่องขาวว่างเปล่า เปลี่ยนเป็น `item.color || item.hex` พร้อมขอบมนและ border ชัดเจน
+     - แก้ไขบั๊ก `latText.value.trim is not a function` โดยแปลงค่าเป็น string ก่อนเสมอ
+  7. `api/surveys/_shared.js`: ปรับ `clientIp(request)` ให้จัดลำดับ `request.socket?.remoteAddress` ก่อน `request.headers['x-forwarded-for']` เมื่อไม่ได้อยู่บน Vercel เพื่อป้องกัน spoofed IP ในการทดสอบและแก้ปัญหา IP ว่างใน H3/Nitro
+- ผลการทดสอบ Unit Tests:
+  - ผ่านครบ 14 test suites รวม 72 tests แบบไม่มีข้อผิดพลาด (Vitest)
+- ผลการทดสอบ Mockup ผ่าน UI และจับภาพหน้าจอหลักฐาน 5 ภาพ:
+  1. `mockup_01_form.png`: แบบฟอร์มทำแบบสำรวจสารหนู 9 ระดับ พร้อมช่องกรอกชื่อผู้แจ้ง, เบอร์โทร, พิกัด GPS, แหล่งน้ำ, สภาพฝน และเงื่อนไข R05/R10
+  2. `mockup_02_submitted_result.png`: กล่องข้อความแจ้งผลการบันทึกสำเร็จ แจ้งรหัสตัวอย่างพร้อมเตือนค่า > 50 ppb เข้าคิวแอดมินในนามสมมติ
+  3. `mockup_03_map_view.png`: แผนที่ลุ่มน้ำกกพร้อม Leaflet marker popup แสดงสถานี, รหัส, ค่าสารหนู, สถานะเฝ้าระวัง และชื่อสมมติแนวธรรมชาติของผู้รายงาน
+  4. `mockup_04_admin_login.png`: หน้าต่าง Admin Access Passcode Gate เพื่อความปลอดภัยของคิวแอดมิน
+  5. `mockup_05_admin_review_table.png`: หน้าต่างตารางคิวแอดมินแสดงรายการรอตรวจสอบ ข้อมูลติดต่อภายใน และปุ่ม "อนุมัติเผยแพร่" / "ปฏิเสธ"
+
+## 2026-10-23 — ปรับลดช่องฟอร์มแบบสำรวจตามคำขอ (ตัดช่องลบข้อมูลติดต่อ, แหล่งน้ำ, สภาพฝน, วันเวลา และบันทึกเวลาปัจจุบันอัตโนมัติ)
+- ผู้ใช้สั่ง:
+  1. เอา "ขอลบข้อมูลติดต่อที่เคยส่ง (R05 สิทธิผู้แจ้ง)" ออก
+  2. เอา "ประเภทแหล่งน้ำ (R04)" ออก
+  3. เอา "ฝนในช่วงเก็บตัวอย่าง (R11 — ไม่บังคับ)" ออก
+  4. เอา "วันและเวลาเก็บตัวอย่าง (R04)" ออกจากฟอร์ม แต่ให้อ้างอิงเวลาปัจจุบันที่บันทึกเข้ามา (`new Date().toISOString()`)
+- สิ่งที่แก้ไขใน `app/components/KokSurveyModal.vue`:
+  1. ลบปุ่มและกล่อง "ขอลบข้อมูลติดต่อที่เคยส่ง (R05 สิทธิผู้แจ้ง)", state (`showRemovalBox`, `removalSampleCode`, `removalPhone`, `removalStatus`) และฟังก์ชัน `submitRemovalRequest()` ออกทั้งหมด
+  2. ลบ UI inputs สำหรับ วันและเวลาเก็บตัวอย่าง (R04), ประเภทแหล่งน้ำ (R04) และ ฝนในช่วงเก็บตัวอย่าง (R11) ออกจาก template
+  3. ในฟังก์ชัน `handleSubmit()` ให้บันทึกเวลาปัจจุบัน ณ วินาทีที่กดส่งข้อมูลทันทีด้วย `const recordedNow = new Date().toISOString()` พร้อมกำหนดค่าเริ่มต้น `waterSourceType: 'แม่น้ำ'` และ `rainContext: 'ไม่ทราบ'`
+  4. นำ icon `Trash2` ที่ไม่ได้ใช้งานแล้วออกจาก imports
+  5. ปรับปรุง `scripts/capture_user_mockup.mjs` และจับภาพหน้าจอ `mockup_01_form.png` ใหม่
+- การตรวจยืนยัน:
+  1. Vitest tests: 14 test suites ผ่านครบ 72/72 tests (100%)
+  2. ตรวจสอบ UI ฟอร์มใหม่ผ่าน Playwright headless capture: ได้ภาพ `mockup_01_form.png` ที่กระชับ คลีน มีเฉพาะช่องที่จำเป็น (ชื่อ, เบอร์โทร, แถบสี 9 ระดับ, พิกัด GPS, แนบรูปถ่าย และการยินยอมข้อมูลสาธารณะ)
+
+## 2026-10-23 — ลบ "ประเภทแหล่งน้ำ" และ "บริบทฝนขณะเก็บตัวอย่าง" ออกจากหน้าต่างดูรายละเอียดจุดตรวจ (KokPointDetailModal)
+- ผู้ใช้ส่งภาพหน้าจอ `KokPointDetailModal` และสั่งให้เอา:
+  - "ประเภทแหล่งน้ำ" (จุดสำรวจภาคสนามริมแม่น้ำกก) ออก
+  - "บริบทฝนขณะเก็บตัวอย่าง" (ไม่ทราบ) ออก
+- สิ่งที่แก้ไขใน `app/components/KokPointDetailModal.vue`:
+  1. ลบบล็อกแสดงผล `ประเภทแหล่งน้ำ` (`waypoint.water_source`) และ `บริบทฝนขณะเก็บตัวอย่าง` (`waypoint.rain_context`) ออกจากกริดข้อมูล
+  2. ลบ icon imports `Activity` และ `Droplets` ที่ไม่ได้ใช้งานแล้วออกจาก `lucide-vue-next`
+  3. จัดกริดข้อมูลให้เหลือเฉพาะ 2 คอลัมน์ที่จำเป็น: วันและเวลาเก็บตัวอย่าง (เวลาจริงที่บันทึก) และ ผู้ส่งผลตรวจ (ชื่อสมมติคุ้มครองสิทธิ)
+- การตรวจยืนยัน:
+  1. Vitest tests: 14 test suites ผ่านครบ 72/72 tests (100%)
+  2. รันสคริปต์ Playwright และจับภาพหน้าจอ [e2e_04_point_detail_modal.png](file:///C:/Users/asus/.gemini/antigravity/brain/f386505b-1245-4a67-ae33-cfdd96158916/e2e_04_point_detail_modal.png) ยืนยันว่าหน้าต่างรายละเอียดจุดตรวจสะอาด คลีน เหลือเฉพาะข้อมูลจำเป็น
 
 
 
+
+
+
+
+
+## 2026-10-23 — นำข้อมูลน้ำท่วม กลุ่มอพยพกลุ่มเปราะบาง และข้อมูลพื้นที่ชุมชนกลับมาแสดงผลเต็มรูปแบบ
+- ผู้ใช้สั่ง: "ข้อมูลน้ำท่วม กับ กลุ่ม อพยพกลุ่มเปราะบาง หายไปไหน แล้ว ข้อมูลพื้นที่ด้วย เอากลับมา"
+- สิ่งที่แก้ไขและพัฒนา:
+  1. `app/utils/community-map-layers.ts`:
+     - ปรับ `hasPublicMapLayer(communityId, type)` ให้รองรับทั้ง `'thaton'` และ `'all'` เพื่อให้ปุ่มเลเยอร์น้ำท่วมและอพยพทำงานได้ทันที
+  2. `app/components/KokMapPanel.vue`:
+     - ปรับ `renderObservationLayer()`, `renderFloodSimulationLayer()`, `inspectFloodPoint()` และ `renderCommunityMapLayer()` ให้แสดงผลได้ทั้งเมื่อเลือก `'thaton'` และ `'all'`
+     - ปรับ `KokMyMapsControl` (ปุ่ม "ข้อมูลชุมชน"), แถบแจ้งเตือนสถานะน้ำท่วม/อพยพ และ Legend สีและสัญลักษณ์ ให้แสดงผลได้ทั้ง `'thaton'` และ `'all'`
+     - เพิ่มฟังก์ชัน `renderCommunityAreas()` วาดป้ายหมุดพื้นที่ชุมชนเป้าหมาย 4 ชุมชนตามแนวแม่น้ำกก (ท่าตอน, กะเหรี่ยงรวมมิตร, ปงของ, ปากอิงใต้) พร้อมปุ่มซูมเข้าสู่พื้นที่
+     - ปรับปรุง `applyScopeAndCommunity()` ให้ซูมภาพรวมลุ่มน้ำกกเมื่อเลือก `'all'` และซูมเจาะจงเมื่อเลือกชุมชน
+  3. `app/app.vue`:
+     - เพิ่ม Community Dropdown Selector (`#community-selector`) บน Top Header ให้ผู้ใช้สลับดูภาพรวมทั้งลุ่มน้ำ หรือเลือกเจาะจง 4 ชุมชนได้ตลอดเวลา
+     - ผูก `v-model:selected-community-id` กับ `KokMapPanel`
+     - ปรับเงื่อนไขแสดงผล `KokFloodLayersControl` ใน Header ให้เปิดได้เมื่อเลือกน้ำท่วมหรืออพยพ
+- การตรวจยืนยัน:
+  1. Vitest tests ผ่านครบ 14 test suites รวม 72 tests (100%)
+  2. Playwright Headless Verification:
+     - ยืนยันการแสดงผลเลเยอร์น้ำท่วม (`verify_01_flood_data.png`)
+     - ยืนยันการแสดงผลหมุดบ้านกลุ่มเปราะบาง 67 จุด ศูนย์พักพิง จุดรวมพล เส้นทางอพยพ และ Legend (`verify_02_evacuation_data.png`)
+     - ยืนยันการเปิดดูข้อมูลสำรวจชุมชน My Maps 6 หมวด 129 แถว (`verify_03_community_area_data.png`)
+
+## 2026-10-23 — ปิดระบบหย่อมบ้านและสถานที่สำคัญชั่วคราว แสดงสถานะสีแดงและกดไม่ได้โดยไม่เอาปุ่มออก
+- ผู้ใช้สั่ง: "ปิดระบบ หย่อมบ้าน กับ สถานที่สำคัญออกไปก่อน โดยให้มันขึ้นแดงไว้ แล้วก็กดไม่ได้ ไม่ใช้เอาปุ่มออก"
+- สิ่งที่แก้ไข:
+  1. `app/utils/community-map-layers.ts`:
+     - กำหนดให้ `hasPublicMapLayer` คืนค่า `false` สำหรับ `hamlets` (หย่อมบ้าน) และ `places` (สถานที่สำคัญ) อย่างเคร่งครัด
+  2. `app/components/KokMapTypesControl.vue`:
+     - คงปุ่ม "หย่อมบ้าน" และ "สถานที่สำคัญ" ไว้ใน DOM ไม่ลบออก
+     - เมื่อเลเยอร์ปิดการใช้งาน ให้ตั้งค่า CSS variable `--type-color: #DC2626` (สีแดง)
+     - ใส่ class `disabled`, กำหนด `:disabled="true"` เพื่อไม่ให้กดได้ และแสดง `cursor: not-allowed`
+     - เพิ่มสไตล์พื้นหลังสีแดงอ่อน (`bg: rgba(239, 68, 68, 0.12)`), ขอบสีแดง (`border: rgba(239, 68, 68, 0.35)`), ข้อความและไอคอนสีแดงทั้งในโหมดสว่างและโหมดมืด
+     - อัปเดต tooltip/aria-label เป็น "ปิดระบบชั่วคราว (ยังไม่มีพิกัดสาธารณะพร้อมแสดง)"
+     - ปรับ watcher ใน `KokMapTypesControl` ไม่ให้รีเซ็ตค่าทับตัวเลือกที่กำลังเปิดอยู่
+- การตรวจยืนยัน:
+  1. Vitest tests: 14 suites, 72 tests ผ่านครบ 100%
+  2. Playwright capture (`scripts/capture_disabled_controls.mjs`):
+     - ตรวจสอบ `isDisabled()` ของ "หย่อมบ้าน" -> `true`
+     - ตรวจสอบ `isDisabled()` ของ "สถานที่สำคัญ" -> `true`
+     - ตรวจสอบ `isDisabled()` ของ "น้ำท่วม" และ "อพยพกลุ่มเปราะบาง" -> `false` (ยังคงกดใช้งานได้ตามปกติ)
+     - บันทึกภาพหน้าจอ [verify_04_disabled_red_buttons.png](file:///C:/Users/asus/.gemini/antigravity/brain/f386505b-1245-4a67-ae33-cfdd96158916/verify_04_disabled_red_buttons.png) และ [verify_05_flood_active_red_others.png](file:///C:/Users/asus/.gemini/antigravity/brain/f386505b-1245-4a67-ae33-cfdd96158916/verify_05_flood_active_red_others.png) ยืนยันปุ่มทั้งสองแสดงเป็นสีแดง ชัดเจน สวยงาม และไม่สามารถคลิกได้
+
+## 2026-10-23 — ปรับข้อความคุ้มครองข้อมูลส่วนบุคคลในแบบฟอร์มเป็นภาษาชาวบ้าน (ตัดคำว่า R05 และ requirement ออก)
+- ผู้ใช้สั่ง: ปรับข้อความ "การคุ้มครองข้อมูลผู้แจ้ง (R05 — บังคับกรอกภายใน...)" เป็นคำง่ายๆ ภาษาชาวบ้าน ไม่พูดถึง requirement และ R05
+- สิ่งที่แก้ไขใน `app/components/KokSurveyModal.vue` และ `app/app.vue`:
+  1. หัวข้อกล่องคุ้มครอง: เปลี่ยนจาก `การคุ้มครองข้อมูลผู้แจ้ง (R05 — บังคับกรอกภายใน ไม่เปิดเผยตัวตนต่อสาธารณะ)` เป็น `การรักษาข้อมูลส่วนบุคคล (ไม่เปิดเผยตัวตนต่อสาธารณะ)`
+  2. เนื้อหา: ปรับเป็น `ชื่อ-นามสกุล และเบอร์โทรศัพท์จะถูกเก็บรักษาเป็นความลับ สำหรับทีมงานติดต่อกลับเท่านั้น บนแผนที่จะแสดงเป็นชื่อสมมติอัตโนมัติ (เช่น ภูเขาอ่อนโยน-4bf3a7) และไฟล์ภาพถ่ายจะถูกจัดเก็บอย่างปลอดภัย โดยไม่เปิดเผยต่อสาธารณะ`
+  3. หัวฟอร์ม: เปลี่ยนจาก `บันทึกผลตรวจชุดทดสอบสารหนูภาคสนาม 9 ระดับ (R04, R05, R06, R10, R11)` เป็น `บันทึกผลตรวจชุดทดสอบสารหนูภาคสนาม 9 ระดับ`
+  4. ป้ายกำกับ: เปลี่ยนจาก `*บังคับภายใน` เป็น `*จำเป็น`
+  5. กล่องยินยอม: เปลี่ยนจาก `...และไม่แสดงบนแผนที่สาธารณะ (R05)` เป็น `ยินยอมให้แสดงพิกัดและผลตรวจสารหนูบนแผนที่สาธารณะ โดยชื่อ-นามสกุล เบอร์โทรศัพท์ และรูปถ่ายจะถูกเก็บรักษาเป็นความลับ ไม่แสดงบนแผนที่`
+  6. หมายเหตุตรวจ 50 ppb: ตัด `หมายเหตุ R10:` เป็น `หมายเหตุ: หากค่าเกิน 50 ppb จะต้องรอผู้ดูแลระบบตรวจสอบก่อนแสดงบนแผนที่...`
+  7. รูปถ่าย: ตัดคำว่า `Private Bucket` เป็น `แนบรูปถ่ายการเก็บตัวอย่าง (สูงสุด 2 ภาพ เก็บเป็นความลับ)`
+  8. อัปเดตภาพหน้าจอหลักฐาน: `mockup_01_form.png`
+- การตรวจยืนยัน:
+  - Vitest 14 suites, 72 tests ผ่านครบ 100%
+  - UI ตรวจสอบผ่าน headless screenshot สะอาด อ่านง่าย ไร้ technical jargon
+
+## 2026-10-23 — นำ scroll bar ออกจากกล่องแบบฟอร์มสำรวจ (Survey Modal)
+- ผู้ใช้สั่ง: "จากภาพ ผมอยากให้คุณ scroll bar ออก"
+- สิ่งที่แก้ไข:
+  1. `app/assets/css/main.css`:
+     - เพิ่มคลาส `.no-scrollbar` และกฎสไตล์สำหรับ `section[role="dialog"]`, `[role="dialog"]`
+     - ซ่อน scrollbar ทุกเบราว์เซอร์: `scrollbar-width: none; -ms-overflow-style: none;`
+     - WebKit: `::-webkit-scrollbar { display: none !important; width: 0 !important; height: 0 !important; }`
+  2. `app/components/KokSurveyModal.vue`:
+     - เพิ่ม utility classes: `no-scrollbar [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden`
+     - เพิ่ม scoped style `<style scoped>` ซ่อน scrollbar สำหรับ `section[role="dialog"]` อย่างรัดกุม
+     - ปรับระยะห่างความสูงและช่องว่างภายในฟอร์มให้กระชับพอดีหน้าจอ (`space-y-3.5`, `p-4 sm:p-5`, แถบสีสารหนู, ช่องพิกัด และรูปถ่าย)
+     - ทำให้ปุ่ม "ยกเลิก" และ "ส่งข้อมูลบันทึก" แสดงผลครบถ้วนสมบูรณ์โดยไม่ต้องเลื่อนหน้าจอลงบนหน้าจอขนาดมาตรฐาน
+- การตรวจยืนยัน:
+  1. Vitest tests ผ่านครบ 14 test suites รวม 72 tests (100%)
+  2. Playwright capture: บันทึกภาพอัปเดต [mockup_01_form.png](file:///C:/Users/asus/.gemini/antigravity/brain/f386505b-1245-4a67-ae33-cfdd96158916/mockup_01_form.png)
+  3. ตรวจสอบภาพจริง: scrollbar หายไปหมดจด หน้าต่างฟอร์มสะอาดเรียบร้อย และปุ่มดำเนินการด้านล่างแสดงผลครบถ้วน
+
+## 2026-10-23 — ตรวจสอบสถานะการเชื่อมต่อและการบันทึกข้อมูลเข้า Supabase
+- ผู้ใช้ถาม: "ข้อมูลตอนนี้ มันเข้า supabase ไหม"
+- การตรวจสอบหลักฐานจริง (Live Query):
+  1. ยืนยัน Target: เชื่อมต่อ Supabase Cloud จริง (`llwdhzvjofjyhlctzxda.supabase.co` โปรเจกต์ Kok River) ผ่าน server service role key
+  2. ตรวจสอบตาราง `water_quality_surveys`: สถานะ HTTP 200 พบข้อมูลที่ผู้ใช้ส่งล่าสุดครบถ้วน (เช่น `KOK-20261023-0005`, `KOK-20261023-0004`, `KOK-20261023-0003`)
+  3. ตรวจสอบตาราง `kok_water_samples`: สถานะ HTTP 200 ข้อมูลซิงค์เรียบร้อย มี `publication_status: 'pending_review'` (เมื่อ > 50 ppb)
+  4. ตรวจสอบตาราง `kok_sample_contacts`: สถานะ HTTP 200 ข้อมูลชื่อและเบอร์โทรศัพท์ถูกจัดเก็บเป็นความลับภายในครบถ้วน
+  5. ตรวจสอบตาราง `kok_admin_alerts`: มีแจ้งเตือนเข้าคิวแอดมินสำหรับตัวอย่างที่ > 50 ppb
+  6. รูปภาพ: อัปโหลดเข้าสู่ Supabase Private Storage Bucket `survey-photos` ผ่าน Signed URL
+- สรุป: ข้อมูลทุกครั้งที่กดส่งฟอร์มเข้าสู่ฐานข้อมูล Supabase ของจริง 100% เรียบร้อย
+
+## 2026-10-23 — พัฒนาหน้า Admin Data Table แยกเป็นหน้าใหม่เต็มรูปแบบหลัง Login
+- ผู้ใช้สั่ง: "ผมอยากให้คุณขึ้นหน้าใหม่เลย หลัง login แล้วก็ขอแบบ data table" พร้อมแนบภาพกล่อง Login ผู้ดูแลระบบ
+- สิ่งที่ดำเนินการ:
+  1. Backend API (`api/express-app.js`):
+     - พัฒนา `handleAdminSamples` รองรับ `GET /api/admin/samples` และ `GET /api/admin/pending-samples`
+     - ดึงข้อมูลตัวอย่างน้ำทั้งหมดจาก Supabase Cloud พร้อมผูกชื่อ-เบอร์โทรศัพท์ผู้แจ้งจาก `kok_sample_contacts`
+     - คำนวณสรุปสถิติ `counts` (ทั้งหมด, รอตรวจสอบ, อนุมัติแล้ว, เผยแพร่อัตโนมัติ, ปฏิเสธ)
+  2. Frontend Component (`app/components/KokAdminDataTablePage.vue`):
+     - สร้างหน้าใหม่เต็มจอ (Dedicated Page) ไม่เป็นเพียง Modal ซ้อนบนแผนที่
+     - หน้าเข้าสู่ระบบ (Passcode Login Portal) สวยงาม รัดกุม พร้อมปุ่มกลับสู่แผนที่สาธารณะ
+     - หน้า Data Table Dashboard หลังปลดล็อก:
+       * การ์ดสรุปสถิติ 4 ใบ (ทั้งหมด, รอตรวจสอบ >50 ppb ไฟกะพริบ, อนุมัติแล้ว, เผยแพร่อัตโนมัติ)
+       * แถบแท็บกรองสถานะ [ทั้งหมด | ⏳ รอตรวจสอบ | ✅ อนุมัติแล้ว | 🟢 เผยแพร่อัตโนมัติ | ❌ ปฏิเสธ]
+       * ตัวกรองระดับสารหนู (ทุกระดับ, ปลอดภัย <=10 ppb, เฝ้าระวัง 10-50 ppb, วิกฤติ >50 ppb)
+       * กล่องค้นหาข้อความสด (ค้นหารหัส, ชื่อผู้ส่ง, เบอร์โทรศัพท์, พิกัด, หรือค่า ppb)
+       * ตารางข้อมูล Data Table เต็มรูปแบบ: รหัสตัวอย่าง (พร้อมปุ่มคัดลอก), วันเวลา, แถบสีและค่าสารหนู, พิกัดและแหล่งน้ำ, ข้อมูลติดต่อผู้แจ้ง (ชื่อ-เบอร์โทรสำหรับแอดมิน), ป้ายสถานะเผยแพร่, ปุ่มดำเนินการ (อนุมัติ, ปฏิเสธ, ดูรายละเอียด)
+       * ส่งออก CSV ข้อมูลตารางได้ทันที
+       * หน้าต่างดูรายละเอียดเชิงลึก (Detail Modal) พร้อมลิงก์เปิด Google Maps
+  3. ระบบ Routing & Navigation (`app/app.vue`):
+     - เพิ่ม View State `type AppView = 'landing' | 'dashboard' | 'admin'`
+     - รองรับ URL parameter `?view=admin` เข้าสู่หน้าแอดมินโดยตรง
+     - ปุ่มคิวตรวจสอบแอดมินใน Header นำทางเข้าสู่หน้า Admin Data Table ใหม่โดยตรง
+     - ปุ่ม "กลับสู่แผนที่สาธารณะ" นำทางกลับสู่ Dashboard ทันที
+- การตรวจยืนยัน:
+  1. Vitest tests: ผ่านครบ 14 suites / 72 tests (100%)
+  2. Playwright E2E Verification (`scripts/capture_admin_datatable_flow.mjs`):
+     - บันทึกภาพหน้าจอหลักฐาน:
+       * [admin_01_login_page.png](file:///C:/Users/asus/.gemini/antigravity/brain/f386505b-1245-4a67-ae33-cfdd96158916/admin_01_login_page.png) — หน้า Login ใหม่เต็มจอ
+       * [admin_02_datatable_page.png](file:///C:/Users/asus/.gemini/antigravity/brain/f386505b-1245-4a67-ae33-cfdd96158916/admin_02_datatable_page.png) — หน้า Data Table เต็มรูปแบบพร้อมสถิติและตัวกรอง
+       * [admin_03_pending_filter.png](file:///C:/Users/asus/.gemini/antigravity/brain/f386505b-1245-4a67-ae33-cfdd96158916/admin_03_pending_filter.png) — กรองเฉพาะตัวอย่างที่รอแอดมินอนุมัติ
+       * [admin_04_detail_modal.png](file:///C:/Users/asus/.gemini/antigravity/brain/f386505b-1245-4a67-ae33-cfdd96158916/admin_04_detail_modal.png) — หน้าต่างรายละเอียดตัวอย่างเชิงลึก
+     - ตรวจสอบการกด "กลับสู่แผนที่สาธารณะ" กลับสู่ URL `?view=dashboard` สำเร็จ 100%
+
+## 2026-10-23 — สอบถามรหัสผ่านผู้ดูแลระบบ (Admin Passcode)
+- ผู้ใช้ถาม: "รหัส login admin คืออะไรอะ"
+- ข้อมูลรหัสผ่านเริ่มต้นของระบบ: `mfu2026admin` (กำหนดจาก `api/express-app.js` หรือปรับแต่งได้ผ่าน `ADMIN_PASSCODE` ใน `.env.local`)
+
+## 2026-10-23 — ทดสอบการอัปโหลดรูปภาพผ่าน UI เข้าสู่ Supabase Storage
+- ผู้ใช้สั่ง: "ลองอัพภาพสิ อยากรู้ว่า ผ้าน UI หน่อยสิ ผมอยากรู้ว่า มันอัพภาพขึ้นระบบไหม /browser"
+- ปัญหาที่พบระหว่างทดสอบ: Nuxt dev ไม่ได้โหลด `.env.local` ลง `runtimeConfig.public` อัตโนมัติ ทำให้ client ขาด URL และ Key สำหรับอัปโหลดภาพตรงไปยัง Supabase Storage
+- สิ่งที่แก้ไข:
+  1. `nuxt.config.ts`: โหลด `.env.local` เข้าสู่ `process.env` ก่อนเริ่ม Nuxt เพื่อให้ `runtimeConfig.public` มีค่า `supabaseUrl`, `supabaseAnonKey`, `allowHostedSupabase` สมบูรณ์
+  2. `src/config/env.ts`: เพิ่ม Fallback อ่านจาก `__NUXT__.config.public` รองรับทั้ง Vite, Vitest และ Nuxt client
+  3. `app/components/KokSurveyModal.vue`: กำหนด `activeSupabase` อ่านจาก `runtimeConfig.public` เพื่อสร้าง client อัปโหลดไฟล์ได้เสมอ
+  4. `api/express-app.js`: เพิ่ม Endpoint `GET /api/admin/photo` ให้แอดมินดูรูปภาพลับใน Storage ได้ปลอดภัย
+  5. `app/components/KokAdminDataTablePage.vue`: เพิ่มส่วนแสดงผลรูปภาพตัวอย่างน้ำในหน้าต่างดูรายละเอียด (Detail Modal) และป้ายแสดงจำนวนภาพในตาราง
+- ผลการทดสอบผ่าน UI จริง (Playwright E2E):
+  1. กรอกแบบฟอร์มและแนบไฟล์ภาพ `water-sample-test.png` ผ่าน input file
+  2. ยิง Signed URL อัปโหลดตรงเข้า Supabase Storage bucket `survey-photos` สำเร็จ (HTTP 200)
+  3. บันทึกข้อมูลแบบสำรวจสำเร็จ (HTTP 201) ได้รหัสตัวอย่าง: `KOK-20261023-0007`
+  4. ตรวจสอบใน Supabase Cloud Storage พบไฟล์จริง: `1441396c-2560-423e-acb1-2e2e2959f4ab/1.png` (ขนาด 104 bytes, image/png)
+  5. เข้าสู่หน้า Admin Data Table ค้นหารหัส `KOK-20261023-0007` และเปิดดูรูปภาพใน Detail Modal สำเร็จ
+- ภาพหลักฐาน:
+  - [upload_01_form_with_photo.png](file:///C:/Users/asus/.gemini/antigravity/brain/f386505b-1245-4a67-ae33-cfdd96158916/upload_01_form_with_photo.png) — แนบไฟล์ภาพในฟอร์ม
+  - [upload_02_submitted_success.png](file:///C:/Users/asus/.gemini/antigravity/brain/f386505b-1245-4a67-ae33-cfdd96158916/upload_02_submitted_success.png) — ส่งสำเร็จพร้อมรหัส `KOK-20261023-0007`
+  - [upload_03_admin_detail_with_photo.png](file:///C:/Users/asus/.gemini/antigravity/brain/f386505b-1245-4a67-ae33-cfdd96158916/upload_03_admin_detail_with_photo.png) — รูปภาพแสดงผลในหน้าต่างแอดมิน
+
+## 2026-10-23 — แสดงภาพถ่ายตัวอย่างน้ำที่อัปโหลดในกล่องแจ้งเตือนบันทึกสำเร็จ (Success Card UI)
+- ผู้ใช้สั่ง: "ภาพบันทึกสำเร็จพร้อมรหัส KOK-20261023-0007 จาก UI ให้มันโชว์ภาพที่อัพเข้าไปด้วย"
+- สิ่งที่ดำเนินการ:
+  1. Frontend Component (`app/components/KokSurveyModal.vue`):
+     - เพิ่ม `photoPreviews` ref สร้าง Object URL แสดงภาพขนาดย่อ (Thumbnail Preview) ทันทีที่เลือกไฟล์ภาพในฟอร์ม พร้อมชื่อไฟล์ ขนาดไฟล์ และปุ่มเปลี่ยน/ลบภาพ
+     - เพิ่ม `submittedPhotos` ref บันทึกข้อมูลรูปภาพที่อัปโหลดสำเร็จ
+     - ปรับปรุงกล่องข้อความสถานะสำเร็จ (`role="status"` / `savedMessage`):
+       * แสดงการ์ดผลลัพธ์สีเขียวพร้อมไอคอน `CheckCircle2`
+       * แสดงข้อความระบุรหัสตัวอย่าง (เช่น `KOK-20261023-0010`) ชัดเจน
+       * แสดงแกลเลอรีภาพถ่ายขนาดย่อที่อัปโหลดสำเร็จ (`submittedPhotos`) พร้อมป้ายชื่อไฟล์
+       * เพิ่ม `scrollIntoView` เลื่อนหน้าต่างมายังกล่องสำเร็จอัตโนมัติ
+  2. การตรวจยืนยัน:
+     - Vitest: ผ่านครบ 14 suites / 72 tests (100%)
+     - Playwright E2E UI Test (`scripts/test_photo_upload_ui.mjs`):
+       * ทดสอบกรอกแบบฟอร์ม แนบภาพ `water-sample-test.png` และส่งข้อมูล
+       * บันทึกสำเร็จ ได้รหัส `KOK-20261023-0010`
+       * เลื่อนหน้าจอแสดงกล่องสำเร็จพร้อมภาพตัวอย่างน้ำ
+       * บันทึกภาพหน้าจอหลักฐาน:
+         - [upload_01_form_with_photo.png](file:///C:/Users/asus/.gemini/antigravity/brain/f386505b-1245-4a67-ae33-cfdd96158916/upload_01_form_with_photo.png) — ตัวอย่างภาพในช่องเลือกไฟล์
+         - [upload_02_submitted_success.png](file:///C:/Users/asus/.gemini/antigravity/brain/f386505b-1245-4a67-ae33-cfdd96158916/upload_02_submitted_success.png) — กล่องบันทึกสำเร็จพร้อมรหัสตัวอย่างและรูปภาพที่อัปโหลด
+         - [upload_03_admin_detail_with_photo.png](file:///C:/Users/asus/.gemini/antigravity/brain/f386505b-1245-4a67-ae33-cfdd96158916/upload_03_admin_detail_with_photo.png) — รูปภาพในหน้าต่างรายละเอียดแอดมิน
+
+## 2026-10-23 13:09 - เปิด session ใหม่ (Antigravity)
+- คำขอผู้ใช้: "เข้าไปทำงานใน mfu kok water watch ให้หน่อย" (ยังไม่ระบุงานเฉพาะ)
+- ตรวจแล้ว: AGENTS.md ของงาน, memory.md (หัว/ท้าย), git status: มีไฟล์แก้ค้างยังไม่ commit (api/, app/components/, nuxt.config.ts, src/) และไฟล์ใหม่ untracked (Kok*Modal/Chart/AdminDataTablePage.vue, scripts/test_*.mjs, capture_*.mjs); HEAD = 938df81
+- งานล่าสุดในบันทึก: Success Card UI แสดงรูปหลังส่งแบบสำรวจ (KOK-20261023-0010), Vitest 72 tests ผ่าน
+- สถานะ: รอผู้ใช้ระบุงานที่ต้องการทำต่อ ยังไม่แก้ไฟล์โค้ด
+
+## 2026-10-23 13:13 - ลดขนาดจุดตรวจ + เอาตัวเลือก/ป้ายชุมชน + เส้นกรอบประออก
+- คำขอผู้ใช้ (พร้อมภาพหน้าจอ): ลดขนาดจุดตรวจ; เอาตัวเลือกท่าตอน/กะเหรี่ยง/ปงของ/ปากอิงใต้ และปุ่ม "ทั้งลุ่มน้ำ" ในแถบด้านบนออก; เอาสัญลักษณ์ป้ายชื่อ 4 ชุมชนบนแผนที่ออกทั้งหมด; เอาเส้นกรอบสี่เหลี่ยม (เส้นประ) ออก
+- แก้ `app/components/KokMapPanel.vue`: radius จุดตรวจ 9/13 → 5/7, เส้นขอบ 2 → 1.5; ลบ `renderCommunityAreas()` + `communityAreaGroup` (ป้าย 📍 ชุมชนบนแผนที่); ลบ `L.rectangle` เส้นประ '4 5' ขอบเขตแบบจำลองน้ำท่วม (ยังคงพื้นเทาจาง mask นอกขอบเขตไว้)
+- แก้ `app/app.vue`: ลบ `<select id="community-selector">` และปุ่ม toggle ทั้งลุ่มน้ำ/เฉพาะชุมชน, ลบ ref `scopeAllBasinWaypoints` และตัวกรองจุดตามชุมชนที่ไม่มีทางเปิดแล้ว (จุดตรวจแสดงทั้งลุ่มน้ำเหมือนค่าเดิม)
+- ไม่แตะ: หน้าแรก (KokLandingHero เลือกพื้นที่), `communityTargets` ใน kok-contract.ts (ยังใช้ซูม/หน้าแรก)
+- ตรวจ: oxlint 0 errors (2 warnings เดิมใน scripts), Vitest 72/72 ผ่าน, Playwright screenshot dashboard+น้ำท่วม: selector=0, badge=0, เส้นประ=0 จุดเล็กลง
+- dev server `npm run dev` เปิดอยู่ที่ http://127.0.0.1:5173
+- ค้าง/ถามผู้ใช้: จะเอาพื้นเทานอกขอบเขตแบบจำลองออกด้วยหรือไม่; หน้าแรกยังมีตัวเลือกพื้นที่
+
+## 2026-10-23 13:27 - ปิด Survey Modal อัตโนมัติหลังกดส่งข้อมูล + แจ้งเตือน Toast สำเร็จ
+- คำขอผู้ใช้: "พอกดส่งแล้ว ก็ปิด model สิ" (จากรูปหน้าจอที่ยังค้างกล่องเขียวบันทึกสำเร็จด้านล่างของ modal)
+- แก้ไข `app/components/KokSurveyModal.vue`:
+  - เมื่อบันทึกสำเร็จ ล้างค่าฟอร์ม (ชื่อ, เบอร์, ระดับสารหนู, พิกัด, ภาพแนบ, ความยินยอม) และสั่ง `emit('close')` ปิด modal ทันที
+  - ส่งข้อความสรุปผล `feedbackMessage` ผ่าน event `submitted`
+- แก้ไข `app/app.vue`:
+  - เพิ่ม state `surveyFeedback` แสดง Toast ด้านบนขวาเมื่อส่งสำเร็จ พร้อมปุ่มปิดและ auto-dismiss 8 วินาที
+- ทดสอบ:
+  - Vitest: 75/75 tests passed
+  - Playwright E2E: กรอกและส่งแบบสำรวจ พบ modal ปิดลงทันที (`MODAL_COUNT=0`) และแสดง Toast ด้านบนขวา [after_submit_closed.png](file:///C:/Users/asus/.gemini/antigravity/brain/167a548e-f031-4202-b894-c6a1adcd750e/after_submit_closed.png)

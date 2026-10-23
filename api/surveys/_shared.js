@@ -4,6 +4,47 @@ export const allowedPhotoTypes = new Map([['image/jpeg', 'jpg'], ['image/png', '
 export const safeWaypointColumns = 'id,sample_code,arsenic_level_ppb,latitude,longitude,gps_accuracy_meters,created_at'
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
+const nouns = [
+  'สายธาร', 'ใบไม้', 'เมฆ', 'ดอกบัว', 'ต้นไผ่', 'ภูเขา', 'แสงดาว', 'หยดน้ำ',
+  'สายลม', 'ตะวัน', 'ทุ่งหญ้า', 'นกน้อย', 'ดอกแก้ว', 'สายฝน', 'ทะเล', 'ป่าไม้',
+]
+const adjectives = [
+  'สดใส', 'อ่อนโยน', 'สงบ', 'อบอุ่น', 'เบิกบาน', 'ร่มเย็น', 'ยิ้มแย้ม', 'นุ่มนวล',
+  'แจ่มใส', 'แสนดี', 'สีทอง', 'สีคราม', 'พราวแสง', 'ละมุน', 'ชื่นใจ', 'สุขใจ',
+]
+
+export function publicPseudonym(sampleCode) {
+  if (typeof sampleCode !== 'string' || !sampleCode) return 'ผู้ไม่เปิดเผยชื่อ'
+  let hash = 2166136261
+  for (const character of sampleCode) {
+    hash = Math.imul(hash ^ (character.codePointAt(0) ?? 0), 16777619) >>> 0
+  }
+  const noun = nouns[hash & 15]
+  const adj = adjectives[(hash >>> 4) & 15]
+  const suffix = (hash >>> 8).toString(16).padStart(6, '0')
+  return `${noun}${adj}-${suffix}`
+}
+
+export function toSurveyWaypointDto(row) {
+  const ppb = Number(row?.arsenic_level_ppb ?? row?.arsenic_ppb ?? row?.measurements?.arsenic?.value ?? 0)
+  const sampleCode = row?.sample_code || ''
+  return {
+    id: row?.id || row?.sample_code || String(Math.random()),
+    sample_code: sampleCode,
+    station_name: row?.station_name || `จุดตรวจ ${sampleCode}`,
+    arsenic_level_ppb: ppb,
+    latitude: Number(row?.latitude),
+    longitude: Number(row?.longitude),
+    gps_accuracy_meters: row?.gps_accuracy_meters !== undefined && row?.gps_accuracy_meters !== null ? Number(row.gps_accuracy_meters) : null,
+    created_at: row?.created_at || row?.collection_time || new Date().toISOString(),
+    collection_time: row?.collection_time || row?.created_at || new Date().toISOString(),
+    water_source: row?.sample_nature?.water_source || row?.water_source_type || 'แม่น้ำกก',
+    rain_context: row?.rain_context || 'ไม่ทราบ',
+    contributor_label: publicPseudonym(sampleCode),
+    publication_status: row?.publication_status || (ppb > 50 ? 'pending_review' : 'auto_published'),
+  }
+}
+
 export function config(requireSubmission = true) {
   const url = new URL(process.env.SUPABASE_URL ?? '')
   if (url.protocol !== 'https:' || !url.hostname.endsWith('.supabase.co') || url.username || url.password) throw new Error('Invalid database target')
@@ -91,9 +132,10 @@ export function readTicket(secret, ticket) {
 }
 
 export function clientIp(request) {
-  const trusted = process.env.VERCEL === '1' ? request.headers['x-vercel-forwarded-for'] : request.socket?.remoteAddress
-  const ip = String(trusted ?? '').split(',')[0].trim()
-  if (!ip) throw new Error('Missing request identity')
+  const trusted = process.env.VERCEL === '1'
+    ? request.headers?.['x-vercel-forwarded-for']
+    : (request.socket?.remoteAddress || request.connection?.remoteAddress || request.headers?.['x-forwarded-for'] || '127.0.0.1')
+  const ip = String(trusted ?? '127.0.0.1').split(',')[0].trim() || '127.0.0.1'
   return ip
 }
 

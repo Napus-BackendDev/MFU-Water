@@ -39,6 +39,7 @@ const emit = defineEmits<{
   (e: 'update:zoomScope', value: 'inner' | 'outer'): void
   (e: 'update:floodStage', value: number): void
   (e: 'update:communityMapType', value: CommunityMapType | null): void
+  (e: 'update:selectedCommunityId', value: 'all' | 'thaton' | 'ruammit' | 'pongkhong' | 'pakingtai'): void
   (e: 'selectWaypoint', waypoint: SurveyWaypoint): void
   (e: 'selectGridCell', cell: PublicGridCell): void
   (e: 'waterwayLoaded', message: string): void
@@ -118,7 +119,7 @@ function communityPinIcon(color: string, path: string, className: string) {
 
 function renderObservationLayer() {
   observationMapGroup?.clearLayers()
-  if (!L || !observationMapGroup || !props.observationsVisible || props.selectedCommunityId !== 'thaton' || !['flood', 'evacuation'].includes(props.communityMapType ?? '') || myMapsLayerId.value) return
+  if (!L || !observationMapGroup || !props.observationsVisible || (props.selectedCommunityId !== 'thaton' && props.selectedCommunityId !== 'all') || !['flood', 'evacuation'].includes(props.communityMapType ?? '') || myMapsLayerId.value) return
   const date = props.observationDate
   if (loadedObservationDate.value !== date) {
     if (requestedObservationDate !== date) {
@@ -146,7 +147,7 @@ function renderObservationLayer() {
 
 function renderFloodSimulationLayer() {
   simulationMapGroup?.clearLayers()
-  if (!L || !simulationMapGroup || !props.simulationVisible || props.selectedCommunityId !== 'thaton' || !['flood', 'evacuation'].includes(props.communityMapType ?? '') || myMapsLayerId.value) return
+  if (!L || !simulationMapGroup || !props.simulationVisible || (props.selectedCommunityId !== 'thaton' && props.selectedCommunityId !== 'all') || !['flood', 'evacuation'].includes(props.communityMapType ?? '') || myMapsLayerId.value) return
   if (!floodSimulationData.value) {
     if (!floodSimulationError.value) void loadFloodSimulation().then((data) => {
       floodSimulationData.value = data
@@ -170,7 +171,6 @@ function renderFloodSimulationLayer() {
     }
     return
   }
-  L.rectangle(data.bounds, { pane: 'flood-simulation', color: '#64748B', weight: 1, fill: false, dashArray: '4 5', interactive: false }).addTo(simulationMapGroup)
   floodRenderer ??= L.canvas({ padding: 0.5, pane: 'flood-simulation' })
   const [[south,west],[north,east]] = data.bounds
   L.polygon([
@@ -206,7 +206,7 @@ function renderCommunityMapLayer() {
   mapInstance?.closePopup()
   renderObservationLayer()
   renderFloodSimulationLayer()
-  const sourceLayer = props.selectedCommunityId==='thaton' && myMapsData.value?.layers.find((layer) => layer.id===myMapsLayerId.value)
+  const sourceLayer = (props.selectedCommunityId==='thaton' || props.selectedCommunityId==='all') && myMapsData.value?.layers.find((layer) => layer.id===myMapsLayerId.value)
   if (sourceLayer && L && communityMapGroup) {
     // Preserve overlapping source rows in one popup, never move household coordinates.
     const groups = new Map<string,MyMapsRecord[]>()
@@ -248,8 +248,20 @@ function renderCommunityMapLayer() {
   }
   if (!L || !communityMapGroup || !props.communityMapType || !hasPublicMapLayer(props.selectedCommunityId, props.communityMapType)) return
 
-
-  if (props.communityMapType === 'flood') return
+  if (props.communityMapType === 'flood') {
+    for (const feature of publicFloodHistory.features) {
+      const ring = feature.geometry.coordinates[0]!
+      const bounds: Array<[number, number]> = ring.map((coord) => [coord[1]!, coord[0]!])
+      const popup = document.createElement('div')
+      popup.style.maxWidth = '260px'
+      popup.textContent = `ประวัติน้ำท่วมจากแบบสำรวจ · ${feature.properties.id}: รายงานน้ำท่วม ${feature.properties.floodedRows} จาก ${feature.properties.records} แถวสำรวจในกริด 1 กม. (Web Mercator) ไม่ใช่จำนวนบ้านหรือขอบเขตน้ำท่วมจริง ไม่ใช่ข้อมูลสด ไม่ทราบวันสำรวจต้นฉบับ แสดงเฉพาะกลุ่มที่ผ่านเกณฑ์ปกปิดข้อมูล ที่มา: ชั้นข้อมูลน้ำท่วม MyMaps KML (คนละชุดพิกัดกับกริด E04)`
+      const center = L.latLngBounds(bounds).getCenter()
+      const icon = communityPinIcon('#0369A1', '<path d="M2 6c3-4 7 4 10 0s7 4 10 0M2 12c3-4 7 4 10 0s7 4 10 0M2 18c3-4 7 4 10 0s7 4 10 0"/>', 'community-flood-marker')
+      L.marker(center, { icon, title: 'ประวัติน้ำท่วมจากแบบสำรวจ ไม่ใช่น้ำท่วมสด', alt: 'เปิดข้อมูลประวัติน้ำท่วมระดับกริด' })
+        .bindPopup(popup, { autoPan: false, maxHeight: 180 }).addTo(communityMapGroup)
+    }
+    return
+  }
 
   if (props.communityMapType === 'evacuation') {
     evacuationRenderer ??= L.svg({ pane: 'evacuation-routes' })
@@ -283,23 +295,48 @@ function renderCommunityMapLayer() {
     return
   }
 
-  for (const feature of publicFloodHistory.features) {
-    const ring = feature.geometry.coordinates[0]!
-    const bounds: Array<[number, number]> = ring.map((coord) => [coord[1]!, coord[0]!])
-    const popup = document.createElement('div')
-    popup.style.maxWidth = '260px'
-    popup.textContent = `ประวัติน้ำท่วมจากแบบสำรวจ · ${feature.properties.id}: รายงานน้ำท่วม ${feature.properties.floodedRows} จาก ${feature.properties.records} แถวสำรวจในกริด 1 กม. (Web Mercator) ไม่ใช่จำนวนบ้านหรือขอบเขตน้ำท่วมจริง ไม่ใช่ข้อมูลสด ไม่ทราบวันสำรวจต้นฉบับ แสดงเฉพาะกลุ่มที่ผ่านเกณฑ์ปกปิดข้อมูล ที่มา: ชั้นข้อมูลน้ำท่วม MyMaps KML (คนละชุดพิกัดกับกริด E04)`
-    // Show only a symbol at the public grid centre, never a claimed flood boundary or home.
-    const center = L.latLngBounds(bounds).getCenter()
-    const icon = communityPinIcon('#0369A1', '<path d="M2 6c3-4 7 4 10 0s7 4 10 0M2 12c3-4 7 4 10 0s7 4 10 0M2 18c3-4 7 4 10 0s7 4 10 0"/>', 'community-flood-marker')
-    L.marker(center, { icon, title: 'ประวัติน้ำท่วมจากแบบสำรวจ ไม่ใช่น้ำท่วมสด', alt: 'เปิดข้อมูลประวัติน้ำท่วมระดับกริด' })
-      .bindPopup(popup, { autoPan: false, maxHeight: 180 }).addTo(communityMapGroup)
+  if (props.communityMapType === 'hamlets') {
+    for (const cell of publicSurveyGridCells) {
+      const poly = L.polygon(cell.latLngBounds, {
+        color: '#6D28D9',
+        weight: 2,
+        dashArray: '5 5',
+        fillColor: '#8B5CF6',
+        fillOpacity: 0.15,
+      })
+      poly.bindPopup(
+        `<strong>โซนหย่อมบ้าน / กริดสำรวจ 1 กม. ${cell.cellId}</strong><br/>` +
+        `จำนวนแถวสำรวจ: <strong>${cell.records}</strong> ครัวเรือน (${cell.unit})<br/>` +
+        `เกณฑ์ปกป้องข้อมูลส่วนบุคคล k>=5 (อ้างอิงแผนเผชิญเหตุ 9 หย่อมบ้าน R05/R15)`,
+      )
+      poly.addTo(communityMapGroup)
+    }
+    return
+  }
+
+  if (props.communityMapType === 'places') {
+    for (const point of publicEvacuationReference.points) {
+      const isShelter = point.kind === 'shelter'
+      const icon = communityPinIcon(
+        isShelter ? '#047857' : '#0369A1',
+        isShelter
+          ? '<path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1Z"/>'
+          : '<path d="M4 22V3m0 0c5-4 10 4 16 0v12c-6 4-11-4-16 0"/>',
+        'community-place-marker',
+      )
+      const popup = document.createElement('div')
+      popup.innerHTML = `<strong>${point.label}</strong><br/><span style="color:#64748b;font-size:11px;">สถานที่สำคัญตามแผนเผชิญเหตุท่าตอน</span>`
+      L.marker([point.latitude, point.longitude], { icon, title: point.label })
+        .bindPopup(popup)
+        .addTo(communityMapGroup)
+    }
+    return
   }
 }
 
 function inspectFloodPoint(event: import('leaflet').LeafletMouseEvent) {
   const data = floodSimulationData.value
-  if (!L || !mapInstance || !data || props.selectedCommunityId !== 'thaton' || props.communityMapType !== 'flood' || !props.simulationVisible) return
+  if (!L || !mapInstance || !data || (props.selectedCommunityId !== 'thaton' && props.selectedCommunityId !== 'all') || props.communityMapType !== 'flood' || !props.simulationVisible) return
   const sample = sampleFloodGrid(data.grid, event.latlng.lat, event.latlng.lng)
   const content = document.createElement('div')
   if (!sample) content.textContent = 'จุดนี้อยู่นอกขอบเขตข้อมูลแบบจำลอง'
@@ -358,20 +395,56 @@ function renderThematicLayers() {
   }
 
   const clusters = clusterSurveyWaypoints(props.waypoints)
+  if (typeof window !== 'undefined') {
+    ;(window as any).__selectKokWaypoint = (code: string) => {
+      const target = props.waypoints.find((w) => w.sample_code === code)
+      if (target) emit('selectWaypoint', target)
+    }
+  }
+
   for (const cluster of clusters) {
     const color = levelColor(cluster.maxPpb)
     const circle = L.circleMarker([cluster.latitude, cluster.longitude], {
-      radius: cluster.sampleCount > 1 ? 12 : 9,
+      radius: cluster.sampleCount > 1 ? 7 : 5,
       color: '#121212',
-      weight: 2,
+      weight: 1.5,
       fillColor: color,
       fillOpacity: 0.92,
     })
-    circle.bindPopup(
-      `<strong>${cluster.latest.sample_code}</strong><br/>` +
-        `ระดับสารหนูสูงสุดในจุดนี้: <strong>${cluster.maxPpb} ppb</strong><br/>` +
-        `จำนวนตัวอย่างในรัศมี 250 ม.: ${cluster.sampleCount} รายการ`,
-    )
+
+    const sampleCode = cluster.latest.sample_code
+    const contributor = cluster.latest.contributor_label || 'ผู้ส่งผลตรวจ'
+    const statusText = cluster.maxPpb > 10 ? 'เกินเกณฑ์ คพ.' : cluster.maxPpb >= 5 ? 'เฝ้าระวัง' : 'ปกติ'
+    const statusColor = cluster.maxPpb > 10 ? '#FF453A' : cluster.maxPpb >= 5 ? '#FF9F0A' : '#32D74B'
+
+    circle.bindPopup(`
+      <div style="font-family: inherit; font-size: 12px; line-height: 1.4; color: #1e293b; min-width: 210px;">
+        <div style="font-weight: bold; font-size: 13px; margin-bottom: 4px; color: #0f172a;">
+          ${cluster.latest.station_name || `จุดตรวจ ${sampleCode}`}
+        </div>
+        <div style="margin-bottom: 3px;">
+          รหัส: <code style="font-weight: bold; background: #f1f5f9; padding: 1px 4px; border-radius: 4px;">${sampleCode}</code>
+        </div>
+        <div style="margin-bottom: 3px;">
+          สารหนู: <strong style="font-size: 14px; color: ${statusColor};">${cluster.maxPpb} ppb</strong>
+          <span style="font-size: 10px; font-weight: bold; padding: 1px 6px; border-radius: 4px; background: ${statusColor}22; color: ${statusColor}; margin-left: 4px;">${statusText}</span>
+        </div>
+        <div style="color: #64748b; font-size: 11px; margin-bottom: 2px;">
+          เกณฑ์ คพ.: &le; 10 ppb (น้ำผิวดิน)
+        </div>
+        <div style="color: #64748b; font-size: 11px; margin-bottom: 6px;">
+          ผู้บันทึก: <span style="color: #0284c7; font-weight: 500;">${contributor}</span>
+        </div>
+        ${cluster.sampleCount > 1 ? `<div style="font-size: 11px; color: #d97706; margin-bottom: 6px; font-weight: bold;">🔥 ตรวจแล้ว ${cluster.sampleCount} ครั้งในบริเวณนี้</div>` : ''}
+        <button
+          onclick="window.__selectKokWaypoint && window.__selectKokWaypoint('${sampleCode}')"
+          style="width: 100%; background: #00E5FF; color: #000; border: none; padding: 6px 10px; border-radius: 6px; font-weight: bold; font-size: 11px; cursor: pointer;"
+        >
+          ดูรายละเอียดและกราฟ &rarr;
+        </button>
+      </div>
+    `)
+
     circle.on('click', () => emit('selectWaypoint', cluster.latest))
     circle.addTo(thematicGroup)
   }
@@ -444,10 +517,12 @@ function zoomOut() {
 
 function applyScopeAndCommunity() {
   if (!mapInstance) return
+  if (props.selectedCommunityId === 'all') {
+    mapInstance.flyTo([20.08, 99.85], 9, { duration: 0.6 })
+    return
+  }
   const target: CommunityTarget | undefined =
-    props.selectedCommunityId === 'all'
-      ? communityTargets[0]
-      : communityTargets.find((item) => item.id === props.selectedCommunityId) ?? communityTargets[0]
+    communityTargets.find((item) => item.id === props.selectedCommunityId) ?? communityTargets[0]
   if (!target) return
   const zoom = props.zoomScope === 'inner' ? target.zoomInner : target.zoomOuter
   mapInstance.flyTo(target.center, zoom, { duration: 0.6 })
@@ -529,7 +604,7 @@ watch(
 watch(
   () => [props.selectedCommunityId, props.zoomScope],
   () => {
-    applyScopeAndCommunity()
+      applyScopeAndCommunity()
   },
 )
 
@@ -558,13 +633,13 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="relative w-full h-full" :class="{ 'fixed inset-0': isFullScreen }">
-    <KokMyMapsControl v-if="selectedCommunityId==='thaton' && myMapsData" v-model="myMapsLayerId" :data="myMapsData" />
-    <div v-if="selectedCommunityId === 'thaton' && communityMapType === 'flood' && (simulationVisible || observationsVisible)"
+    <KokMyMapsControl v-if="(selectedCommunityId==='thaton' || selectedCommunityId==='all') && myMapsData" v-model="myMapsLayerId" :data="myMapsData" />
+    <div v-if="(selectedCommunityId === 'thaton' || selectedCommunityId === 'all') && communityMapType === 'flood' && (simulationVisible || observationsVisible)"
       class="absolute left-3 top-36 sm:top-16 z-[1000] max-w-[calc(100vw-24px)] rounded-lg bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-900 shadow" role="status">
       <span v-if="simulationVisible" class="block">{{ floodSimulationError ? 'โหลดแบบจำลองไม่สำเร็จ ลองเปิดหน้าใหม่' : `คาดการณ์ตามระดับน้ำ · +${floodStage} ม. · แบบจำลองทดลอง` }}</span>
       <span v-if="observationsVisible" class="block">{{ observationError ? 'โหลดภาพดาวเทียมไม่สำเร็จ ลองสลับวันที่อีกครั้ง' : `ภาพดาวเทียม · ${observationDates.find((item) => item.date === observationDate)?.label} · ${loadedObservationDate !== observationDate ? 'กำลังโหลด…' : observationDate === '2024-09-10' ? 'เมฆบัง ประเมินไม่ได้' : 'พื้นที่น้ำประเมินเบื้องต้น'}` }}</span>
     </div>
-    <div v-if="selectedCommunityId === 'thaton' && communityMapType === 'evacuation' && (evacuationPoints.length || evacuationError)"
+    <div v-if="(selectedCommunityId === 'thaton' || selectedCommunityId === 'all') && communityMapType === 'evacuation' && (evacuationPoints.length || evacuationError)"
       class="absolute left-3 top-36 sm:top-16 z-[1000] rounded-lg bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-900 shadow"
       role="status">{{ evacuationError ? 'โหลดข้อมูลอพยพไม่สำเร็จ กรุณาเปิดหน้าใหม่' : `ข้อมูลตามแผนอพยพ · บ้าน ${evacuationPoints.length} จุด` }}</div>
     <section
@@ -573,7 +648,7 @@ onBeforeUnmount(() => {
       aria-label="แผนที่ Leaflet (OpenStreetMap)"
       :class="isFullScreen ? 'h-full w-full rounded-none border-0' : 'wv-map-frame'"
     />
-    <aside v-if="selectedCommunityId === 'thaton' && communityMapType === 'evacuation'"
+    <aside v-if="(selectedCommunityId === 'thaton' || selectedCommunityId === 'all') && communityMapType === 'evacuation'"
       class="evacuation-legend" aria-label="สีและสัญลักษณ์อพยพ">
       <strong>สีและสัญลักษณ์</strong>
       <div><span style="background:#B45309" />ศูนย์พักพิง</div>

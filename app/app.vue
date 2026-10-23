@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import type { ObservationDate } from './utils/flood-observations'
 import {
   Activity,
@@ -30,8 +30,15 @@ import {
   TrendingUp,
   Users,
   Waves,
+  ListFilter,
 } from 'lucide-vue-next'
 import KokLandingHero from './components/KokLandingHero.vue'
+import KokPPBTrendChart from './components/KokPPBTrendChart.vue'
+import KokWaterHealthChart from './components/KokWaterHealthChart.vue'
+import KokPointDetailModal from './components/KokPointDetailModal.vue'
+import KokAdminReviewModal from './components/KokAdminReviewModal.vue'
+import KokAdminDataTablePage from './components/KokAdminDataTablePage.vue'
+import KokRecordedSamplesModal from './components/KokRecordedSamplesModal.vue'
 import type { CommunityMapType } from './utils/community-map-layers'
 import { fetchSurveyWaypoints, type SurveyWaypoint } from '../src/lib/survey'
 import { createPublicWaypointsCsv } from '../src/lib/water-status'
@@ -70,6 +77,7 @@ const waypoints = ref<SurveyWaypoint[]>([])
 const loadingWaypoints = ref(true)
 const waypointLoadError = ref<string | null>(null)
 const exportFeedback = ref<string | null>(null)
+const surveyFeedback = ref<string | null>(null)
 
 // Survey Modal & Quick Panels
 const surveyModalOpen = ref(false)
@@ -90,8 +98,26 @@ const waterwayTrigger = ref(0)
 const waterwayMessage = ref<string | null>(null)
 const virtualPolygonActive = ref(false)
 
+watch(activeCommunityMapType, (newType) => {
+  if ((newType === 'flood' || newType === 'evacuation') && selectedCommunityId.value === 'all') {
+    selectedCommunityId.value = 'thaton'
+  }
+})
+
 // Selected Map Item for Right Inspector
 const selectedWaypoint = ref<SurveyWaypoint | null>(null)
+const showPointDetailModal = ref(false)
+const showRecordedSamplesModal = ref(false)
+const showAdminModal = ref(false)
+
+function handleSelectWaypoint(wp: SurveyWaypoint) {
+  selectedWaypoint.value = wp
+  showPointDetailModal.value = true
+}
+
+function handleFocusWaypoint(wp: SurveyWaypoint) {
+  selectedWaypoint.value = wp
+}
 const selectedGridCell = ref<PublicGridCell | null>(publicSurveyGridCells[3] ?? publicSurveyGridCells[0] ?? null)
 
 // Comparable Trend Series Selection (R07)
@@ -266,22 +292,14 @@ const filteredWaypoints = computed(() => {
   const now = Date.now()
   return waypoints.value.filter((wp) => {
     // R10 safety: only <= 50 ppb in public waypoints
-    if (wp.arsenic_level_ppb > 50) return false
-
-    if (selectedCommunityId.value !== 'all') {
-      const comm = communityTargets.find((c) => c.id === selectedCommunityId.value)
-      if (comm) {
-        const dLat = Math.abs(wp.latitude - comm.center[0])
-        const dLon = Math.abs(wp.longitude - comm.center[1])
-        if (dLat > 0.12 || dLon > 0.12) return false
-      }
-    }
+    if (wp.arsenic_level_ppb > 50 && wp.publication_status !== 'approved') return false
 
     if (selectedStatusFilter.value === 'normal' && wp.arsenic_level_ppb > 10) return false
     if (selectedStatusFilter.value === 'alert' && wp.arsenic_level_ppb <= 10) return false
 
     if (selectedTimeRange.value !== 'all') {
-      const createdMs = Date.parse(wp.created_at)
+      const rawDate = wp.collection_time || wp.created_at
+      const createdMs = Date.parse(rawDate)
       if (Number.isFinite(createdMs)) {
         const ageHours = (now - createdMs) / (1000 * 3600)
         if (selectedTimeRange.value === 'today' && ageHours > 24) return false
@@ -355,7 +373,15 @@ function handleSurveySubmitted(payload: {
   rainContext: 'ไม่ทราบ' | 'ไม่ตก' | 'ตก'
   sampleCollectedAt: string
   reviewStatus: 'auto_published' | 'pending_review'
+  feedbackMessage?: string
 }) {
+  surveyFeedback.value = payload.feedbackMessage || `บันทึกผลสำรวจรหัส ${payload.waypoint.sample_code} เรียบร้อยแล้ว`
+  setTimeout(() => {
+    if (surveyFeedback.value === payload.feedbackMessage) {
+      surveyFeedback.value = null
+    }
+  }, 8000)
+
   if (payload.reviewStatus === 'pending_review') {
     adminReviewQueue.value.unshift({
       id: payload.waypoint.id,
@@ -396,9 +422,28 @@ function toggleQuickPanel(panel: 'guide' | 'summary' | 'settings') {
   activeQuickPanel.value = activeQuickPanel.value === panel ? null : panel
 }
 
-// View navigation state: 'landing' (Page 1) or 'dashboard' (Page 2)
-type AppView = 'landing' | 'dashboard'
+// View navigation state: 'landing' (Page 1), 'dashboard' (Page 2), or 'admin' (Dedicated Admin Data Table Page)
+type AppView = 'landing' | 'dashboard' | 'admin'
 const currentView = ref<AppView>('landing')
+
+function navigateToAdmin() {
+  currentView.value = 'admin'
+  if (typeof window !== 'undefined' && window.history) {
+    const url = new URL(window.location.href)
+    url.searchParams.set('view', 'admin')
+    window.history.pushState(null, '', url.toString())
+  }
+}
+
+function returnToDashboardFromAdmin() {
+  currentView.value = 'dashboard'
+  if (typeof window !== 'undefined' && window.history) {
+    const url = new URL(window.location.href)
+    url.searchParams.set('view', 'dashboard')
+    window.history.pushState(null, '', url.toString())
+  }
+  void loadPublicWaypoints()
+}
 
 function selectCommunityFromLanding(id: 'all' | 'thaton' | 'ruammit' | 'pongkhong' | 'pakingtai') {
   selectedCommunityId.value = id
@@ -431,7 +476,9 @@ onMounted(() => {
       colorMode.preference = 'light'
     }
 
-    if (params.get('view') === 'dashboard' || params.has('community')) {
+    if (params.get('view') === 'admin') {
+      currentView.value = 'admin'
+    } else if (params.get('view') === 'dashboard' || params.has('community')) {
       const comm = params.get('community')
       if (comm && ['all', 'thaton', 'ruammit', 'pongkhong', 'pakingtai'].includes(comm)) {
         selectedCommunityId.value = comm as any
@@ -444,9 +491,15 @@ onMounted(() => {
 
 <template>
   <UApp>
+    <!-- Dedicated Admin Data Table Page (หน้าแอดมิน Data Table เต็มรูปแบบ) -->
+    <KokAdminDataTablePage
+      v-if="currentView === 'admin'"
+      @back-to-map="returnToDashboardFromAdmin"
+    />
+
     <!-- Page 1: Landing Page & Community Selection (R02 4 Focus Communities) -->
     <KokLandingHero
-      v-if="currentView === 'landing'"
+      v-else-if="currentView === 'landing'"
       :communities="communityTargets"
       @select-community="selectCommunityFromLanding"
       @selectCommunity="selectCommunityFromLanding"
@@ -470,14 +523,14 @@ onMounted(() => {
           :simulation-visible="simulationVisible"
           :observations-visible="observationsVisible"
           :observation-date="observationDate"
-          :selected-community-id="selectedCommunityId"
+          v-model:selected-community-id="selectedCommunityId"
           :zoom-scope="zoomScope"
           :waterway-request-trigger="waterwayTrigger"
           :virtual-polygon-active="virtualPolygonActive"
           :is-full-screen="true"
           @update:active-thematic-layer="activeThematicLayer = $event"
           @update:zoom-scope="zoomScope = $event"
-          @select-waypoint="selectedWaypoint = $event"
+          @select-waypoint="handleSelectWaypoint($event)"
           @select-grid-cell="selectedGridCell = $event"
           @waterway-loaded="waterwayMessage = $event"
         />
@@ -500,16 +553,13 @@ onMounted(() => {
             <div class="flex h-6 w-6 items-center justify-center rounded-lg bg-[#00E5FF]/20 text-[#0284C7] dark:text-[#00E5FF]">
               <Waves class="h-3.5 w-3.5" />
             </div>
-            <strong class="text-xs font-semibold text-slate-900 dark:text-white">MFU Kok Water Watch</strong>
-            <span v-if="selectedCommunityId !== 'all'" class="rounded bg-[#0284C7]/10 dark:bg-[#00E5FF]/15 border border-[#0284C7]/30 dark:border-[#00E5FF]/30 px-2 py-0.5 text-[10px] font-semibold text-[#0284C7] dark:text-[#00E5FF]">
-              พื้นที่: {{ communityTargets.find((c) => c.id === selectedCommunityId)?.name }}
-            </span>
+            <strong class="text-xs font-semibold text-slate-900 dark:text-white hidden sm:inline">MFU Kok Water Watch</strong>
           </div>
         </div>
 
         <!-- Header Actions / Map Actions -->
         <div class="map-actions pointer-events-auto flex items-center gap-2">
-          <KokFloodLayersControl v-if="selectedCommunityId === 'thaton' && (activeCommunityMapType === 'flood' || activeCommunityMapType === 'evacuation')"
+          <KokFloodLayersControl v-if="(selectedCommunityId === 'thaton' || selectedCommunityId === 'all') && (activeCommunityMapType === 'flood' || activeCommunityMapType === 'evacuation')"
             v-model:stage="floodStage" v-model:simulation-visible="simulationVisible" v-model:observations-visible="observationsVisible" v-model:date="observationDate" />
           <button
             type="button"
@@ -523,13 +573,33 @@ onMounted(() => {
           </button>
           <button
             type="button"
-            aria-label="สรุปรายวัน"
-            title="สรุปรายวัน"
+            aria-label="สรุปรายวันและดูกราฟ"
+            title="สรุปรายวันและดูกราฟ"
             class="round-control"
             :class="{ 'ring-2 ring-[#16A34A] dark:ring-[#32D74B]': activeQuickPanel === 'summary' }"
             @click="toggleQuickPanel('summary')"
           >
             <Activity class="h-4 w-4 text-[#16A34A] dark:text-[#32D74B]" />
+          </button>
+          <button
+            type="button"
+            aria-label="ประวัติผลตรวจที่บันทึกไว้"
+            title="ประวัติผลตรวจที่บันทึกไว้"
+            class="round-control"
+            :class="{ 'ring-2 ring-[#0284C7] dark:ring-[#00E5FF]': showRecordedSamplesModal }"
+            @click="showRecordedSamplesModal = true"
+          >
+            <Database class="h-4 w-4 text-[#0284C7] dark:text-[#00E5FF]" />
+          </button>
+          <button
+            type="button"
+            aria-label="ระบบแอดมิน Data Table (>50 ppb)"
+            title="ระบบแอดมิน Data Table (>50 ppb)"
+            class="round-control"
+            :class="{ 'ring-2 ring-[#DC2626] dark:ring-[#FF453A]': currentView === 'admin' }"
+            @click="navigateToAdmin"
+          >
+            <ShieldAlert class="h-4 w-4 text-[#DC2626] dark:text-[#FF453A]" />
           </button>
           <button
             type="button"
@@ -588,7 +658,8 @@ onMounted(() => {
         class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
         @click.self="activeQuickPanel = null"
       >
-        <div class="wv-card w-full max-w-lg max-h-[85vh] overflow-y-auto p-5 shadow-2xl space-y-4 rounded-2xl border border-slate-200 bg-white/95 dark:border-[#2C2C2E] dark:bg-[#1E1E1E]/95 backdrop-blur-xl">
+        <div class="wv-card w-full max-h-[85vh] overflow-y-auto p-5 shadow-2xl space-y-4 rounded-2xl border border-slate-200 bg-white/95 dark:border-[#2C2C2E] dark:bg-[#1E1E1E]/95 backdrop-blur-xl"
+          :class="activeQuickPanel === 'summary' ? 'max-w-3xl' : 'max-w-lg'">
           <!-- Guide Modal -->
           <div v-if="activeQuickPanel === 'guide'" class="space-y-4">
             <div class="flex items-center justify-between border-b border-slate-200 dark:border-[#2C2C2E] pb-3">
@@ -614,7 +685,7 @@ onMounted(() => {
               <div class="wv-subsurface">
                 <strong class="text-sm text-[#0284C7] dark:text-[#00E5FF]">ขั้นที่ 3: จับพิกัด GPS และกรอกข้อมูลติดต่อ</strong>
                 <p class="mt-1 text-xs text-slate-600 dark:text-[#98A2A8]">
-                  กดปุ่มจับพิกัด GPS หรือกรอกละติจูด/ลองจิจูด พร้อมชื่อและเบอร์โทรสำหรับทีมงานติดต่อกลับภายใน (ไม่เปิดเผยต่อสาธารณะ R05)
+                  กดปุ่มจับพิกัด GPS หรือกรอกละติจูด/ลองจิจูด พร้อมชื่อและเบอร์โทรสำหรับทีมงานติดต่อกลับ (ไม่เปิดเผยต่อสาธารณะ)
                 </p>
               </div>
               <div class="wv-subsurface">
@@ -626,34 +697,49 @@ onMounted(() => {
             </div>
           </div>
 
-          <!-- Summary Modal -->
+          <!-- Summary Modal with Graphs and Analytics -->
           <div v-else-if="activeQuickPanel === 'summary'" class="space-y-4">
             <div class="flex items-center justify-between border-b border-slate-200 dark:border-[#2C2C2E] pb-3">
               <h2 class="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
                 <Activity class="h-5 w-5 text-[#16A34A] dark:text-[#32D74B]" />
-                <span>สรุปรายวันและสัดส่วนผลตรวจจริง</span>
+                <span>สรุปผลตรวจ คุณภาพน้ำ และกราฟแนวโน้มสารหนู</span>
               </h2>
               <button type="button" class="wv-btn-secondary text-xs" @click="activeQuickPanel = null">ปิด</button>
             </div>
             <p v-if="waypointLoadError" class="wv-alert-box text-xs">
               โหลดข้อมูลไม่สำเร็จ: {{ waypointLoadError }}
             </p>
-            <div v-else class="grid grid-cols-2 gap-3 sm:grid-cols-4">
-              <div class="wv-subsurface">
-                <span class="text-xs text-slate-500 dark:text-[#98A2A8]">จุดสำรวจ (&lt;= 50 ppb)</span>
-                <div class="wv-kpi-number mt-1 text-slate-900 dark:text-white">{{ filteredWaypoints.length }}</div>
+            <div v-else class="space-y-4">
+              <!-- KPI Metric Cards -->
+              <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                <div class="wv-subsurface">
+                  <span class="text-xs text-slate-500 dark:text-[#98A2A8]">จุดสำรวจที่เผยแพร่</span>
+                  <div class="wv-kpi-number mt-1 text-slate-900 dark:text-white">{{ filteredWaypoints.length }}</div>
+                </div>
+                <div class="wv-subsurface">
+                  <span class="text-xs text-slate-500 dark:text-[#98A2A8]">ปกติ (&lt; 5 ppb)</span>
+                  <div class="wv-kpi-number mt-1 text-[#16A34A] dark:text-[#32D74B]">{{ statusSummary.normal }}</div>
+                </div>
+                <div class="wv-subsurface">
+                  <span class="text-xs text-slate-500 dark:text-[#98A2A8]">เฝ้าระวัง (5–10 ppb)</span>
+                  <div class="wv-kpi-number mt-1 text-[#CA8A04] dark:text-[#F7E752]">{{ statusSummary.watch }}</div>
+                </div>
+                <div class="wv-subsurface">
+                  <span class="text-xs text-slate-500 dark:text-[#98A2A8]">เกินเกณฑ์ คพ. (&gt; 10 ppb)</span>
+                  <div class="wv-kpi-number mt-1 text-[#DC2626] dark:text-[#FF453A]">{{ statusSummary.critical }}</div>
+                </div>
               </div>
-              <div class="wv-subsurface">
-                <span class="text-xs text-slate-500 dark:text-[#98A2A8]">ปกติ (&lt; 5 ppb)</span>
-                <div class="wv-kpi-number mt-1 text-[#16A34A] dark:text-[#32D74B]">{{ statusSummary.normal }}</div>
-              </div>
-              <div class="wv-subsurface">
-                <span class="text-xs text-slate-500 dark:text-[#98A2A8]">เฝ้าระวัง (5–10 ppb)</span>
-                <div class="wv-kpi-number mt-1 text-[#CA8A04] dark:text-[#F7E752]">{{ statusSummary.watch }}</div>
-              </div>
-              <div class="wv-subsurface">
-                <span class="text-xs text-slate-500 dark:text-[#98A2A8]">เกินเกณฑ์ (&gt; 10 ppb)</span>
-                <div class="wv-kpi-number mt-1 text-[#DC2626] dark:text-[#FF453A]">{{ statusSummary.critical }}</div>
+
+              <!-- Interactive Graphs -->
+              <div class="space-y-4 pt-1">
+                <!-- Stacked Bar Chart: Health Status distribution by Day/Month -->
+                <KokWaterHealthChart :waypoints="filteredWaypoints" />
+
+                <!-- Arsenic PPB Time Series Chart with 5/10 ppb threshold lines -->
+                <KokPPBTrendChart
+                  :waypoints="filteredWaypoints"
+                  title="แนวโน้มระดับสารหนู (As ppb) ในลุ่มน้ำกกตามลำดับเวลา"
+                />
               </div>
             </div>
           </div>
@@ -709,11 +795,49 @@ onMounted(() => {
         <button type="button" class="underline ml-2" @click="exportFeedback = null">ปิด</button>
       </div>
 
+      <!-- Survey Submission Toast Feedback -->
+      <div
+        v-if="surveyFeedback"
+        role="status"
+        class="wv-info-box absolute top-16 right-4 z-40 max-w-md shadow-xl flex items-center justify-between gap-3 text-xs border border-emerald-300 dark:border-emerald-700 bg-white/95 dark:bg-[#1E1E1E]/95"
+      >
+        <div class="flex items-start gap-2">
+          <CheckCircle2 class="h-4 w-4 text-emerald-600 dark:text-[#32D74B] shrink-0 mt-0.5" />
+          <span class="text-slate-800 dark:text-slate-100 font-medium">{{ surveyFeedback }}</span>
+        </div>
+        <button type="button" class="underline ml-2 text-slate-500 hover:text-slate-700 dark:text-slate-400" @click="surveyFeedback = null">ปิด</button>
+      </div>
+
       <!-- K2 Survey Modal Dialog -->
       <KokSurveyModal
         :open="surveyModalOpen"
         @close="surveyModalOpen = false"
         @submitted="handleSurveySubmitted"
+      />
+
+      <!-- Point Detail Modal (Selected Marker) -->
+      <KokPointDetailModal
+        :open="showPointDetailModal"
+        :waypoint="selectedWaypoint"
+        :all-waypoints="waypoints"
+        @close="showPointDetailModal = false"
+        @focus="handleFocusWaypoint"
+      />
+
+      <!-- Recorded Samples History Modal -->
+      <KokRecordedSamplesModal
+        :open="showRecordedSamplesModal"
+        :waypoints="waypoints"
+        @close="showRecordedSamplesModal = false"
+        @select-waypoint="handleSelectWaypoint"
+        @focus-waypoint="handleFocusWaypoint"
+      />
+
+      <!-- Admin Review Modal (>50 ppb) -->
+      <KokAdminReviewModal
+        :open="showAdminModal"
+        @close="showAdminModal = false"
+        @sample-reviewed="loadPublicWaypoints"
       />
     </div>
   </UApp>

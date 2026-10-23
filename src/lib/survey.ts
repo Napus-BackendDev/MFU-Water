@@ -15,6 +15,13 @@ export type SurveyWaypoint = {
   longitude: number
   gps_accuracy_meters: number | null
   created_at: string
+  station_name?: string
+  collection_time?: string
+  water_source?: string
+  rain_context?: string
+  contributor_label?: string
+  publication_status?: 'auto_published' | 'approved' | 'pending_review' | 'rejected'
+  photo_count?: number
 }
 
 export type WaterSurveyInput = {
@@ -127,6 +134,9 @@ export async function submitWaterSurvey(
         arsenicLevelPpb: payload.arsenicLevelPpb,
         coordinates: payload.coordinates,
         gpsAccuracyMeters: payload.gpsAccuracyMeters,
+        sampleCollectedAt: input.sampleCollectedAt,
+        waterSourceType: input.waterSourceType,
+        rainContext: input.rainContext,
       }),
     })
     return await readApiResponse<SurveyWaypoint>(completeResponse, 'บันทึกแบบสำรวจไม่สำเร็จ กรุณาลองใหม่')

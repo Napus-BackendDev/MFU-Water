@@ -70,7 +70,8 @@ export default async function handler(request, response) {
       consentAt: survey.public_consent_at,
     })
     return respond(response, 200, { ticket, uploads })
-  } catch {
-    return respond(response, 503, { error: 'บริการส่งแบบสำรวจยังไม่พร้อมใช้งาน' })
+  } catch (err) {
+    console.error('PREPARE CATCH ERROR:', err)
+    return respond(response, 503, { error: 'บริการส่งแบบสำรวจยังไม่พร้อมใช้งาน', details: err?.message })
   }
 }

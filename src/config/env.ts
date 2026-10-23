@@ -5,12 +5,22 @@ type PublicEnv = {
   VITE_TURNSTILE_SITE_KEY?: string
 }
 
-export function readPublicEnv(env: PublicEnv = {
-  VITE_SUPABASE_URL: import.meta.env.VITE_SUPABASE_URL,
-  VITE_SUPABASE_ANON_KEY: import.meta.env.VITE_SUPABASE_ANON_KEY,
-  VITE_MAPTILER_API_KEY: import.meta.env.VITE_MAPTILER_API_KEY,
-  VITE_TURNSTILE_SITE_KEY: import.meta.env.VITE_TURNSTILE_SITE_KEY,
-}, allowHosted = import.meta.env.PROD || import.meta.env.VITE_ALLOW_HOSTED_SUPABASE === 'true') {
+function getDefaultPublicEnv(): PublicEnv {
+  const nuxtPublic = typeof window !== 'undefined' ? (window as any).__NUXT__?.config?.public : null
+  return {
+    VITE_SUPABASE_URL: nuxtPublic?.supabaseUrl || import.meta.env?.VITE_SUPABASE_URL,
+    VITE_SUPABASE_ANON_KEY: nuxtPublic?.supabaseAnonKey || import.meta.env?.VITE_SUPABASE_ANON_KEY,
+    VITE_MAPTILER_API_KEY: nuxtPublic?.mapTilerApiKey || import.meta.env?.VITE_MAPTILER_API_KEY,
+    VITE_TURNSTILE_SITE_KEY: nuxtPublic?.turnstileSiteKey || import.meta.env?.VITE_TURNSTILE_SITE_KEY,
+  }
+}
+
+export function readPublicEnv(
+  env: PublicEnv = getDefaultPublicEnv(),
+  allowHosted = (typeof window !== 'undefined' && (window as any).__NUXT__?.config?.public?.allowHostedSupabase === 'true')
+    || import.meta.env?.PROD
+    || import.meta.env?.VITE_ALLOW_HOSTED_SUPABASE === 'true',
+) {
   const configuredUrl = env.VITE_SUPABASE_URL?.trim() ?? ''
   let supabaseUrl = ''
   try {

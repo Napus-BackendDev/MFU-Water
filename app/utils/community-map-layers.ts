@@ -6,7 +6,8 @@ export const publicFloodHistory = floodHistory
 export const publicEvacuationReference = evacuationReference
 
 export function hasPublicMapLayer(communityId: string, type: CommunityMapType) {
-  return communityId === 'thaton' && (
+  const isAvailable = communityId === 'thaton' || communityId === 'all'
+  return isAvailable && (
     (type === 'flood' && floodHistory.features.length > 0) ||
     (type === 'evacuation' && evacuationReference.points.length > 0)
   )
