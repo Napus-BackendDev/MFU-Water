@@ -77,3 +77,6 @@ application_default_credentials.json
 *.rar
 Thumbs.db
 Desktop.ini
+
+# Claude Code local settings
+/.claude/
