@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue'
 import { clusterSurveyWaypoints } from '../../src/lib/waypoints'
 import type { SurveyWaypoint } from '../../src/lib/survey'
 import { communityTargets, publicSurveyGridCells, type CommunityTarget, type PublicGridCell } from '../utils/kok-contract'
@@ -8,6 +8,7 @@ import { existingWaterColor, floodDepthLevels, floodImpactStages, loadFloodSimul
 import { loadMyMapsData, type MyMapsReview, type MyMapsRecord } from '../utils/mymaps-review'
 import { loadPublicEvacuation, type EvacuationPoint } from '../utils/public-evacuation'
 import { loadObservationRegions, observationDates, observationWaterColor, type ObservationDate, type ObservationRegions } from '../utils/flood-observations'
+import { rankEvacuationPriority, priorityTiers, type EvacuationPriority } from '../utils/evacuation-priority'
 import KokMyMapsControl from './KokMyMapsControl.vue'
 
 const props = withDefaults(
@@ -65,6 +66,23 @@ const reviewSymbols = {
   children: { label: 'บ้านที่มีเด็กอายุต่ำกว่า 15 ปี', color: '#A16207', path: '<circle cx="12" cy="5" r="3"/><path d="m5 10 7 3 7-3m-7 3v5m0 0-4 4m4-4 4 4"/>' },
   children_elderly: { label: 'บ้านที่มีเด็กอายุต่ำกว่า 15 ปีและผู้สูงอายุมากกว่า 1 คนอาศัย', color: '#1F2937', path: '<circle cx="9" cy="6" r="3"/><circle cx="18" cy="9" r="2"/><path d="M3 21v-5a6 6 0 0 1 12 0v5m2-7a4 4 0 0 1 5 4v3"/>' },
 }
+
+const priorityShortLabel: Record<EvacuationPoint['kind'], string> = {
+  elderly: 'ผู้สูงอายุ',
+  disability: 'คนพิการ',
+  children: 'เด็ก<15ปี',
+  children_elderly: 'เด็ก+ผู้สูงอายุ',
+}
+
+// Active mode: ranks the same household points by flood-simulation depth x vulnerability,
+// reusing floodSimulationData already loaded for the flood overlay instead of new data.
+const prioritizeActive = ref(false)
+const evacuationPriorityList = computed<EvacuationPriority[]>(() => {
+  const grid = floodSimulationData.value?.grid
+  if (!grid || !evacuationPoints.value.length) return []
+  return rankEvacuationPriority(evacuationPoints.value, grid, props.floodStage)
+})
+const evacuationPriorityById = computed(() => new Map(evacuationPriorityList.value.map((item) => [item.point.id, item])))
 
 let L: typeof import('leaflet') | null = null
 let mapInstance: import('leaflet').Map | null = null
@@ -285,11 +303,17 @@ function renderCommunityMapLayer() {
       L.marker([point.latitude, point.longitude], { icon, alt: label, interactive:false, keyboard:false })
         .addTo(communityMapGroup)
     }
+    const priorityRank = new Map(evacuationPriorityList.value.map((item, index) => [item.point.id, index + 1]))
     for (const point of evacuationPoints.value) {
       const symbol = reviewSymbols[point.kind]
       if (!symbol) continue
-      const icon = communityPinIcon(symbol.color, symbol.path, 'community-household-review-marker')
-      L.marker([point.latitude, point.longitude], { icon, alt: symbol.label, interactive:false, keyboard:false })
+      const priority = prioritizeActive.value ? evacuationPriorityById.value.get(point.id) : null
+      const color = priority ? priority.tier.color : symbol.color
+      const label = priority
+        ? `${symbol.label} · ลำดับอพยพ ${priorityRank.get(point.id)} · ${priority.tier.label} (คะแนน ${priority.score})`
+        : symbol.label
+      const icon = communityPinIcon(color, symbol.path, 'community-household-review-marker')
+      L.marker([point.latitude, point.longitude], { icon, alt: label, title: label, interactive: false, keyboard: false })
         .addTo(communityMapGroup)
     }
     return
@@ -579,6 +603,20 @@ onMounted(async () => {
 })
 
 watch(() => [props.communityMapType, props.selectedCommunityId, props.floodStage, props.simulationVisible, props.observationsVisible, props.floodView, props.floodSensitivity, props.observationDate], renderCommunityMapLayer)
+watch(prioritizeActive, renderCommunityMapLayer)
+watch(
+  () => props.communityMapType,
+  (type) => {
+    // Priority ranking needs the flood-simulation grid even when the flood overlay itself is off.
+    if (type === 'evacuation' && !floodSimulationData.value && !floodSimulationError.value) {
+      void loadFloodSimulation().then((data) => {
+        floodSimulationData.value = data
+        renderCommunityMapLayer()
+      }).catch(() => { floodSimulationError.value = true })
+    }
+  },
+  { immediate: true },
+)
 watch(myMapsLayerId,(id) => {
   if (id) emit('update:communityMapType',null)
   renderCommunityMapLayer()
@@ -634,14 +672,36 @@ onBeforeUnmount(() => {
     />
     <aside v-if="(selectedCommunityId === 'thaton' || selectedCommunityId === 'all') && communityMapType === 'evacuation'"
       class="evacuation-legend" aria-label="สีและสัญลักษณ์อพยพ">
-      <strong>สีและสัญลักษณ์</strong>
-      <div><span style="background:#B45309" />ศูนย์พักพิง</div>
-      <div><span style="background:#047857" />จุดรวมพล</div>
-      <template v-if="evacuationPoints.length">
-        <div><span :style="{background:reviewSymbols.elderly.color}" />บ้านที่มีผู้สูงอายุ</div>
-        <div><span :style="{background:reviewSymbols.disability.color}" />บ้านที่มีคนพิการ</div>
-        <div><span :style="{background:reviewSymbols.children.color}" />บ้านที่มีเด็กอายุต่ำกว่า 15 ปี</div>
-        <div><span :style="{background:reviewSymbols.children_elderly.color}" />เด็ก &lt;15 ปี และผู้สูงอายุ &gt;1 คน</div>
+      <label class="active-toggle" :class="{ disabled: !evacuationPriorityList.length }">
+        <input type="checkbox" v-model="prioritizeActive" :disabled="!evacuationPriorityList.length">
+        ⚡ โหมด Active · จัดลำดับอพยพ
+      </label>
+      <small v-if="!evacuationPriorityList.length" class="active-hint">กำลังโหลดแบบจำลองน้ำท่วมเพื่อคำนวณลำดับ…</small>
+      <small v-if="prioritizeActive && evacuationPriorityList.length" class="active-hint">คำนวณจากแบบจำลองน้ำท่วม (ไม่ใช่เซนเซอร์สด) ไม่ใช่การแจ้งเตือนอพยพจริง</small>
+
+      <template v-if="prioritizeActive && evacuationPriorityList.length">
+        <section class="priority-list" aria-label="คิวอพยพเรียงตามความเสี่ยง">
+          <strong>คิวอพยพ (คะแนน = ความลึกน้ำ × ความเปราะบาง)</strong>
+          <ol>
+            <li v-for="(item, index) in evacuationPriorityList.filter((p) => p.score > 0).slice(0, 8)" :key="item.point.id">
+              <span class="rank" :style="{ background: item.tier.color }">{{ index + 1 }}</span>
+              <span class="row-label">{{ priorityShortLabel[item.point.kind] }} · น้ำลึก {{ item.depthMetres }} ม.</span>
+              <span class="tier-dot" :style="{ background: item.tier.color }" :title="item.tier.label" />
+            </li>
+          </ol>
+        </section>
+        <div v-for="tier in priorityTiers" :key="tier.id"><span :style="{ background: tier.color }" />{{ tier.label }}</div>
+      </template>
+      <template v-else>
+        <strong>สีและสัญลักษณ์</strong>
+        <div><span style="background:#B45309" />ศูนย์พักพิง</div>
+        <div><span style="background:#047857" />จุดรวมพล</div>
+        <template v-if="evacuationPoints.length">
+          <div><span :style="{background:reviewSymbols.elderly.color}" />บ้านที่มีผู้สูงอายุ</div>
+          <div><span :style="{background:reviewSymbols.disability.color}" />บ้านที่มีคนพิการ</div>
+          <div><span :style="{background:reviewSymbols.children.color}" />บ้านที่มีเด็กอายุต่ำกว่า 15 ปี</div>
+          <div><span :style="{background:reviewSymbols.children_elderly.color}" />เด็ก &lt;15 ปี และผู้สูงอายุ &gt;1 คน</div>
+        </template>
       </template>
       <div v-if="evacuationRoutes.length"><span class="route-swatch" />เส้นทางตามแผน</div>
       <section v-if="simulationVisible || observationsVisible" class="water-legend" aria-label="สีน้ำท่วม">
@@ -665,5 +725,15 @@ onBeforeUnmount(() => {
 .evacuation-legend span { width:10px; height:10px; flex-shrink:0; border-radius:50%; }
 .water-legend { margin-top:8px; padding-top:8px; border-top:1px solid #94a3b844; }
 .evacuation-legend .route-swatch { height:0; border-top:2px dashed #D97706; border-radius:0; }
+.active-toggle { display:flex; align-items:center; gap:7px; font-weight:700; font-size:12px; pointer-events:auto; cursor:pointer; margin-bottom:4px; }
+.active-toggle.disabled { opacity:.5; cursor:not-allowed; }
+.active-toggle input { pointer-events:auto; }
+.active-hint { display:block; color:#64748b; margin-bottom:6px; }
+.priority-list { pointer-events:auto; margin:6px 0 8px; padding-top:6px; border-top:1px solid #94a3b844; max-width:280px; }
+.priority-list ol { list-style:none; margin:6px 0 0; padding:0; max-height:220px; overflow-y:auto; }
+.priority-list li { display:flex; align-items:center; gap:7px; margin-top:5px; min-width:0; }
+.priority-list .rank { width:16px; height:16px; border-radius:5px; flex-shrink:0; display:flex; align-items:center; justify-content:center; color:#fff; font-size:9px; font-weight:800; }
+.priority-list .row-label { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.priority-list .tier-dot { width:9px; height:9px; border-radius:50%; flex-shrink:0; }
 @media (max-width:767px) { .evacuation-legend { bottom:208px; right:12px; padding:8px 10px; font-size:10px; } }
 </style>
