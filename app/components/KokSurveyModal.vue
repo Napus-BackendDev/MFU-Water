@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, ref } from 'vue'
+import { computed, ref } from 'vue'
 import { Camera, CheckCircle2, ClipboardList, Crosshair, MapPin, ShieldCheck, X } from 'lucide-vue-next'
 import {
   submitWaterSurvey,

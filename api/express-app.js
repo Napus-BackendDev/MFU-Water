@@ -8,7 +8,10 @@ import photoHandler from './surveys/photo.js'
 import uploadHandler from './surveys/upload.js'
 import earthEngineStatusHandler from './earth-engine/status.js'
 import { databaseTarget } from './surveys/_shared.js'
-import { loginAdmin, reviewerName, verifyAdminAuth } from './admin/_admin_shared.js'
+import adminPhotoHandler from './admin/photo.js'
+import adminReviewHandler from './admin/review.js'
+import adminSamplesHandler from './admin/samples.js'
+import verifyPasscodeHandler from './admin/verify-passcode.js'
 
 const serverEnvKeys = [
   'ADMIN_PASSCODE',
@@ -82,83 +85,15 @@ export function createExpressApp(rootDir = process.cwd()) {
   app.all('/api/surveys/photo', (req, res) => photoHandler(req, res))
   app.all('/api/earth-engine/status', (req, res) => earthEngineStatusHandler(req, res))
 
-  // Endpoint ตรวจสอบรหัสผ่านแอดมิน (Passcode Login)
-  app.post('/api/admin/verify-passcode', (req, res) => {
-    res.setHeader('Cache-Control', 'no-store')
-    const { status, body } = loginAdmin(req.body?.passcode)
-    return res.status(status).json(body)
+  app.post('/api/admin/verify-passcode', verifyPasscodeHandler)
+  app.get('/api/admin/samples', adminSamplesHandler)
+  app.get('/api/admin/pending-samples', adminSamplesHandler)
+  app.post('/api/admin/review', adminReviewHandler)
+  app.post('/api/admin/samples/:sampleCode/review', (req, res) => {
+    req.body = { ...req.body, sampleCode: req.params.sampleCode }
+    return adminReviewHandler(req, res)
   })
-
-  // Endpoint ดึงข้อมูลสำหรับ Data Table ผู้ดูแลระบบ (Admin Data Table & Review Queue)
-  const handleAdminSamples = async (req, res) => {
-    res.setHeader('Cache-Control', 'no-store')
-    const isAuthed = verifyAdminAuth(req)
-    if (!isAuthed) {
-      return res.status(401).json({ error: 'กรุณาเข้าสู่ระบบด้วยรหัสผ่านแอดมินก่อน' })
-    }
-    try {
-      const { config } = await import('./surveys/_shared.js')
-      const { buildAdminQueue } = await import('./surveys/_db.js')
-      return res.status(200).json(await buildAdminQueue(config(false)))
-    } catch {
-      return res.status(503).json({ error: 'ไม่สามารถโหลดข้อมูลคิวแอดมินได้' })
-    }
-  }
-
-  app.get('/api/admin/pending-samples', handleAdminSamples)
-  app.get('/api/admin/samples', handleAdminSamples)
-
-  // Endpoint อนุมัติ (approve) หรือปฏิเสธ (reject) ตัวอย่างน้ำที่รอตรวจสอบ
-  app.post('/api/admin/samples/:sampleCode/review', async (req, res) => {
-    res.setHeader('Cache-Control', 'no-store')
-    const isAuthed = verifyAdminAuth(req)
-    if (!isAuthed) {
-      return res.status(401).json({ error: 'กรุณาเข้าสู่ระบบด้วยรหัสผ่านแอดมินก่อน' })
-    }
-    try {
-      const { sampleCode } = req.params
-      const { decision, reason, reviewer } = req.body || {}
-      if (!['approve', 'reject'].includes(decision)) {
-        return res.status(400).json({ error: 'กรุณาระบุ decision เป็น approve หรือ reject' })
-      }
-      const { config } = await import('./surveys/_shared.js')
-      const { reviewSample } = await import('./surveys/_db.js')
-      const newStatus = await reviewSample(config(false), String(sampleCode), decision, reason, reviewerName(reviewer))
-      if (!newStatus) return res.status(404).json({ error: 'ไม่พบตัวอย่างน้ำรหัสนี้' })
-
-      return res.status(200).json({
-        success: true,
-        sample_code: sampleCode,
-        publication_status: newStatus,
-      })
-    } catch {
-      return res.status(503).json({ error: 'จัดการรายการไม่สำเร็จ' })
-    }
-  })
-
-  // Endpoint ดูรูปภาพที่จัดเก็บเป็นความลับ (Admin Private Photo Stream)
-  app.get('/api/admin/photo', async (req, res) => {
-    if (!verifyAdminAuth(req)) {
-      return res.status(401).json({ error: 'กรุณาเข้าสู่ระบบด้วยรหัสผ่านแอดมินก่อน' })
-    }
-    try {
-      const { path: photoPath } = req.query
-      if (!photoPath || typeof photoPath !== 'string') {
-        return res.status(400).json({ error: 'กรุณาระบุ path ของรูปถ่าย' })
-      }
-      const { config } = await import('./surveys/_shared.js')
-      const { readPhoto } = await import('./surveys/_photos.js')
-      const photo = await readPhoto(config(false), photoPath)
-      if (!photo) {
-        return res.status(404).json({ error: 'ไม่พบไฟล์ภาพถ่าย' })
-      }
-      res.setHeader('Content-Type', photo.contentType || 'image/png')
-      res.setHeader('Cache-Control', 'private, max-age=3600')
-      return res.status(200).send(photo.buffer)
-    } catch {
-      return res.status(503).json({ error: 'ไม่สามารถโหลดภาพถ่ายได้' })
-    }
-  })
+  app.get('/api/admin/photo', adminPhotoHandler)
 
   app.get('/api/contract', (_req, res) => {
     try {
@@ -168,17 +103,6 @@ export function createExpressApp(rootDir = process.cwd()) {
       return res.status(200).json(data)
     } catch {
       return res.status(503).json({ error: 'Contract data unavailable' })
-    }
-  })
-
-  app.get('/api/aggregate', (_req, res) => {
-    try {
-      const filePath = resolveProjectFile(rootDir, 'data/public-aggregate.json')
-      const data = JSON.parse(readFileSync(filePath, 'utf8'))
-      res.setHeader('Cache-Control', 'no-store')
-      return res.status(200).json(data)
-    } catch {
-      return res.status(503).json({ error: 'Aggregate data unavailable' })
     }
   })
 

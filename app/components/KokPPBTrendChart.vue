@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { Activity, AlertTriangle, ShieldCheck, TrendingDown, TrendingUp } from 'lucide-vue-next'
+import { Activity, TrendingDown, TrendingUp } from 'lucide-vue-next'
 import type { SurveyWaypoint } from '../../src/lib/survey'
 import { publicPseudonym } from '../../src/lib/publicPseudonym'
 
@@ -18,7 +18,7 @@ const props = withDefaults(
 
 const activeIdx = ref<number | null>(null)
 
-export type TrendPoint = {
+type TrendPoint = {
   index: number
   id: string
   sampleCode: string

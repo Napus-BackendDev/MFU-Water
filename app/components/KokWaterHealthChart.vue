@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { BarChart3, Calendar, CheckCircle2, AlertTriangle, AlertCircle } from 'lucide-vue-next'
+import { BarChart3 } from 'lucide-vue-next'
 import type { SurveyWaypoint } from '../../src/lib/survey'
 
 const props = defineProps<{

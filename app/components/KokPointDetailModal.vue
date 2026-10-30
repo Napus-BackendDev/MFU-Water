@@ -1,18 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import {
-  AlertTriangle,
-  Calendar,
-  Camera,
-  CheckCircle2,
-  Clock,
-  Compass,
-  Flame,
-  MapPin,
-  ShieldCheck,
-  User,
-  X,
-} from 'lucide-vue-next'
+import { Calendar, Camera, Clock, Compass, Flame, MapPin, User, X } from 'lucide-vue-next'
 import type { SurveyWaypoint } from '../../src/lib/survey'
 import { publicPseudonym } from '../../src/lib/publicPseudonym'
 import KokPPBTrendChart from './KokPPBTrendChart.vue'
@@ -58,7 +46,6 @@ const samplePhotos = computed(() => {
 const ppb = computed(() => Number(props.waypoint?.arsenic_level_ppb ?? 0))
 const isDanger = computed(() => ppb.value > 10)
 const isWatch = computed(() => ppb.value >= 5 && ppb.value <= 10)
-const isSafe = computed(() => !isDanger.value && !isWatch.value)
 
 const statusBadge = computed(() => {
   if (isDanger.value) return { text: 'เกินเกณฑ์ คพ. (> 10 ppb)', bg: 'bg-rose-50 border border-rose-200 text-rose-700 dark:bg-[#3A1C1C] dark:border-transparent dark:text-[#FF453A]' }

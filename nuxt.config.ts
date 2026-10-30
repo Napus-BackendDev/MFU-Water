@@ -75,8 +75,6 @@ export default defineNuxtConfig({
   runtimeConfig: {
     public: {
       mapTilerApiKey: process.env.VITE_MAPTILER_API_KEY ?? '',
-      turnstileEnabled: process.env.VITE_TURNSTILE_ENABLED ?? 'false',
-      turnstileSiteKey: process.env.VITE_TURNSTILE_SITE_KEY ?? '',
     },
   },
 })

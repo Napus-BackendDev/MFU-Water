@@ -1,5 +1,5 @@
 import { createHash, createHmac, timingSafeEqual } from 'node:crypto'
-import { config, databaseTarget } from '../surveys/_shared.js'
+import { config, databaseTarget, respond } from '../surveys/_shared.js'
 
 const tokenLifetimeMs = 12 * 60 * 60 * 1000
 
@@ -47,4 +47,18 @@ export function verifyAdminAuth(req) {
 // Display name the reviewer typed when unlocking the queue; recorded with every decision.
 export function reviewerName(value) {
   return typeof value === 'string' && value.trim() ? value.trim().slice(0, 80) : null
+}
+
+// Wraps an admin API handler: method check, admin auth, server settings and a uniform 503 on failure.
+export const adminEndpoint = (method, handle) => async (request, response) => {
+  if (request.method !== method) {
+    response.setHeader('Allow', method)
+    return respond(response, 405, { error: 'Method not allowed' })
+  }
+  if (!verifyAdminAuth(request)) return respond(response, 401, { error: 'กรุณาเข้าสู่ระบบด้วยรหัสผ่านแอดมินก่อน' })
+  try {
+    return await handle(request, response, getAdminSettings())
+  } catch {
+    return respond(response, 503, { error: 'ดำเนินการไม่สำเร็จ กรุณาลองใหม่' })
+  }
 }

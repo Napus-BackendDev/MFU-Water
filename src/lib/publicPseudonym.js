@@ -11,7 +11,7 @@ const adjectives = [
  * แปลงรหัสตัวอย่างน้ำ (sampleCode) เป็นชื่อสมมติแนวธรรมชาติแบบ deterministic
  * เพื่อปกปิดชื่อ-นามสกุลจริงและเบอร์โทรศัพท์ของผู้ส่งในหน้าแสดงผลสาธารณะ
  */
-export function publicPseudonym(sampleCode?: string | null): string {
+export function publicPseudonym(sampleCode) {
   if (typeof sampleCode !== 'string' || !sampleCode) return 'ผู้ไม่เปิดเผยชื่อ'
   let hash = 2166136261
   for (const character of sampleCode) {

@@ -7,7 +7,7 @@ export type MyMapsRecord = {
   fields: Record<string, string>
 }
 
-export type MyMapsLayer = {
+type MyMapsLayer = {
   id: string
   label: string
   records: MyMapsRecord[]

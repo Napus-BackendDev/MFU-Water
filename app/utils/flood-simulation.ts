@@ -10,7 +10,7 @@ export const floodDepthLevels = [
 ]
 export const floodImpactStages = floodStages
 export type FloodView = 'onset' | 'depth'
-export type FloodRegion = {
+type FloodRegion = {
   properties: { level?: number; firstRiseMetres?: number; minDepth: number | null; maxDepth: number | null }
   geometry: { coordinates: number[][][] }
 }

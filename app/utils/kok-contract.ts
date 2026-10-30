@@ -1,16 +1,6 @@
 import contractRaw from '../../data/contract-v5.json' with { type: 'json' }
-import aggregateRaw from '../../data/public-aggregate.json' with { type: 'json' }
 
 export const contractData = contractRaw
-export const aggregateData = aggregateRaw
-
-export const funderCredits = [
-  'Oxfam',
-  'ADPC (Asian Disaster Preparedness Center)',
-  'DFAT รัฐบาลออสเตรเลีย',
-  'SDC รัฐบาลสวิตเซอร์แลนด์',
-  'มหาวิทยาลัยแม่ฟ้าหลวง (MFU)',
-]
 
 export type CommunityTarget = {
   id: 'thaton' | 'ruammit' | 'pongkhong' | 'pakingtai'
@@ -155,45 +145,6 @@ export const surveyDistributionColumns: SurveyDistributionColumn[] = Object.entr
     top: sorted,
   }
 })
-
-export const dataQualityAuditRows = [
-  {
-    id: 'AUD-01',
-    topic: 'จำนวนแถวสำรวจท่าตอนเทียบกับรหัสผู้ตอบไม่ซ้ำ (E04)',
-    finding: `${contractRaw.aggregate.record_count} แถวสำรวจ · ${contractRaw.aggregate.unique_survey_ids} รหัสไม่ซ้ำ (ซ้ำ ${contractRaw.aggregate.duplicate_id_groups} กลุ่ม · พิกัดซ้ำ ${contractRaw.aggregate.repeated_coordinate_rows} แถว)`,
-    handling: 'แสดงหน่วยเป็น "แถวสำรวจ (129 แถว / 123 รหัสไม่ซ้ำ)" ทุกจุด ไม่เรียกว่า 129 ครัวเรือนเด็ดขาดจนกว่าจะตัดสินการยุบรวมรหัสซ้ำ',
-  },
-  {
-    id: 'AUD-02',
-    topic: 'พิกัดในชีต raw_data เทียบกับหมุดใน My Maps KML (E04 vs E05)',
-    finding: 'ชุดพิกัดไม่ตรงกันแบบ 1 ต่อ 1 (map_coordinate_multiset_matches = false) และชั้น Imported Photos มี 35 หมุด (22 ชื่อไม่ซ้ำ)',
-    handling: 'ใช้กริดสาธารณะ 1 กม. (G01–G05 รวม 128 แถว ซ่อน 1 แถวตามกติกา k>=5) แทนการแสดงหมุดบ้านรายหลัง',
-  },
-  {
-    id: 'AUD-03',
-    topic: 'ส่วนต่างร้อยละผู้ดื่มน้ำขวด/น้ำถัง (ชีตสรุป vs คำนวณจากแถวดิบ)',
-    finding: `นับจากแถวดิบได้ 104/129 แถว (80.62%) แต่ชีตสรุปรายงาน 82.17%`,
-    handling: 'แสดงค่าจากแถวดิบ 104/129 (80.62%) คู่กับหมายเหตุ 82.17% ในชีตสรุปอย่างโปร่งใส',
-  },
-  {
-    id: 'AUD-04',
-    topic: 'ความว่างของฟิลด์ความพิการ/ข้อจำกัดสุขภาพและค่า DVI (E04)',
-    finding: `คอลัมน์ความพิการว่าง ${contractRaw.aggregate.disability_missing}/129 แถว · DVI มีค่า ${contractRaw.aggregate.dvi_valid} แถว ว่าง ${contractRaw.aggregate.dvi_missing} แถว อยู่นอกช่วง 1–5 จำนวน ${contractRaw.aggregate.dvi_outside_1_5} แถว`,
-    handling: 'แยกแถวว่าง 88/129 ออกชัดเจน ไม่แปลความว่า "ไม่มีผู้เปราะบาง" และไม่เปิดเผยข้อมูลสุขภาพรายบ้านต่อสาธารณะ (R05, R15)',
-  },
-  {
-    id: 'AUD-05',
-    topic: 'การเปลี่ยนรหัส/ขยับจุดตรวจสารหนูของกรมควบคุมมลพิษ รอบที่ 22 (E16)',
-    finding: 'จุด KK01 ขยับตำแหน่งเดือน พ.ค. 2569 และรหัส KK13 เปลี่ยนเป็น KK12 เดือน ก.พ. 2569 · มีค่า <0.010 mg/L',
-    handling: 'แยกซีรีส์ตามรุ่นสถานีและวิธีวิเคราะห์เดียวกัน (ComparableTrend R07) และคงค่า <0.010 mg/L เป็นต่ำกว่าเกณฑ์รายงาน ไม่แปลงเป็น 0',
-  },
-  {
-    id: 'AUD-06',
-    topic: 'ข้อมูลเหมืองแร่ Stimson และการอ้างอิงสาเหตุมลพิษ (E27 · R26/R28)',
-    finding: 'ฐานข้อมูล 2,806 แถว (ลุ่มน้ำกก 3 แถว · ลุ่มน้ำโขง 864 แถว) ไม่ระบุชนิดแร่ 2,011 แถว และไม่มีวันอัปเดต 2,187 แถว',
-    handling: 'แสดงเป็นชั้นข้อมูลบริบทลุ่มน้ำเท่านั้น ห้ามฟันธงว่าเป็นสาเหตุโดยตรงของค่าสารหนูรายจุดโดยไม่มีหลักฐานเชื่อมโยง',
-  },
-]
 
 export const pcdRound22ComparableSeries = [
   {

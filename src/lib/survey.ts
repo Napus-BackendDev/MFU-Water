@@ -1,7 +1,7 @@
 import { turnstileEnabled } from '../config/env'
 
 export const arsenicLevels = [0, 5, 10, 30, 50, 100, 200, 300, 500] as const
-export const maxSurveyPhotoBytes = 10 * 1024 * 1024
+const maxSurveyPhotoBytes = 10 * 1024 * 1024
 // Photos go through the API, and Vercel functions reject request bodies above 4.5 MB.
 const maxUploadBytes = 4 * 1024 * 1024
 const shrinkAboveBytes = 2 * 1024 * 1024

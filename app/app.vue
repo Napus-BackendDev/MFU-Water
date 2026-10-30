@@ -1,71 +1,26 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import type { ObservationDate } from './utils/flood-observations'
-import {
-  Activity,
-  AlertTriangle,
-  ArrowLeft,
-  BookOpen,
-  CheckCircle2,
-  ClipboardCheck,
-  ClipboardList,
-  FileText,
-  Filter,
-  FlaskConical,
-  FolderGit2,
-  Layers,
-  MapPin,
-  Megaphone,
-  Printer,
-  Radio,
-  Satellite,
-  Search,
-  ShieldAlert,
-  TrendingUp,
-  Users,
-  Waves,
-  ListFilter,
-} from 'lucide-vue-next'
+import { Activity, ArrowLeft, BookOpen, CheckCircle2, ClipboardList, Filter, ShieldAlert, Waves } from 'lucide-vue-next'
 import KokLandingHero from './components/KokLandingHero.vue'
 import KokLoadingScreen from './components/KokLoadingScreen.vue'
 import KokPPBTrendChart from './components/KokPPBTrendChart.vue'
 import KokWaterHealthChart from './components/KokWaterHealthChart.vue'
 import KokPointDetailModal from './components/KokPointDetailModal.vue'
-import KokAdminReviewModal from './components/KokAdminReviewModal.vue'
 import KokAdminDataTablePage from './components/KokAdminDataTablePage.vue'
-import KokRecordedSamplesModal from './components/KokRecordedSamplesModal.vue'
+
 import type { CommunityMapType } from './utils/community-map-layers'
 import { fetchSurveyWaypoints, type SurveyWaypoint } from '../src/lib/survey'
-import { createPublicWaypointsCsv } from '../src/lib/water-status'
-import {
-  aggregateData,
-  communityTargets,
-  contractData,
-  dataQualityAuditRows,
-  funderCredits,
-  pcdRound22ComparableSeries,
-  publicSurveyGridCells,
-  surveyDistributionColumns,
-  type PublicGridCell,
-} from './utils/kok-contract'
+
+import { communityTargets, pcdRound22ComparableSeries, publicSurveyGridCells, surveyDistributionColumns, type PublicGridCell } from './utils/kok-contract'
 
 const runtimeConfig = useRuntimeConfig()
 const mapTilerKey = computed(() => String(runtimeConfig.public.mapTilerApiKey ?? ''))
 
-// Active Workspace Module Tab
-type ModuleTab = 'K1' | 'K2' | 'K3' | 'S1' | 'S2' | 'S3' | 'S4_T1' | 'F0'
-const activeTab = ref<ModuleTab>('K1')
 
-const moduleTabs: Array<{ id: ModuleTab; code: string; label: string; reqs: string }> = [
-  { id: 'K1', code: 'K1', label: 'แผนที่ดาวเทียม & แนวโน้ม', reqs: 'R02, R03, R06, R07, R08, R23' },
-  { id: 'K2', code: 'K2', label: 'ส่งผลตรวจ & คิวแอดมิน >50 ppb', reqs: 'R04, R05, R06, R10, R11' },
-  { id: 'K3', code: 'K3', label: 'แจ้งผู้ประสานงาน & ช่องทางเตือนภัย', reqs: 'R01' },
-  { id: 'S1', code: 'S1', label: 'ข้อมูลสำรวจท่าตอน & แผนเผชิญเหตุ', reqs: 'R15, R16, R19, R22, R24' },
-  { id: 'S2', code: 'S2', label: 'เรื่องเล่า เส้นเวลา ดาวเทียม & บอร์ด A0', reqs: 'R17, R20, R21, R25' },
-  { id: 'S3', code: 'S3', label: 'คู่มือชุดตรวจ 4 ขั้น & SWOT', reqs: 'R13, R14' },
-  { id: 'S4_T1', code: 'S4 + T1', label: 'รายงานวิจัย ตรวจคุณภาพ & เหมือง Stimson', reqs: 'R09, R18, R26, R27' },
-  { id: 'F0', code: 'F0', label: 'ทะเบียน 29 Req · 27 หลักฐาน · ทีม 12 คน', reqs: 'R12, R28, R29' },
-]
+
+
+
 
 // Public waypoints from Express + MongoDB
 const waypoints = ref<SurveyWaypoint[]>([])
@@ -102,7 +57,6 @@ watch(activeCommunityMapType, (newType) => {
 // Selected Map Item for Right Inspector
 const selectedWaypoint = ref<SurveyWaypoint | null>(null)
 const showPointDetailModal = ref(false)
-const showAdminModal = ref(false)
 
 function handleSelectWaypoint(wp: SurveyWaypoint) {
   selectedWaypoint.value = wp
@@ -116,9 +70,7 @@ const selectedGridCell = ref<PublicGridCell | null>(publicSurveyGridCells[3] ?? 
 
 // Comparable Trend Series Selection (R07)
 const selectedSeriesId = ref(pcdRound22ComparableSeries[0]?.seriesId ?? 'pcd-kk01-v2')
-const activeComparableSeries = computed(
-  () => pcdRound22ComparableSeries.find((s) => s.seriesId === selectedSeriesId.value) ?? pcdRound22ComparableSeries[0]!,
-)
+
 
 // K2 / R10 Admin Review Queue (> 50 ppb items held back from public map)
 type ReviewQueueItem = {
@@ -149,137 +101,38 @@ const adminReviewQueue = ref<ReviewQueueItem[]>([
   },
 ])
 
-function updateReviewItemStatus(
-  item: ReviewQueueItem,
-  nextStatus: 'approved_published' | 'revision_requested' | 'rejected',
-) {
-  item.status = nextStatus
-  if (nextStatus === 'approved_published') {
-    item.reviewerNote = 'อนุมัติโดยผู้ดูแลระบบแล้ว: อนุญาตให้นำขึ้นแผนที่สาธารณะ'
-  } else if (nextStatus === 'revision_requested') {
-    item.reviewerNote = 'ขอให้ผู้ส่งตรวจสอบภาพถ่ายแถบสีหรือเก็บตัวอย่างซ้ำ'
-  } else {
-    item.reviewerNote = 'ไม่เผยแพร่สู่สาธารณะเนื่องจากหลักฐานไม่ครบถ้วน'
-  }
-}
 
-// K3 / R01 Coordinator Notice State Machine (draft -> approved -> sent -> ack)
-const coordinatorWorkflowState = ref<'draft' | 'approved' | 'sent' | 'ack'>('draft')
-const coordinatorTargetCommunity = ref('บ้านท่าตอน หมู่ 3 (หอกระจายข่าว 103/129 แถว)')
-const coordinatorMessageText = ref(
-  'แจ้งเตือนผลเฝ้าระวังคุณภาพน้ำแม่น้ำกก: ขอให้ผู้ใช้น้ำผิวดินริมแม่น้ำกกตรวจสอบประกาศจุดตรวจล่าสุดของชุมชน และหลีกเลี่ยงการนำน้ำแม่น้ำกกมาดื่มหรือปรุงอาหารโดยตรง',
-)
-const coordinatorReviewerName = ref('ผู้ประสานงานศูนย์วิจัย มฟล.')
-const coordinatorAckLog = ref<string[]>([
-  'สถานะเริ่มต้น: ร่างข้อความแจ้งเตือน รอตรวจทานก่อนส่งต่อ (การเปิดอ่านหน้าจอนี้ไม่นับเป็นการยืนยันรับทราบ R01)',
-])
 
-function advanceCoordinatorWorkflow(target: 'approved' | 'sent' | 'ack' | 'reset') {
-  const timestamp = new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })
-  if (target === 'reset') {
-    coordinatorWorkflowState.value = 'draft'
-    coordinatorAckLog.value.unshift(`[${timestamp}] รีเซ็ตสถานะกลับเป็นร่างข้อความ (draft)`)
-    return
-  }
-  if (target === 'approved' && coordinatorWorkflowState.value === 'draft') {
-    coordinatorWorkflowState.value = 'approved'
-    coordinatorAckLog.value.unshift(`[${timestamp}] อนุมัติข้อความโดย ${coordinatorReviewerName.value} พร้อมส่งต่อช่องทางชุมชน`)
-  } else if (target === 'sent' && coordinatorWorkflowState.value === 'approved') {
-    coordinatorWorkflowState.value = 'sent'
-    coordinatorAckLog.value.unshift(`[${timestamp}] ส่งต่อข้อความไปยัง ${coordinatorTargetCommunity.value} เรียบร้อยแล้ว`)
-  } else if (target === 'ack' && coordinatorWorkflowState.value === 'sent') {
-    coordinatorWorkflowState.value = 'ack'
-    coordinatorAckLog.value.unshift(`[${timestamp}] ผู้ประสานงานพื้นที่ยืนยันรับทราบและบันทึกการกระจายข่าวแล้ว`)
-  }
-}
+
+
+
+
+
+
+
 
 // S1 Column Distribution Selector
 const distributionColumns = surveyDistributionColumns
 const selectedDistributionCol = ref(distributionColumns[1]?.colKey ?? distributionColumns[0]?.colKey ?? '70')
-const currentDistribution = computed(
-  () => distributionColumns.find((d) => d.colKey === selectedDistributionCol.value) ?? distributionColumns[0]!,
-)
 
-// S1 / R19 Simulated Assistance Case Form
-const assistNeedType = ref('ขอรับการสนับสนุนน้ำดื่มสะอาด / ถังเก็บน้ำ')
-const assistZone = ref('หย่อมบ้านหมู่ 3 ท่าตอน (อ้างอิงกริด 1 กม. ไม่ระบุพิกัดบ้าน)')
-const assistCoordinatorNote = ref('')
-const assistCases = ref([
-  {
-    caseCode: 'SIM-CASE-01',
-    zone: 'บ้านท่าตอน หมู่ 3 (ระดับหย่อมบ้าน)',
-    need: 'ขอตรวจซ้ำแหล่งน้ำประปาภูเขาและสำรองน้ำดื่ม (ความต้องการอันดับ 1: 91/129 แถว)',
-    status: 'ส่งต่อผู้ประสานงานแล้ว',
-  },
-])
 
-function addSimulatedAssistCase() {
-  const nextIdx = assistCases.value.length + 1
-  assistCases.value.unshift({
-    caseCode: `SIM-CASE-0${nextIdx}`,
-    zone: assistZone.value,
-    need: `${assistNeedType.value}${assistCoordinatorNote.value ? ` — ${assistCoordinatorNote.value}` : ''}`,
-    status: 'รับเรื่องในคิวผู้ประสานงาน (จำลองภายใน ไม่เปิดเผย PII)',
-  })
-  assistCoordinatorNote.value = ''
-}
 
-// S2 / R21 Print A0 Board Topic Selector
-const printBoardTopic = ref<'grid' | 'contingency' | 'satellite' | 'strip'>('grid')
 
-function triggerPrintBoard() {
-  if (typeof window !== 'undefined') window.print()
-}
 
-// F0 Explorer Search & Filters
-const reqSearchQuery = ref('')
-const reqPriorityFilter = ref<'ALL' | 'Key' | 'Secondary' | 'Third' | 'Foundation'>('ALL')
 
-const enrichedRequirements = computed(() => {
-  const evMap = contractData.requirement_evidence as Record<
-    string,
-    { sources: string[]; line: string; actual: string; display: string; work: string; accept: string }
-  >
-  return contractData.requirements.map((req) => {
-    const matchedFeature = contractData.features.features.find((f) => f.reqs.includes(req.id))
-    const featureCode = matchedFeature?.id ?? 'F0'
-    const priority: 'Key' | 'Secondary' | 'Third' | 'Foundation' =
-      featureCode === 'K1' || featureCode === 'K2' || featureCode === 'K3'
-        ? 'Key'
-        : featureCode === 'S1' || featureCode === 'S2' || featureCode === 'S3' || featureCode === 'S4'
-          ? 'Secondary'
-          : featureCode === 'T1'
-            ? 'Third'
-            : 'Foundation'
-    const ev = evMap[req.id]
-    return {
-      ...req,
-      featureCode,
-      priority,
-      actual: ev?.actual ?? '',
-      display: ev?.display ?? '',
-      work: ev?.work ?? '',
-      accept: ev?.accept ?? '',
-      sources: ev?.sources ?? [],
-      teams: matchedFeature?.teams ?? ['F', 'PM'],
-    }
-  })
-})
 
-const filteredRequirements = computed(() => {
-  const q = reqSearchQuery.value.trim().toLowerCase()
-  return enrichedRequirements.value.filter((req) => {
-    if (reqPriorityFilter.value !== 'ALL' && req.priority !== reqPriorityFilter.value) return false
-    if (!q) return true
-    return (
-      req.id.toLowerCase().includes(q) ||
-      req.title.toLowerCase().includes(q) ||
-      req.featureCode.toLowerCase().includes(q) ||
-      req.actual.toLowerCase().includes(q) ||
-      req.detail.toLowerCase().includes(q)
-    )
-  })
-})
+
+
+
+
+
+
+
+
+
+
+
+
 
 // Filtered Public Waypoints (R08)
 const filteredWaypoints = computed(() => {
@@ -317,34 +170,7 @@ const statusSummary = computed(() => {
   return counts
 })
 
-// SVG Area Chart path generator for R07 Comparable Trend
-const chartGeometry = computed(() => {
-  const pts = activeComparableSeries.value.points
-  const width = 640
-  const height = 210
-  const padLeft = 44
-  const padRight = 24
-  const padTop = 24
-  const padBottom = 36
-  const innerW = width - padLeft - padRight
-  const innerH = height - padTop - padBottom
-  const maxVal = 35
 
-  const coords = pts.map((pt, index) => {
-    const x = padLeft + (pts.length > 1 ? (index / (pts.length - 1)) * innerW : innerW / 2)
-    const y = padTop + innerH - (Math.min(pt.ppb, maxVal) / maxVal) * innerH
-    return { x, y, ...pt }
-  })
-
-  const linePath = coords.map((c, idx) => `${idx === 0 ? 'M' : 'L'} ${c.x.toFixed(1)} ${c.y.toFixed(1)}`).join(' ')
-  const areaPath =
-    coords.length > 0
-      ? `${linePath} L ${coords[coords.length - 1]!.x.toFixed(1)} ${(padTop + innerH).toFixed(1)} L ${coords[0]!.x.toFixed(1)} ${(padTop + innerH).toFixed(1)} Z`
-      : ''
-  const threshold10Y = padTop + innerH - (10 / maxVal) * innerH
-
-  return { width, height, padLeft, padRight, padTop, padBottom, coords, linePath, areaPath, threshold10Y }
-})
 
 async function loadPublicWaypoints() {
   loadingWaypoints.value = true
@@ -753,13 +579,6 @@ onMounted(() => {
         :all-waypoints="waypoints"
         @close="showPointDetailModal = false"
         @focus="handleFocusWaypoint"
-      />
-
-      <!-- Admin Review Modal (>50 ppb) -->
-      <KokAdminReviewModal
-        :open="showAdminModal"
-        @close="showAdminModal = false"
-        @sample-reviewed="loadPublicWaypoints"
       />
     </div>
 
