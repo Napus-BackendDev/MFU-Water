@@ -1,4 +1,5 @@
-import { config, respond, safeWaypointColumns, supabaseRequest, toSurveyWaypointDto } from './_shared.js'
+import { config, respond, toSurveyWaypointDto } from './_shared.js'
+import { listPublishedSamples, listSurveys } from './_db.js'
 import { isPublicSample } from './photo.js'
 
 export default async function handler(request, response) {
@@ -9,24 +10,13 @@ export default async function handler(request, response) {
   try {
     const settings = config(false)
 
-    // 1. โหลดข้อมูลจาก kok_water_samples (19+ รายการเดิม และรายการที่ sync)
-    const rKok = await supabaseRequest(
-      settings,
-      '/rest/v1/kok_water_samples?select=sample_code,station_name,latitude,longitude,collection_time,gps_accuracy_meters,arsenic_ppb,measurements,sample_nature,publication_status,created_at,private_photo_paths&publication_status=in.(auto_published,approved)&order=collection_time.desc&limit=1000'
-    )
-
-    // 2. โหลดข้อมูลจาก water_quality_surveys
-    const rSurvey = await supabaseRequest(
-      settings,
-      `/rest/v1/water_quality_surveys?select=${safeWaypointColumns}&order=created_at.desc&limit=1000`
-    )
-
-    if (!rKok.ok && !rSurvey.ok) {
+    // โหลดข้อมูลจาก kok_water_samples (รายการเดิมและรายการที่ sync) และ water_quality_surveys
+    const [kokResult, surveyResult] = await Promise.allSettled([listPublishedSamples(settings), listSurveys(settings)])
+    if (kokResult.status === 'rejected' && surveyResult.status === 'rejected') {
       return respond(response, 503, { error: 'บริการผลตรวจยังไม่พร้อมใช้งาน' })
     }
-
-    const kokRows = rKok.ok ? await rKok.json() : []
-    const surveyRows = rSurvey.ok ? await rSurvey.json() : []
+    const kokRows = kokResult.status === 'fulfilled' ? kokResult.value : []
+    const surveyRows = surveyResult.status === 'fulfilled' ? surveyResult.value : []
 
     // ส่งเฉพาะจำนวนภาพ ไม่ส่ง path ของ storage ออกไป
     const photoCounts = new Map()

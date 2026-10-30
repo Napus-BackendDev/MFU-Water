@@ -48,9 +48,6 @@ test-results/
 /memory.md
 /KokData/
 
-# Supabase CLI local state; keep config, migrations and SQL tests.
-/supabase/.temp/
-/supabase/.branches/
 
 # Python processing cache and local environments
 __pycache__/

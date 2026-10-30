@@ -1,16 +1,23 @@
 // @vitest-environment node
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { config, issueTicket, readTicket, stableSurveyHash, validateSurvey, verifyCaptcha, clientIp, hashClientIp } from './_shared.js'
+import { config, databaseTarget, issueTicket, readTicket, stableSurveyHash, validateSurvey, verifyCaptcha, clientIp, hashClientIp } from './_shared.js'
 import complete from './complete.js'
 import waypoints from './waypoints.js'
 import prepare from './prepare.js'
+import { findSurveyById, insertSurvey, listPublishedSamples, listSurveys, reserveSurvey } from './_db.js'
+
+vi.mock('./_db.js', () => ({
+  reserveSurvey: vi.fn(), findSurveyById: vi.fn(), insertSurvey: vi.fn(), saveSample: vi.fn(), saveContact: vi.fn(), saveAlert: vi.fn(),
+  listPublishedSamples: vi.fn(), listSurveys: vi.fn(),
+}))
 
 const secret = 'a'.repeat(32)
 const body = { fullName: 'สมชาย ใจดี', phoneNumber: '0812345678', arsenicLevelPpb: 5, coordinates: { latitude: 20, longitude: 99 }, gpsAccuracyMeters: null, publicConsent: true }
 const id = '11111111-1111-4111-8111-111111111111'
 const claims = () => ({ surveyId: id, sampleCode: 'KOK-20261012-0001', ipHash: hashClientIp(secret, '127.0.0.1'), payloadHash: stableSurveyHash(secret, body, [null, null]), photoPaths: [null, null], consentAt: new Date().toISOString(), expiresAt: Date.now() + 60000 })
 const reply = () => { const response = { setHeader: vi.fn(), status: vi.fn(), json: vi.fn() }; response.status.mockReturnValue(response); return response }
-afterEach(() => { vi.unstubAllEnvs(); vi.unstubAllGlobals(); vi.restoreAllMocks() })
+const prepareRequest = (photoTypes) => ({ method: 'POST', headers: { host: 'localhost' }, socket: { remoteAddress: '127.0.0.1' }, body: { ...body, photoTypes } })
+afterEach(() => { vi.unstubAllEnvs(); vi.unstubAllGlobals(); vi.clearAllMocks() })
 
 describe('survey server security', () => {
   it('validates values, required internal contact fields (R05), and explicit consent before reserving a survey', () => {
@@ -34,12 +41,35 @@ describe('survey server security', () => {
     expect(stableSurveyHash(secret, { ...original, arsenicLevelPpb: 500 }, [null, null])).not.toBe(stableSurveyHash(secret, original, [null, null]))
   })
   it('requires server settings for submission, but not CAPTCHA for read-only endpoints', () => {
-    vi.stubEnv('SUPABASE_URL', 'https://example.supabase.co')
-    vi.stubEnv('SUPABASE_SERVICE_ROLE_KEY', 'server-only-test')
+    vi.stubEnv('VERCEL', '1')
+    vi.stubEnv('MONGODB_URI', 'mongodb://localhost:27017')
     vi.stubEnv('TURNSTILE_SECRET_KEY', '')
     vi.stubEnv('VITE_TURNSTILE_ENABLED', 'true')
-    expect(config(false).url).toBe('https://example.supabase.co')
+    expect(config(false).mongoUri).toBe('mongodb://localhost:27017')
     expect(() => config()).toThrow('Missing server configuration')
+  })
+  it('uses the local MongoDB in development and MONGODB_URI only in production', () => {
+    vi.stubEnv('VERCEL', '')
+    vi.stubEnv('APP_ENV', '')
+    vi.stubEnv('MONGODB_URI', 'mongodb+srv://atlas.example/')
+    vi.stubEnv('MONGODB_URI_LOCAL', '')
+    expect(databaseTarget()).toEqual({ environment: 'development', mongoUri: 'mongodb://127.0.0.1:27017', dbName: 'kok_water_watch_dev' })
+    expect(config(false)).toMatchObject({ environment: 'development', mongoUri: 'mongodb://127.0.0.1:27017', dbName: 'kok_water_watch_dev' })
+    vi.stubEnv('MONGODB_URI_LOCAL', 'mongodb://127.0.0.1:27018')
+    expect(config(false).mongoUri).toBe('mongodb://127.0.0.1:27018')
+    for (const production of [{ VERCEL: '1' }, { APP_ENV: 'production' }]) {
+      for (const [key, value] of Object.entries(production)) vi.stubEnv(key, value)
+      expect(databaseTarget()).toEqual({ environment: 'production', mongoUri: 'mongodb+srv://atlas.example/', dbName: 'kok_water_watch' })
+      vi.stubEnv('VERCEL', '')
+      vi.stubEnv('APP_ENV', '')
+    }
+  })
+  it('rejects a missing or non-MongoDB database target', () => {
+    vi.stubEnv('VERCEL', '1')
+    vi.stubEnv('MONGODB_URI', '')
+    expect(() => config(false)).toThrow('Invalid database target')
+    vi.stubEnv('MONGODB_URI', 'https://example.com')
+    expect(() => config(false)).toThrow('Invalid database target')
   })
   it('verifies CAPTCHA hostname and action at the server', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({ success: true, hostname: 'localhost', action: 'other' }))))
@@ -52,24 +82,36 @@ describe('survey server security', () => {
     expect(clientIp({ headers: { 'x-forwarded-for': 'attacker' }, socket: { remoteAddress: '127.0.0.1' } })).toBe('127.0.0.1')
   })
   it('keeps server rate limits active when CAPTCHA is disabled', async () => {
-    vi.stubEnv('SUPABASE_URL', 'https://example.supabase.co')
-    vi.stubEnv('SUPABASE_SERVICE_ROLE_KEY', 'server-only-test')
+    vi.stubEnv('MONGODB_URI', 'mongodb://localhost:27017')
     vi.stubEnv('SURVEY_SIGNING_SECRET', secret)
     vi.stubEnv('VITE_TURNSTILE_ENABLED', 'false')
     vi.stubEnv('TURNSTILE_SECRET_KEY', '')
     vi.stubEnv('TURNSTILE_ALLOWED_HOSTNAMES', '')
     vi.stubEnv('VERCEL', '')
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify([{ allowed: false, retry_after_seconds: 120 }]))))
+    reserveSurvey.mockResolvedValue({ allowed: false, retry_after_seconds: 120 })
     const response = reply()
-    await prepare({ method: 'POST', headers: { host: 'localhost' }, socket: { remoteAddress: '127.0.0.1' }, body: { ...body, photoTypes: [null, null] } }, response)
+    await prepare(prepareRequest([null, null]), response)
     expect(response.status).toHaveBeenCalledWith(429)
     expect(response.setHeader).toHaveBeenCalledWith('Retry-After', '120')
-    expect(fetch).toHaveBeenCalledTimes(1)
-    expect(String(fetch.mock.calls[0][0])).toContain('/rpc/reserve_water_quality_survey')
+    expect(reserveSurvey).toHaveBeenCalledTimes(1)
+  })
+  it('issues a signed upload URL for each requested photo only', async () => {
+    vi.stubEnv('MONGODB_URI', 'mongodb://localhost:27017')
+    vi.stubEnv('SURVEY_SIGNING_SECRET', secret)
+    vi.stubEnv('VITE_TURNSTILE_ENABLED', 'false')
+    vi.stubEnv('VERCEL', '')
+    reserveSurvey.mockResolvedValue({ allowed: true, retry_after_seconds: 0, survey_id: id, sample_code: 'KOK-20261012-0001' })
+    const response = reply()
+    await prepare(prepareRequest(['image/png', null]), response)
+    expect(response.status).toHaveBeenCalledWith(200)
+    const payload = response.json.mock.calls[0][0]
+    expect(payload.uploads).toHaveLength(1)
+    expect(payload.uploads[0]).toMatchObject({ index: 0, path: `${id}/1.png` })
+    expect(payload.uploads[0].url).toContain(`/api/surveys/upload?path=${encodeURIComponent(`${id}/1.png`)}`)
+    expect(readTicket(secret, payload.ticket)?.photoPaths).toEqual([`${id}/1.png`, null])
   })
   it('returns a committed survey on retry without deleting its photos', async () => {
-    vi.stubEnv('SUPABASE_URL', 'https://example.supabase.co')
-    vi.stubEnv('SUPABASE_SERVICE_ROLE_KEY', 'server-only-test')
+    vi.stubEnv('MONGODB_URI', 'mongodb://localhost:27017')
     vi.stubEnv('SURVEY_SIGNING_SECRET', secret)
     vi.stubEnv('TURNSTILE_SECRET_KEY', 'captcha-test')
     vi.stubEnv('TURNSTILE_ALLOWED_HOSTNAMES', 'localhost')
@@ -77,18 +119,18 @@ describe('survey server security', () => {
     const paths = [`${id}/1.jpg`, null]
     const ticket = issueTicket(secret, { ...claims(), photoPaths: paths, payloadHash: stableSurveyHash(secret, body, paths) })
     const saved = { id, sample_code: 'KOK-20261012-0001' }
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify([saved]))))
+    findSurveyById.mockResolvedValue(saved)
     const response = reply()
     await complete({ method: 'POST', headers: {}, socket: { remoteAddress: '127.0.0.1' }, body: { ...body, ticket } }, response)
     expect(response.status).toHaveBeenCalledWith(200)
     expect(response.json).toHaveBeenCalledWith(saved)
-    expect(fetch).toHaveBeenCalledTimes(1)
-    expect(fetch.mock.calls[0][1].method).toBeUndefined()
+    expect(findSurveyById).toHaveBeenCalledWith(expect.anything(), id)
+    expect(insertSurvey).not.toHaveBeenCalled()
   })
   it('fails closed when the waypoint database is unavailable', async () => {
-    vi.stubEnv('SUPABASE_URL', 'https://example.supabase.co')
-    vi.stubEnv('SUPABASE_SERVICE_ROLE_KEY', 'server-only-test')
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('{}', { status: 503 })))
+    vi.stubEnv('MONGODB_URI', 'mongodb://localhost:27017')
+    listPublishedSamples.mockRejectedValue(new Error('down'))
+    listSurveys.mockRejectedValue(new Error('down'))
     const response = reply()
     await waypoints({ method: 'GET' }, response)
     expect(response.status).toHaveBeenCalledWith(503)

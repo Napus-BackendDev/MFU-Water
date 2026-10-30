@@ -101,7 +101,7 @@ function onFlyTo(wp: SurveyWaypoint) {
               รายการผลตรวจที่บันทึกไว้ในระบบ ({{ waypoints.length }} รายการ)
             </h3>
             <p class="text-xs text-slate-500 dark:text-[#98A2A8]">
-              ข้อมูลผลตรวจคุณภาพน้ำจริงที่บันทึกใน Supabase พร้อมตัวกรองและการค้นหา
+              ข้อมูลผลตรวจคุณภาพน้ำจริงที่บันทึกในฐานข้อมูลพร้อมตัวกรองและการค้นหา
             </p>
           </div>
         </div>
@@ -313,7 +313,7 @@ function onFlyTo(wp: SurveyWaypoint) {
 
       <!-- Footer -->
       <footer class="mt-5 flex items-center justify-between border-t border-slate-200 dark:border-[#2C2C2E] pt-4">
-        <span class="text-xs text-slate-500 dark:text-[#98A2A8]">ข้อมูลซิงค์กับฐานข้อมูล Supabase Cloud</span>
+        <span class="text-xs text-slate-500 dark:text-[#98A2A8]">ข้อมูลซิงค์กับฐานข้อมูล MongoDB Atlas</span>
         <button
           type="button"
           class="wv-btn-secondary text-xs"

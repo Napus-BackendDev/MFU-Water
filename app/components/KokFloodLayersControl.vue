@@ -1,11 +1,8 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { Layers, X } from 'lucide-vue-next'
-import { floodStages, floodDepthLevels, loadFloodScenario, type FloodScenario } from '../utils/flood-simulation'
 import { observationDates, observationWaterColor, loadFloodObservations, type FloodObservation, type ObservationDate } from '../utils/flood-observations'
 
-const stage = defineModel<number>('stage', { required: true })
-const simulationVisible = defineModel<boolean>('simulationVisible', { required: true })
 const observationsVisible = defineModel<boolean>('observationsVisible', { required: true })
 const date = defineModel<ObservationDate>('date', { required: true })
 const observations = ref<FloodObservation | null>(null)
@@ -17,14 +14,6 @@ watch(observationsVisible, (value) => {
   void loadFloodObservations().then((data) => { observations.value = data }).catch(() => { observationFailed.value = true })
 }, { immediate: true })
 const open = ref(false)
-const failed = ref(false)
-const scenario = ref<FloodScenario | null>(null)
-watch(stage, (rise) => {
-  scenario.value = null
-  failed.value = false
-  void loadFloodScenario(rise).then((result) => { if (stage.value === rise) scenario.value = result })
-    .catch(() => { if (stage.value === rise) failed.value = true })
-}, { immediate: true })
 </script>
 
 <template>
@@ -36,22 +25,6 @@ watch(stage, (rise) => {
       <div class="flex items-center justify-between gap-3">
         <strong>เลเยอร์น้ำท่วม</strong>
         <button type="button" aria-label="ปิดเลเยอร์น้ำท่วม" class="p-2" @click="open = false"><X :size="17" /></button>
-      </div>
-      <label class="layer-toggle"><input v-model="simulationVisible" type="checkbox">น้ำจำลอง</label>
-      <div v-if="simulationVisible" class="layer-settings">
-        <label for="simulation-stage" class="text-sm">ระดับแม่น้ำเพิ่ม</label>
-        <select id="simulation-stage" v-model="stage" class="observation-select">
-          <option v-for="option in floodStages" :key="option.id" :value="option.riseMetres">Level {{ option.id }} · +{{ option.riseMetres }} เมตร</option>
-        </select>
-        <p class="text-sm font-semibold">ความลึกน้ำประมาณการ</p>
-        <div v-for="option in floodDepthLevels" :key="option.id" class="level-row">
-          <span class="observation-swatch" :style="{background:option.color}" aria-hidden="true" />
-          <span class="flex-1 text-sm">{{ option.label }}</span>
-          <span class="text-xs tabular-nums">{{ option.depth }}</span>
-        </div>
-        <p v-if="failed" role="alert" class="mt-2 text-xs text-red-700">โหลดแบบจำลองไม่สำเร็จ ลองเปิดหน้าใหม่</p>
-        <p v-else-if="!scenario" role="status" class="mt-2 text-xs">กำลังโหลดแบบจำลอง…</p>
-        <p v-else-if="!scenario.features.length" role="status" class="mt-2 text-xs">ไม่พบพื้นที่บกท่วมในสถานการณ์นี้ตามข้อมูลทดลอง</p>
       </div>
       <label class="layer-toggle"><input v-model="observationsVisible" type="checkbox">ข้อมูลน้ำท่วมจริง</label>
       <div v-if="observationsVisible" class="layer-settings">

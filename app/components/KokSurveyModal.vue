@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed, nextTick, ref } from 'vue'
-import { createClient } from '@supabase/supabase-js'
 import { Camera, CheckCircle2, ClipboardList, Crosshair, MapPin, ShieldCheck, X } from 'lucide-vue-next'
 import {
   submitWaterSurvey,
@@ -9,8 +8,8 @@ import {
   type SurveyPhoto,
   type SurveyWaypoint,
 } from '../../src/lib/survey'
-import { supabase } from '../../src/lib/supabase'
 import { contractData } from '../utils/kok-contract'
+import KokLoadingScreen from './KokLoadingScreen.vue'
 
 const props = defineProps<{
   open: boolean
@@ -146,18 +145,8 @@ function removePhoto(index: 0 | 1) {
   }
 }
 
-const runtimeConfig = useRuntimeConfig()
-const activeSupabase = computed(() => {
-  if (supabase) return supabase
-  const url = runtimeConfig?.public?.supabaseUrl
-  const key = runtimeConfig?.public?.supabaseAnonKey
-  if (url && key) {
-    return createClient(url, key)
-  }
-  return null
-})
-
 async function handleSubmit() {
+  if (saving.value) return
   formError.value = null
   savedMessage.value = null
 
@@ -185,7 +174,7 @@ async function handleSubmit() {
   saving.value = true
   try {
     const recordedNow = new Date().toISOString()
-    const waypoint = await submitWaterSurvey(activeSupabase.value, {
+    const waypoint = await submitWaterSurvey({
       fullName: fullName.value,
       phoneNumber: phoneNumber.value,
       arsenicLevelPpb: arsenicLevel.value,
@@ -261,6 +250,7 @@ async function handleSubmit() {
       aria-labelledby="survey-title"
       class="wv-card max-h-[92vh] w-full max-w-2xl overflow-y-auto no-scrollbar [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 text-slate-900 shadow-2xl dark:border-[#2C2C2E] dark:bg-[#1E1E1E] dark:text-white"
     >
+      <KokLoadingScreen v-if="saving" variant="sending" />
       <form novalidate class="space-y-3.5" @submit.prevent="handleSubmit">
         <header class="flex items-start justify-between gap-3 border-b border-slate-200 dark:border-[#2C2C2E] pb-3">
           <div class="flex items-center gap-3">

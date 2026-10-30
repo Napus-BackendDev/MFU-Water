@@ -1,7 +1,6 @@
 import { createHmac, timingSafeEqual } from 'node:crypto'
 
 export const allowedPhotoTypes = new Map([['image/jpeg', 'jpg'], ['image/png', 'png'], ['image/webp', 'webp']])
-export const safeWaypointColumns = 'id,sample_code,arsenic_level_ppb,latitude,longitude,gps_accuracy_meters,created_at'
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 const nouns = [
@@ -45,33 +44,37 @@ export function toSurveyWaypointDto(row) {
   }
 }
 
-export function config(requireSubmission = true) {
-  const rawUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || process.env.NUXT_PUBLIC_SUPABASE_URL || ''
-  let url
-  try {
-    url = new URL(rawUrl)
-  } catch {
-    throw new Error('Invalid database target')
+// Development (a laptop) talks to the local MongoDB; production (Vercel, or APP_ENV=production) to MONGODB_URI.
+export function databaseTarget() {
+  if (process.env.APP_ENV === 'production' || process.env.VERCEL === '1') {
+    return { environment: 'production', mongoUri: process.env.MONGODB_URI || '', dbName: process.env.MONGODB_DB || 'kok_water_watch' }
   }
-  if (url.protocol !== 'https:' || !url.hostname.endsWith('.supabase.co') || url.username || url.password) throw new Error('Invalid database target')
+  return {
+    environment: 'development',
+    mongoUri: process.env.MONGODB_URI_LOCAL || 'mongodb://127.0.0.1:27017',
+    dbName: process.env.MONGODB_DB_LOCAL || 'kok_water_watch_dev',
+  }
+}
 
-  const defaultSigningSecret = '12605F5F238C4DF962F6E0882B8AF608BDA0BE64A18626ED55CFC01F741552F8'
-  const defaultServiceKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imxsd2RoenZqb2ZqeWhsY3R6eGRhIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc5MDE1NjA4MSwiZXhwIjoyMTA1NzMyMDgxfQ.C64LJ4YQsVHsvnscniwgMy6H9E0jqj-E8RrdddbOvm0'
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_KEY || process.env.VITE_SUPABASE_SERVICE_ROLE_KEY || defaultServiceKey
-  const signingSecret = process.env.SURVEY_SIGNING_SECRET || defaultSigningSecret
+export function config(requireSubmission = true) {
+  const { environment, mongoUri, dbName } = databaseTarget()
+  if (!/^mongodb(\+srv)?:\/\/[^\s]+$/.test(mongoUri)) throw new Error('Invalid database target')
+
+  const signingSecret = process.env.SURVEY_SIGNING_SECRET || ''
   const turnstileSecret = process.env.TURNSTILE_SECRET_KEY ?? ''
   const turnstileHostnames = process.env.TURNSTILE_ALLOWED_HOSTNAMES ?? ''
   const turnstileEnabled = process.env.VITE_TURNSTILE_ENABLED === 'true'
 
   const settings = {
-    url: url.origin,
-    key,
+    environment,
+    mongoUri,
+    dbName,
     signingSecret,
     turnstileSecret,
     turnstileHostnames,
     turnstileEnabled,
   }
-  if (!settings.key || (requireSubmission && (Buffer.byteLength(settings.signingSecret) < 32 || settings.turnstileEnabled && (!settings.turnstileSecret || !settings.turnstileHostnames)))) throw new Error('Missing server configuration')
+  if (requireSubmission && (Buffer.byteLength(settings.signingSecret) < 32 || settings.turnstileEnabled && (!settings.turnstileSecret || !settings.turnstileHostnames))) throw new Error('Missing server configuration')
   return settings
 }
 
@@ -163,19 +166,6 @@ export async function verifyCaptcha(secret, token, ip, requestHost, allowedHostn
     const result = await response.json()
     return response.ok && result.success === true && result.hostname === requestHost && result.action === 'survey'
   } catch { return false }
-}
-
-export function encodeStoragePath(path) {
-  return path.split('/').map(encodeURIComponent).join('/')
-}
-
-export function supabaseRequest(settings, path, options = {}) {
-  if (!path.startsWith('/rest/v1/') && !path.startsWith('/storage/v1/')) throw new Error('Invalid API path')
-  const target = new URL(path, settings.url)
-  if (target.origin !== settings.url) throw new Error('Invalid API origin')
-  return fetch(target, { ...options, redirect: 'error', signal: AbortSignal.timeout(15000), headers: {
-    'content-type': 'application/json', ...options.headers, apikey: settings.key, authorization: `Bearer ${settings.key}`,
-  } })
 }
 
 export function respond(response, status, body) {

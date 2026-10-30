@@ -8,10 +8,11 @@ import {
   readJsonBody,
   respond,
   stableSurveyHash,
-  supabaseRequest,
   validateSurvey,
   verifyCaptcha,
 } from './_shared.js'
+import { createUploadTarget } from './_photos.js'
+import { reserveSurvey } from './_db.js'
 
 export default async function handler(request, response) {
   if (request.method !== 'POST') {
@@ -34,14 +35,9 @@ export default async function handler(request, response) {
       return respond(response, 403, { error: 'ยืนยัน CAPTCHA ไม่สำเร็จ กรุณาลองใหม่' })
     }
     const ipHash = hashClientIp(settings.signingSecret, ip)
-    const reservation = await supabaseRequest(settings, '/rest/v1/rpc/reserve_water_quality_survey', {
-      method: 'POST',
-      body: JSON.stringify({ p_ip_hash: ipHash }),
-    })
-    if (!reservation.ok) return respond(response, 503, { error: 'เตรียมรายการสำรวจไม่สำเร็จ' })
-    const [reserved] = await reservation.json()
-    if (!reserved?.allowed) {
-      response.setHeader('Retry-After', String(reserved?.retry_after_seconds ?? 3600))
+    const reserved = await reserveSurvey(settings, ipHash)
+    if (!reserved.allowed) {
+      response.setHeader('Retry-After', String(reserved.retry_after_seconds ?? 3600))
       return respond(response, 429, { error: 'ส่งแบบสำรวจครบจำนวนชั่วคราวแล้ว กรุณารอสักครู่' })
     }
 
@@ -49,14 +45,7 @@ export default async function handler(request, response) {
     const uploads = []
     for (const [index, path] of paths.entries()) {
       if (!path) continue
-      const result = await supabaseRequest(settings, `/storage/v1/object/upload/sign/survey-photos/${path}`, {
-        method: 'POST',
-        body: JSON.stringify({ upsert: false }),
-      })
-      if (!result.ok) return respond(response, 503, { error: 'สร้างช่องอัปโหลดรูปภาพไม่สำเร็จ' })
-      const signed = await result.json()
-      if (typeof signed.token !== 'string') return respond(response, 503, { error: 'บริการอัปโหลดรูปภาพตอบกลับไม่ถูกต้อง' })
-      uploads.push({ index, path, token: signed.token })
+      uploads.push({ index, path, ...createUploadTarget(settings, path) })
     }
 
     const survey = publicSurveyPayload(body)

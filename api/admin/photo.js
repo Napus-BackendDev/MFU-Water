@@ -1,16 +1,22 @@
-import { respond, encodeStoragePath } from '../surveys/_shared.js'
-import { supabaseRequest } from './_admin_shared.js'
+import { respond } from '../surveys/_shared.js'
+import { readPhoto } from '../surveys/_photos.js'
+import { getAdminSettings, verifyAdminAuth } from './_admin_shared.js'
 
 export default async function handler(request, response) {
   if (request.method === 'OPTIONS') {
     response.setHeader('Access-Control-Allow-Origin', '*')
     response.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS')
+    response.setHeader('Access-Control-Allow-Headers', 'Authorization, x-admin-token')
     return respond(response, 204, '')
   }
 
   if (request.method !== 'GET') {
     response.setHeader('Allow', 'GET')
     return respond(response, 405, { error: 'Method not allowed' })
+  }
+
+  if (!verifyAdminAuth(request)) {
+    return respond(response, 401, { error: 'กรุณาเข้าสู่ระบบด้วยรหัสผ่านแอดมินก่อน' })
   }
 
   // Allow either direct photo path or query parameter
@@ -20,19 +26,15 @@ export default async function handler(request, response) {
   }
 
   try {
-    const rPhoto = await supabaseRequest(
-      `/storage/v1/object/survey-photos/${encodeStoragePath(photoPath)}`
-    )
-    if (!rPhoto.ok) {
+    const photo = await readPhoto(getAdminSettings(), photoPath)
+    if (!photo) {
       return respond(response, 404, { error: 'ไม่พบไฟล์ภาพถ่าย' })
     }
 
-    const contentType = rPhoto.headers.get('content-type') || 'image/png'
-    response.setHeader('Content-Type', contentType)
+    response.setHeader('Content-Type', photo.contentType || 'image/png')
     response.setHeader('Cache-Control', 'private, max-age=3600')
-    const buffer = Buffer.from(await rPhoto.arrayBuffer())
-    return response.status(200).send(buffer)
-  } catch (err) {
-    return respond(response, 503, { error: 'ไม่สามารถโหลดภาพถ่ายได้: ' + (err?.message || '') })
+    return response.status(200).send(photo.buffer)
+  } catch {
+    return respond(response, 503, { error: 'ไม่สามารถโหลดภาพถ่ายได้' })
   }
 }

@@ -22,7 +22,7 @@ async function run() {
   page.on('console', msg => console.log('  [Browser]', msg.text()));
   page.on('response', resp => {
     const url = resp.url();
-    if (url.includes('/api/surveys') || url.includes('supabase.co/storage')) {
+    if (url.includes('/api/surveys') || url.includes('blob.vercel-storage.com')) {
       console.log(`  [HTTP ${resp.status()}] ${url.slice(0, 100)}`);
     }
   });

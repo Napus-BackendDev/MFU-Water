@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { nextTick, ref, watch } from 'vue'
+import { getAdminToken as getStoredToken, getReviewerName, requestAdminBypass, setAdminToken as setStoredToken, setReviewerName } from '../utils/admin-session'
 import {
   AlertTriangle,
   CheckCircle2,
@@ -52,6 +53,7 @@ export type AdminAlert = {
 // Authentication & Passcode State (Option 1)
 const isUnlocked = ref(false)
 const passcodeInput = ref('')
+const reviewerInput = ref(getReviewerName())
 const showPasscode = ref(false)
 const verifying = ref(false)
 const loginError = ref<string | null>(null)
@@ -64,26 +66,6 @@ const alertsList = ref<AdminAlert[]>([])
 const actionFeedback = ref<string | null>(null)
 const actionLoading = ref<string | null>(null)
 const reviewReason = ref('')
-
-function getStoredToken(): string | null {
-  if (typeof window === 'undefined') return null
-  try {
-    return sessionStorage.getItem('kok_admin_token')
-  } catch {
-    return null
-  }
-}
-
-function setStoredToken(token: string | null) {
-  if (typeof window === 'undefined') return
-  try {
-    if (token) {
-      sessionStorage.setItem('kok_admin_token', token)
-    } else {
-      sessionStorage.removeItem('kok_admin_token')
-    }
-  } catch {}
-}
 
 async function verifyPasscode() {
   const code = passcodeInput.value.trim()
@@ -113,6 +95,7 @@ async function verifyPasscode() {
     }
 
     setStoredToken(data.token)
+    setReviewerName(reviewerInput.value)
     isUnlocked.value = true
     passcodeInput.value = ''
     loginError.value = null
@@ -175,6 +158,7 @@ async function handleReview(sampleCode: string, decision: 'approve' | 'reject') 
       },
       body: JSON.stringify({
         decision,
+        reviewer: getReviewerName(),
         reason: reviewReason.value || (decision === 'approve' ? 'แอดมินอนุมัติการเผยแพร่' : 'แอดมินไม่อนุมัติ'),
       }),
     })
@@ -204,12 +188,13 @@ async function handleReview(sampleCode: string, decision: 'approve' | 'reject') 
 
 watch(
   () => props.open,
-  (isOpen) => {
+  async (isOpen) => {
     if (isOpen) {
       actionFeedback.value = null
       loginError.value = null
-      const token = getStoredToken()
+      const token = getStoredToken() || (await requestAdminBypass() ? getStoredToken() : null)
       if (token) {
+        isUnlocked.value = true
         void fetchAdminQueue()
       } else {
         isUnlocked.value = false
@@ -316,6 +301,17 @@ watch(
             </p>
           </div>
 
+          <label class="block text-xs font-semibold text-slate-700 dark:text-slate-200" for="review-reviewer">ชื่อผู้ตรวจ (บันทึกพร้อมการอนุมัติ)</label>
+          <input
+            id="review-reviewer"
+            v-model="reviewerInput"
+            type="text"
+            maxlength="80"
+            autocomplete="name"
+            placeholder="เช่น ชื่อ-นามสกุลของผู้ตรวจ"
+            class="wv-input border-slate-300 bg-white text-slate-900 placeholder:text-slate-400 dark:border-[#2C2C2E] dark:bg-[#141416] dark:text-white"
+            :disabled="verifying"
+          >
           <button
             type="submit"
             class="wv-btn-primary w-full py-2.5 text-xs font-bold flex items-center justify-center gap-2 bg-sky-600 hover:bg-sky-700 text-white dark:bg-[#00E5FF] dark:hover:bg-[#00c8e0] dark:text-black rounded-xl transition"
@@ -326,10 +322,6 @@ watch(
             <span>{{ verifying ? 'กำลังตรวจสอบรหัสผ่าน…' : 'เข้าสู่ระบบ (ปลดล็อก)' }}</span>
           </button>
         </form>
-
-        <div class="rounded-xl border border-slate-200 bg-slate-50 p-3 text-[11px] text-slate-600 dark:border-[#2C2C2E] dark:bg-[#141416] dark:text-[#98A2A8]">
-          <span class="font-bold text-slate-800 dark:text-white">💡 หมายเหตุความปลอดภัย:</span> รหัสผ่านเริ่มต้นคือ <code class="rounded bg-slate-200/80 px-1.5 py-0.5 font-mono text-sky-700 dark:bg-black/50 dark:text-[#00E5FF]">mfu2026admin</code> หรือแก้ไขได้ผ่าน <code class="font-mono text-slate-500 dark:text-slate-400">ADMIN_PASSCODE</code> ใน <code class="font-mono text-slate-500 dark:text-slate-400">.env.local</code>
-        </div>
       </div>
 
       <!-- VIEW 2: Unlocked Review Queue Dashboard -->
@@ -363,7 +355,7 @@ watch(
         <!-- Pending List -->
         <div class="mt-4 space-y-3">
           <div v-if="loading && pendingList.length === 0" class="py-12 text-center text-xs text-slate-500 dark:text-[#98A2A8]">
-            กำลังโหลดรายการจาก Supabase…
+            กำลังโหลดรายการจากฐานข้อมูล…
           </div>
 
           <div v-else-if="pendingList.length === 0" class="rounded-2xl border border-emerald-200 bg-emerald-50/70 dark:border-[#1C3A24] dark:bg-[#142318] p-8 text-center text-xs text-emerald-800 dark:text-[#32D74B]">

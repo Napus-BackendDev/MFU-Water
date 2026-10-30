@@ -8,7 +8,7 @@ web
 
 ## Stack
 
-Nuxt.js + Nuxt UI (`@nuxt/ui`) + Lucide Icons (`@iconify-json/lucide` / `lucide-vue-next`) + Express.js + Supabase (`@supabase/supabase-js`) + Leaflet
+Nuxt.js + Nuxt UI (`@nuxt/ui`) + Lucide Icons (`@iconify-json/lucide` / `lucide-vue-next`) + Express.js + MongoDB Atlas (`mongodb`) (photos in GridFS) + Leaflet
 
 ## Users
 

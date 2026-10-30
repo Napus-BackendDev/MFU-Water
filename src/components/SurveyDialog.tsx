@@ -1,7 +1,6 @@
 import { useRef, useState, type ChangeEvent, type FormEvent } from 'react'
 import { Camera, ClipboardList, Crosshair, MapPin, X } from 'lucide-react'
 import { arsenicLevels, submitWaterSurvey, validateSurveyPhoto, type SurveyCoordinates, type SurveyPhoto, type SurveyWaypoint } from '../lib/survey'
-import { supabase } from '../lib/supabase'
 import { turnstileSiteKey, turnstileEnabled } from '../config/env'
 import { SurveyCaptcha } from './SurveyCaptcha'
 
@@ -108,7 +107,7 @@ function SurveyDialog({ onClose, onWaypointCreated }: SurveyDialogProps) {
 
     setSaving(true)
     try {
-      const waypoint = await submitWaterSurvey(supabase, {
+      const waypoint = await submitWaterSurvey({
         fullName,
         phoneNumber,
         arsenicLevelPpb: arsenicLevel,

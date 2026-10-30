@@ -1,11 +1,12 @@
 import { respond } from '../surveys/_shared.js'
-import { verifyAdminAuth, supabaseRequest } from './_admin_shared.js'
+import { reviewSample } from '../surveys/_db.js'
+import { getAdminSettings, reviewerName, verifyAdminAuth } from './_admin_shared.js'
 
 export default async function handler(request, response) {
   response.setHeader('Cache-Control', 'no-store')
   response.setHeader('Access-Control-Allow-Origin', '*')
   response.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS')
-  response.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-admin-token, x-admin-passcode')
+  response.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-admin-token')
 
   if (request.method === 'OPTIONS') {
     return respond(response, 204, '')
@@ -23,7 +24,7 @@ export default async function handler(request, response) {
   try {
     const body = typeof request.body === 'string' ? JSON.parse(request.body) : request.body
     const sampleCode = request.query?.sampleCode || body?.sampleCode
-    const { decision, reason } = body || {}
+    const { decision, reason, reviewer } = body || {}
 
     if (!sampleCode) {
       return respond(response, 400, { error: 'กรุณาระบุ sampleCode' })
@@ -32,36 +33,8 @@ export default async function handler(request, response) {
       return respond(response, 400, { error: 'กรุณาระบุ decision เป็น approve หรือ reject' })
     }
 
-    const newStatus = decision === 'approve' ? 'approved' : 'rejected'
-    const updatePayload = {
-      publication_status: newStatus,
-      reviewed_at: new Date().toISOString(),
-      review_reason: reason || (decision === 'approve' ? 'อนุมัติการเผยแพร่โดยแอดมิน' : 'ไม่อนุมัติโดยแอดมิน'),
-    }
-    if (decision === 'approve') {
-      updatePayload.approved_revision = 1
-    }
-
-    const updateSample = await supabaseRequest(
-      `/rest/v1/kok_water_samples?sample_code=eq.${encodeURIComponent(sampleCode)}`,
-      {
-        method: 'PATCH',
-        headers: { prefer: 'return=representation' },
-        body: JSON.stringify(updatePayload),
-      }
-    )
-
-    if (!updateSample.ok) {
-      return respond(response, 503, { error: 'อัปเดตสถานะตัวอย่างน้ำไม่สำเร็จ' })
-    }
-
-    await supabaseRequest(
-      `/rest/v1/kok_admin_alerts?sample_code=eq.${encodeURIComponent(sampleCode)}`,
-      {
-        method: 'PATCH',
-        body: JSON.stringify({ publication_status: newStatus }),
-      }
-    ).catch(() => {})
+    const newStatus = await reviewSample(getAdminSettings(), String(sampleCode), decision, reason, reviewerName(reviewer))
+    if (!newStatus) return respond(response, 404, { error: 'ไม่พบตัวอย่างน้ำรหัสนี้' })
 
     return respond(response, 200, {
       success: true,

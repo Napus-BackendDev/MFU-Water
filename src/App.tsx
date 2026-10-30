@@ -5,7 +5,6 @@ import type { MapController } from './components/MapView'
 import { mapTilerApiKey } from './config/env'
 import { fetchSurveyWaypoints, type SurveyCoordinates, type SurveyWaypoint } from './lib/survey'
 import { countTodaysWaterStatuses, createPublicWaypointsCsv } from './lib/water-status'
-import { supabase } from './lib/supabase'
 import './App.css'
 
 const MapView = lazy(() => import('./components/MapView'))
@@ -65,7 +64,7 @@ function App({ mapKey = mapTilerApiKey }: { mapKey?: string } = {}) {
 
   useEffect(() => {
     let active = true
-    void fetchSurveyWaypoints(supabase).then((waypoints) => {
+    void fetchSurveyWaypoints().then((waypoints) => {
       if (active) {
         setSurveyWaypoints(waypoints)
         setWaypointLoadState('ready')

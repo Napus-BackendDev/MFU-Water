@@ -74,9 +74,6 @@ export default defineNuxtConfig({
   },
   runtimeConfig: {
     public: {
-      supabaseUrl: process.env.VITE_SUPABASE_URL ?? process.env.NUXT_PUBLIC_SUPABASE_URL ?? '',
-      supabaseAnonKey: process.env.VITE_SUPABASE_ANON_KEY ?? process.env.NUXT_PUBLIC_SUPABASE_ANON_KEY ?? '',
-      allowHostedSupabase: process.env.VITE_ALLOW_HOSTED_SUPABASE ?? 'false',
       mapTilerApiKey: process.env.VITE_MAPTILER_API_KEY ?? '',
       turnstileEnabled: process.env.VITE_TURNSTILE_ENABLED ?? 'false',
       turnstileSiteKey: process.env.VITE_TURNSTILE_SITE_KEY ?? '',

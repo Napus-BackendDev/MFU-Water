@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import { fetchAdminPhoto, getAdminToken as getStoredToken, getReviewerName, requestAdminBypass, setAdminToken as setStoredToken, setReviewerName } from '../utils/admin-session'
 import {
   AlertTriangle,
   ArrowLeft,
@@ -49,6 +50,7 @@ export type AdminSample = {
   sample_nature?: { water_source?: string; water_appearance?: string }
   publication_status: 'pending_review' | 'approved' | 'auto_published' | 'rejected'
   reviewed_at?: string | null
+  reviewed_by?: string | null
   review_reason?: string | null
   private_photo_paths?: string[]
   contact_name: string | null
@@ -66,6 +68,7 @@ export type AdminCounts = {
 // Auth State
 const isUnlocked = ref(false)
 const passcodeInput = ref('')
+const reviewerInput = ref(getReviewerName())
 const showPasscode = ref(false)
 const verifying = ref(false)
 const loginError = ref<string | null>(null)
@@ -94,6 +97,20 @@ const copiedCode = ref<string | null>(null)
 const actionLoading = ref<string | null>(null)
 const actionFeedback = ref<{ type: 'success' | 'error'; message: string } | null>(null)
 const selectedSample = ref<AdminSample | null>(null)
+// undefined = still loading, null = failed
+const photoSrc = ref<Record<string, string | null>>({})
+watch(selectedSample, async (sample) => {
+  for (const url of Object.values(photoSrc.value)) if (url) URL.revokeObjectURL(url)
+  photoSrc.value = {}
+  for (const path of sample?.private_photo_paths ?? []) {
+    const url = await fetchAdminPhoto(path)
+    if (selectedSample.value !== sample) {
+      if (url) URL.revokeObjectURL(url)
+      return
+    }
+    photoSrc.value = { ...photoSrc.value, [path]: url }
+  }
+})
 const reviewReasonInput = ref('')
 const reasonPromptModal = ref<{
   sample: AdminSample
@@ -105,26 +122,6 @@ const isDark = computed(() => colorMode.value === 'dark')
 
 function toggleTheme() {
   colorMode.preference = colorMode.value === 'dark' ? 'light' : 'dark'
-}
-
-function getStoredToken(): string | null {
-  if (typeof window === 'undefined') return null
-  try {
-    return sessionStorage.getItem('kok_admin_token')
-  } catch {
-    return null
-  }
-}
-
-function setStoredToken(token: string | null) {
-  if (typeof window === 'undefined') return
-  try {
-    if (token) {
-      sessionStorage.setItem('kok_admin_token', token)
-    } else {
-      sessionStorage.removeItem('kok_admin_token')
-    }
-  } catch {}
 }
 
 async function verifyPasscode() {
@@ -155,6 +152,7 @@ async function verifyPasscode() {
     }
 
     setStoredToken(data.token)
+    setReviewerName(reviewerInput.value)
     isUnlocked.value = true
     passcodeInput.value = ''
     loginError.value = null
@@ -222,6 +220,7 @@ async function handleReviewAction(sampleCode: string, decision: 'approve' | 'rej
       },
       body: JSON.stringify({
         decision,
+        reviewer: getReviewerName(),
         reason: reason || (decision === 'approve' ? 'แอดมินอนุมัติการเผยแพร่ข้อมูล' : 'แอดมินไม่อนุมัติ'),
       }),
     })
@@ -378,9 +377,11 @@ function exportCsv() {
   URL.revokeObjectURL(url)
 }
 
-onMounted(() => {
-  const token = getStoredToken()
-  if (token) {
+onMounted(async () => {
+  if (!getStoredToken() && await requestAdminBypass()) {
+    isUnlocked.value = true
+    void fetchSamples()
+  } else if (getStoredToken()) {
     isUnlocked.value = true
     void fetchSamples()
   } else {
@@ -519,6 +520,22 @@ onMounted(() => {
               </div>
             </div>
 
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 dark:text-slate-200" for="admin-reviewer">
+                ชื่อผู้ตรวจ (บันทึกพร้อมการอนุมัติ)
+              </label>
+              <input
+                id="admin-reviewer"
+                v-model="reviewerInput"
+                type="text"
+                maxlength="80"
+                autocomplete="name"
+                placeholder="เช่น ชื่อ-นามสกุลของผู้ตรวจ"
+                class="wv-input mt-1.5 border-slate-300 bg-white text-slate-900 placeholder:text-slate-400 dark:border-[#2C2C2E] dark:bg-[#141416] dark:text-white"
+                :disabled="verifying"
+              >
+            </div>
+
             <p v-if="loginError" role="alert" class="wv-alert-box text-xs font-medium">
               {{ loginError }}
             </p>
@@ -531,10 +548,6 @@ onMounted(() => {
               <Lock class="h-4 w-4" />
               <span>{{ verifying ? 'กำลังตรวจสอบรหัสผ่าน…' : 'เข้าสู่ระบบ (ปลดล็อก Data Table)' }}</span>
             </button>
-
-            <div class="rounded-xl border border-amber-200 bg-amber-50/70 p-3 text-[11px] text-amber-800 dark:border-amber-900/40 dark:bg-amber-950/20 dark:text-amber-200">
-              💡 <strong>หมายเหตุความปลอดภัย:</strong> รหัสผ่านเริ่มต้นคือ <code class="rounded bg-amber-100 px-1 py-0.5 font-mono text-amber-900 dark:bg-amber-900/60 dark:text-amber-200">mfu2026admin</code> หรือแก้ไขได้ผ่าน <code class="font-mono">ADMIN_PASSCODE</code> ใน .env.local
-            </div>
 
             <div class="pt-2 text-center">
               <button
@@ -1065,7 +1078,7 @@ onMounted(() => {
         <div v-if="selectedSample.private_photo_paths?.length" class="rounded-xl border border-slate-200 bg-slate-50 p-3.5 text-xs dark:border-[#2C2C2E] dark:bg-[#141416] space-y-2">
           <div class="font-bold flex items-center gap-1.5 text-slate-800 dark:text-slate-200">
             <Camera class="h-4 w-4 text-sky-600" />
-            <span>ภาพถ่ายหลักฐานการเก็บตัวอย่าง ({{ selectedSample.private_photo_paths.length }} ภาพ — บันทึกใน Supabase Storage)</span>
+            <span>ภาพถ่ายหลักฐานการเก็บตัวอย่าง ({{ selectedSample.private_photo_paths.length }} ภาพ — บันทึกใน Vercel Blob)</span>
           </div>
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
             <div
@@ -1074,10 +1087,12 @@ onMounted(() => {
               class="relative rounded-xl border border-slate-200 dark:border-[#2C2C2E] overflow-hidden bg-black/5 dark:bg-white/5 p-2 flex flex-col items-center justify-center"
             >
               <img
-                :src="`/api/admin/photo?path=${encodeURIComponent(p)}`"
+                v-if="photoSrc[p]"
+                :src="photoSrc[p]!"
                 :alt="`ภาพถ่ายที่ ${pIdx + 1}`"
                 class="w-full max-h-48 object-contain rounded-lg shadow-xs"
               />
+              <span v-else class="py-6 text-xs text-slate-400">{{ photoSrc[p] === null ? 'โหลดภาพไม่สำเร็จ' : 'กำลังโหลดภาพ…' }}</span>
               <span class="mt-1.5 text-[10px] text-slate-400 font-mono">{{ p }}</span>
             </div>
           </div>
@@ -1088,7 +1103,7 @@ onMounted(() => {
           <div class="font-bold text-slate-800 dark:text-slate-200 mb-1">บันทึกการพิจารณา (Review Reason)</div>
           <p class="text-slate-600 dark:text-[#98A2A8]">{{ selectedSample.review_reason }}</p>
           <div v-if="selectedSample.reviewed_at" class="text-[10px] text-slate-400 mt-1">
-            พิจารณาเมื่อ: {{ formatThaiDate(selectedSample.reviewed_at) }}
+            พิจารณาเมื่อ: {{ formatThaiDate(selectedSample.reviewed_at) }}<template v-if="selectedSample.reviewed_by"> · โดย {{ selectedSample.reviewed_by }}</template>
           </div>
         </div>
 

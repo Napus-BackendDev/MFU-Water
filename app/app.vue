@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import type { ObservationDate } from './utils/flood-observations'
 import {
   Activity,
@@ -27,6 +27,7 @@ import {
   ListFilter,
 } from 'lucide-vue-next'
 import KokLandingHero from './components/KokLandingHero.vue'
+import KokLoadingScreen from './components/KokLoadingScreen.vue'
 import KokPPBTrendChart from './components/KokPPBTrendChart.vue'
 import KokWaterHealthChart from './components/KokWaterHealthChart.vue'
 import KokPointDetailModal from './components/KokPointDetailModal.vue'
@@ -66,7 +67,7 @@ const moduleTabs: Array<{ id: ModuleTab; code: string; label: string; reqs: stri
   { id: 'F0', code: 'F0', label: 'ทะเบียน 29 Req · 27 หลักฐาน · ทีม 12 คน', reqs: 'R12, R28, R29' },
 ]
 
-// Public waypoints from Express + Supabase
+// Public waypoints from Express + MongoDB
 const waypoints = ref<SurveyWaypoint[]>([])
 const loadingWaypoints = ref(true)
 const waypointLoadError = ref<string | null>(null)
@@ -80,7 +81,8 @@ const activeQuickPanel = ref<'guide' | 'summary' | null>(null)
 const activeThematicLayer = ref<'arsenic' | 'survey_grid'>('arsenic')
 const activeCommunityMapType = ref<CommunityMapType | null>(null)
 const floodStage = ref(2.5)
-const simulationVisible = ref(true)
+// Simulated flood water is switched off for now; its toggle was removed from the layer menu.
+const simulationVisible = ref(false)
 const observationsVisible = ref(false)
 const observationDate = ref<ObservationDate>('2024-09-15')
 const selectedCommunityId = ref<'all' | 'thaton' | 'ruammit' | 'pongkhong' | 'pakingtai'>('all')
@@ -436,7 +438,30 @@ function returnToLanding() {
 
 const colorMode = useColorMode()
 
+// S0 / S0.1: mascot loading screen while the first data loads; offer retry or skip when it drags on.
+const bootSkipped = ref(false)
+const bootSlow = ref(false)
+const bootVisible = computed(() => currentView.value !== 'admin' && loadingWaypoints.value && !bootSkipped.value)
+let bootSlowTimer: ReturnType<typeof setTimeout> | undefined
+
+function startBootTimer() {
+  clearTimeout(bootSlowTimer)
+  bootSlow.value = false
+  bootSlowTimer = setTimeout(() => { bootSlow.value = true }, 8000)
+}
+
+function retryBoot() {
+  startBootTimer()
+  void loadPublicWaypoints()
+}
+
+watch(loadingWaypoints, (loading) => {
+  if (!loading) clearTimeout(bootSlowTimer)
+})
+onBeforeUnmount(() => clearTimeout(bootSlowTimer))
+
 onMounted(() => {
+  startBootTimer()
   void loadPublicWaypoints()
   if (typeof window !== 'undefined') {
     const params = new URLSearchParams(window.location.search)
@@ -530,7 +555,7 @@ onMounted(() => {
         <!-- Header Actions / Map Actions (Vertical on mobile, horizontal on sm+) -->
         <div class="map-actions pointer-events-auto flex flex-col sm:flex-row items-center gap-2 shrink-0">
           <KokFloodLayersControl v-if="(selectedCommunityId === 'thaton' || selectedCommunityId === 'all') && (activeCommunityMapType === 'flood' || activeCommunityMapType === 'evacuation')"
-            v-model:stage="floodStage" v-model:simulation-visible="simulationVisible" v-model:observations-visible="observationsVisible" v-model:date="observationDate" />
+            v-model:observations-visible="observationsVisible" v-model:date="observationDate" />
           <button
             type="button"
             aria-label="คู่มือ"
@@ -737,5 +762,12 @@ onMounted(() => {
         @sample-reviewed="loadPublicWaypoints"
       />
     </div>
+
+    <KokLoadingScreen
+      v-if="bootVisible"
+      :variant="bootSlow ? 'slow' : 'boot'"
+      @retry="retryBoot"
+      @skip="bootSkipped = true"
+    />
   </UApp>
 </template>
