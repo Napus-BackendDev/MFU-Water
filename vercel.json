@@ -1,0 +1,6 @@
+{
+  "rewrites": [
+    { "source": "/api/admin/pending-samples", "destination": "/api/admin/samples" },
+    { "source": "/api/admin/samples/:sampleCode/review", "destination": "/api/admin/review?sampleCode=:sampleCode" }
+  ]
+}
