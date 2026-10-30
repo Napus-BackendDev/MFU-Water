@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import KokModalShell from './KokModalShell.vue'
 import { Calendar, Camera, Clock, Compass, Flame, MapPin, User, X } from 'lucide-vue-next'
 import type { SurveyWaypoint } from '../../src/lib/survey'
 import { publicPseudonym } from '../../src/lib/publicPseudonym'
@@ -79,16 +80,7 @@ function handleFlyTo() {
 </script>
 
 <template>
-  <div
-    v-if="open && waypoint"
-    class="fixed inset-0 z-[1050] flex items-center justify-center bg-black/60 p-3 backdrop-blur-sm sm:p-5"
-    @mousedown.self="closeModal"
-  >
-    <section
-      role="dialog"
-      aria-modal="true"
-      class="wv-card max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-slate-200 bg-white p-5 text-slate-900 shadow-2xl dark:border-[#2C2C2E] dark:bg-[#1E1E1E] dark:text-white"
-    >
+  <KokModalShell v-if="open && waypoint" overlay-class="z-[1050] p-3 sm:p-5" width-class="max-w-2xl" :spaced="false" @close="closeModal">
       <!-- Header -->
       <header class="flex items-start justify-between gap-3 border-b border-slate-200 dark:border-[#2C2C2E] pb-4">
         <div class="flex items-start gap-3">
@@ -291,6 +283,5 @@ function handleFlyTo() {
           ปิดหน้าต่าง
         </button>
       </footer>
-    </section>
-  </div>
+  </KokModalShell>
 </template>

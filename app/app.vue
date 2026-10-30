@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import type { ObservationDate } from './utils/flood-observations'
 import { Activity, ArrowLeft, BookOpen, CheckCircle2, ClipboardList, Filter, ShieldAlert, Waves } from 'lucide-vue-next'
 import KokLandingHero from './components/KokLandingHero.vue'
+import KokKpiCard from './components/KokKpiCard.vue'
 import KokLoadingScreen from './components/KokLoadingScreen.vue'
 import KokPPBTrendChart from './components/KokPPBTrendChart.vue'
 import KokWaterHealthChart from './components/KokWaterHealthChart.vue'
@@ -518,22 +519,10 @@ onMounted(() => {
             <div v-else class="space-y-4">
               <!-- KPI Metric Cards -->
               <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                <div class="wv-subsurface">
-                  <span class="text-xs text-slate-500 dark:text-[#98A2A8]">จุดสำรวจที่เผยแพร่</span>
-                  <div class="wv-kpi-number mt-1 text-slate-900 dark:text-white">{{ filteredWaypoints.length }}</div>
-                </div>
-                <div class="wv-subsurface">
-                  <span class="text-xs text-slate-500 dark:text-[#98A2A8]">ปกติ (&lt; 5 ppb)</span>
-                  <div class="wv-kpi-number mt-1 text-[#16A34A] dark:text-[#32D74B]">{{ statusSummary.normal }}</div>
-                </div>
-                <div class="wv-subsurface">
-                  <span class="text-xs text-slate-500 dark:text-[#98A2A8]">เฝ้าระวัง (5–10 ppb)</span>
-                  <div class="wv-kpi-number mt-1 text-[#CA8A04] dark:text-[#F7E752]">{{ statusSummary.watch }}</div>
-                </div>
-                <div class="wv-subsurface">
-                  <span class="text-xs text-slate-500 dark:text-[#98A2A8]">เกินเกณฑ์ คพ. (&gt; 10 ppb)</span>
-                  <div class="wv-kpi-number mt-1 text-[#DC2626] dark:text-[#FF453A]">{{ statusSummary.critical }}</div>
-                </div>
+                <KokKpiCard surface="subsurface" label="จุดสำรวจที่เผยแพร่" :value="filteredWaypoints.length" />
+                <KokKpiCard surface="subsurface" label="ปกติ (&lt; 5 ppb)" :value="statusSummary.normal" value-class="text-[#16A34A] dark:text-[#32D74B]" />
+                <KokKpiCard surface="subsurface" label="เฝ้าระวัง (5–10 ppb)" :value="statusSummary.watch" value-class="text-[#CA8A04] dark:text-[#F7E752]" />
+                <KokKpiCard surface="subsurface" label="เกินเกณฑ์ คพ. (&gt; 10 ppb)" :value="statusSummary.critical" value-class="text-[#DC2626] dark:text-[#FF453A]" />
               </div>
 
               <!-- Interactive Graphs -->

@@ -78,12 +78,15 @@ export function createExpressApp(rootDir = process.cwd()) {
     return next(err)
   })
 
-  app.all('/api/surveys/upload', (req, res) => uploadHandler(req, res))
-  app.all('/api/surveys/waypoints', (req, res) => waypointsHandler(req, res))
-  app.all('/api/surveys/prepare', (req, res) => prepareHandler(req, res))
-  app.all('/api/surveys/complete', (req, res) => completeHandler(req, res))
-  app.all('/api/surveys/photo', (req, res) => photoHandler(req, res))
-  app.all('/api/earth-engine/status', (req, res) => earthEngineStatusHandler(req, res))
+  const routes = {
+    '/api/surveys/upload': uploadHandler,
+    '/api/surveys/waypoints': waypointsHandler,
+    '/api/surveys/prepare': prepareHandler,
+    '/api/surveys/complete': completeHandler,
+    '/api/surveys/photo': photoHandler,
+    '/api/earth-engine/status': earthEngineStatusHandler,
+  }
+  for (const [path, handler] of Object.entries(routes)) app.all(path, (req, res) => handler(req, res))
 
   app.post('/api/admin/verify-passcode', verifyPasscodeHandler)
   app.get('/api/admin/samples', adminSamplesHandler)
