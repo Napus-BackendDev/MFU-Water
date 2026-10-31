@@ -1,10 +1,12 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import KokModalShell from './KokModalShell.vue'
 import { Calendar, Camera, Clock, Compass, Flame, MapPin, User, X } from 'lucide-vue-next'
 import type { SurveyWaypoint } from '../../src/lib/survey'
 import { publicPseudonym } from '../../src/lib/publicPseudonym'
 import KokPPBTrendChart from './KokPPBTrendChart.vue'
+import KokImageLightbox from './KokImageLightbox.vue'
+import KokMiniPager from './KokMiniPager.vue'
 
 const props = defineProps<{
   open: boolean
@@ -30,6 +32,13 @@ const nearbySamples = computed<SurveyWaypoint[]>(() => {
   })
 })
 
+// Photos open in the in-page viewer (with a close button) instead of a bare image tab.
+const photoIndex = ref<number | null>(null)
+const PAGE_SIZE = 5
+const photoPage = ref(1)
+const historyPage = ref(1)
+watch(() => props.waypoint, () => { photoIndex.value = null; photoPage.value = 1; historyPage.value = 1 })
+
 const isCluster = computed(() => nearbySamples.value.length > 1)
 
 // ภาพถ่ายของทุกรอบตรวจในบริเวณนี้ (เฉพาะรายการที่เผยแพร่แล้ว ภาพโหลดผ่าน /api/surveys/photo)
@@ -43,6 +52,12 @@ const samplePhotos = computed(() => {
     })),
   )
 })
+
+// Five at a time; the viewer still pages through every photo.
+const photoOffset = computed(() => (photoPage.value - 1) * PAGE_SIZE)
+const pagedPhotos = computed(() => samplePhotos.value.slice(photoOffset.value, photoOffset.value + PAGE_SIZE))
+const historyOffset = computed(() => (historyPage.value - 1) * PAGE_SIZE)
+const pagedHistory = computed(() => nearbySamples.value.slice(historyOffset.value, historyOffset.value + PAGE_SIZE))
 
 const ppb = computed(() => Number(props.waypoint?.arsenic_level_ppb ?? 0))
 const isDanger = computed(() => ppb.value > 10)
@@ -189,14 +204,13 @@ function handleFlyTo() {
           <span>ภาพถ่ายจุดตรวจ ({{ samplePhotos.length }} ภาพ)</span>
         </h4>
         <div class="grid grid-cols-2 gap-2 sm:grid-cols-3">
-          <a
-            v-for="photo in samplePhotos"
+          <button
+            v-for="(photo, index) in pagedPhotos"
             :key="photo.key"
-            :href="photo.src"
-            target="_blank"
-            rel="noopener"
-            class="group block overflow-hidden rounded-lg border border-slate-200 bg-white dark:border-[#2C2C2E] dark:bg-[#1E1E1E]"
-            :title="`เปิดภาพขนาดเต็ม ${photo.code}`"
+            type="button"
+            class="group block cursor-zoom-in overflow-hidden rounded-lg border border-slate-200 bg-white text-left dark:border-[#2C2C2E] dark:bg-[#1E1E1E]"
+            :title="`ขยายภาพ ${photo.code}`"
+            @click="photoIndex = photoOffset + index"
           >
             <img
               :src="photo.src"
@@ -205,9 +219,18 @@ function handleFlyTo() {
               class="aspect-[4/3] w-full object-cover transition group-hover:scale-105"
             />
             <span class="block truncate px-2 py-1 font-mono text-[10px] text-slate-500 dark:text-[#98A2A8]">{{ photo.code }}</span>
-          </a>
+          </button>
         </div>
+        <KokMiniPager v-model:page="photoPage" :total="samplePhotos.length" :page-size="PAGE_SIZE" />
       </div>
+
+      <KokImageLightbox
+        v-if="photoIndex !== null"
+        v-model:index="photoIndex"
+        :images="samplePhotos.map((photo) => photo.src)"
+        alt="ภาพถ่ายตัวอย่างน้ำ"
+        @close="photoIndex = null"
+      />
 
       <!-- Embedded PPB Trend Chart for this Station / Hotspot -->
       <div class="mt-4">
@@ -224,14 +247,14 @@ function handleFlyTo() {
           <Calendar class="h-3.5 w-3.5 text-sky-600 dark:text-[#00E5FF]" />
           <span>ประวัติการตรวจทั้งหมดในจุดนี้ ({{ nearbySamples.length }} ครั้ง)</span>
         </h4>
-        <div class="max-h-48 space-y-1.5 overflow-y-auto">
+        <div class="space-y-1.5">
           <div
-            v-for="(item, idx) in nearbySamples"
+            v-for="(item, idx) in pagedHistory"
             :key="item.id || item.sample_code"
             class="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 p-2.5 text-xs transition hover:bg-slate-100 dark:border-[#2C2C2E] dark:bg-[#141416] dark:hover:bg-[#252525]"
           >
             <div class="flex items-center gap-2">
-              <span class="font-mono text-[11px] text-slate-400 dark:text-[#98A2A8]">#{{ idx + 1 }}</span>
+              <span class="font-mono text-[11px] text-slate-400 dark:text-[#98A2A8]">#{{ historyOffset + idx + 1 }}</span>
               <div>
                 <span class="font-mono font-bold text-slate-900 dark:text-white">{{ item.sample_code }}</span>
                 <span class="ml-2 text-[11px] text-slate-500 dark:text-[#98A2A8]">
@@ -262,6 +285,7 @@ function handleFlyTo() {
             </div>
           </div>
         </div>
+        <KokMiniPager v-model:page="historyPage" :total="nearbySamples.length" :page-size="PAGE_SIZE" />
       </div>
 
       <!-- Footer Actions -->

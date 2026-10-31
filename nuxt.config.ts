@@ -42,6 +42,9 @@ export default defineNuxtConfig({
   },
   vite: {
     envPrefix: ['VITE_', 'NUXT_PUBLIC_'],
+    optimizeDeps: {
+      include: ['leaflet', 'lucide-vue-next'],
+    },
   },
   app: {
     head: {

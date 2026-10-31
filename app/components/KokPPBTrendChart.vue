@@ -146,8 +146,6 @@ const areaPath = computed(() => {
   return `${linePath.value} L ${last.x.toFixed(1)} ${bottomY.toFixed(1)} L ${first.x.toFixed(1)} ${bottomY.toFixed(1)} Z`
 })
 
-const pcd10Y = computed(() => getYCoord(10))
-const watch5Y = computed(() => getYCoord(5))
 
 const selectedPoint = computed(() => {
   if (activeIdx.value !== null && points.value[activeIdx.value]) {
@@ -197,49 +195,6 @@ const selectedPoint = computed(() => {
             <stop offset="100%" stop-color="#0284C7" stop-opacity="0.02" />
           </linearGradient>
         </defs>
-
-        <!-- เส้นอ้างอิง 10 ppb (เกณฑ์ คพ.) -->
-        <line
-          :x1="paddingLeft"
-          :y1="pcd10Y"
-          :x2="svgWidth - paddingRight"
-          :y2="pcd10Y"
-          stroke="#DC2626"
-          stroke-dasharray="4 3"
-          stroke-width="1.5"
-          opacity="0.8"
-        />
-        <text
-          :x="svgWidth - paddingRight + 4"
-          :y="pcd10Y + 3"
-          fill="#DC2626"
-          font-size="9"
-          font-weight="bold"
-          font-family="monospace"
-        >
-          10 (เกณฑ์ คพ.)
-        </text>
-
-        <!-- เส้นอ้างอิง 5 ppb (เฝ้าระวัง) -->
-        <line
-          :x1="paddingLeft"
-          :y1="watch5Y"
-          :x2="svgWidth - paddingRight"
-          :y2="watch5Y"
-          stroke="#D97706"
-          stroke-dasharray="3 3"
-          stroke-width="1.2"
-          opacity="0.75"
-        />
-        <text
-          :x="svgWidth - paddingRight + 4"
-          :y="watch5Y + 3"
-          fill="#D97706"
-          font-size="9"
-          font-family="monospace"
-        >
-          5 ppb
-        </text>
 
         <!-- เส้นแกน 0 ppb -->
         <line

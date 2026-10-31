@@ -467,7 +467,7 @@ function renderThematicLayers() {
         ${cluster.sampleCount > 1 ? `<div style="font-size: 11px; color: #d97706; margin-bottom: 6px; font-weight: bold;">🔥 ตรวจแล้ว ${cluster.sampleCount} ครั้งในบริเวณนี้</div>` : ''}
         <button
           onclick="window.__selectKokWaypoint && window.__selectKokWaypoint('${sampleCode}')"
-          style="width: 100%; background: #00E5FF; color: #000; border: none; padding: 6px 10px; border-radius: 6px; font-weight: bold; font-size: 11px; cursor: pointer;"
+          style="width: 100%; background: #0284C7; color: #fff; border: none; padding: 6px 10px; border-radius: 6px; font-weight: bold; font-size: 11px; cursor: pointer;"
         >
           ดูรายละเอียดและกราฟ &rarr;
         </button>

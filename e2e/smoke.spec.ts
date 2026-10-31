@@ -56,3 +56,18 @@ test('app opens on the map dashboard and the survey form loads in Nuxt UI', asyn
   await expect(page.getByLabel('เลือกภาพที่ 2')).toBeVisible()
   await expect(page.getByRole('button', { name: 'ส่งข้อมูลบันทึก' })).toBeEnabled()
 })
+
+test('news photos open in a full-screen viewer and page with the arrow keys', async ({ page }) => {
+  await page.goto('/?view=news&id=NW-2026-018')
+  await page.getByRole('button', { name: 'ขยายภาพ' }).first().click()
+  const viewer = page.getByRole('dialog', { name: 'ดูภาพขยาย' })
+  const counter = viewer.getByTestId('lightbox-counter')
+  await expect(counter).toHaveText(/^1 \/ 4$/)
+  await page.keyboard.press('ArrowRight')
+  await expect(counter).toHaveText(/^2 \/ 4$/)
+  await page.keyboard.press('ArrowLeft')
+  await page.keyboard.press('ArrowLeft')
+  await expect(counter).toHaveText(/^4 \/ 4$/)
+  await page.keyboard.press('Escape')
+  await expect(viewer).toHaveCount(0)
+})

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import type { ObservationDate } from './utils/flood-observations'
-import { Activity, BookOpen, CheckCircle2, ClipboardList, Filter, ShieldAlert } from 'lucide-vue-next'
+import { Activity, BookOpen, CheckCircle2, ClipboardList, Filter, Newspaper, ShieldAlert } from 'lucide-vue-next'
 import KokLandingHero from './components/KokLandingHero.vue'
 import KokKpiCard from './components/KokKpiCard.vue'
 import KokLoadingScreen from './components/KokLoadingScreen.vue'
@@ -11,8 +11,10 @@ import KokPPBTrendChart from './components/KokPPBTrendChart.vue'
 import KokWaterHealthChart from './components/KokWaterHealthChart.vue'
 import KokPointDetailModal from './components/KokPointDetailModal.vue'
 import KokAdminDataTablePage from './components/KokAdminDataTablePage.vue'
+import KokNewsPage from './components/KokNewsPage.vue'
 
 import type { CommunityMapType } from './utils/community-map-layers'
+import { communityOfPoint } from '../src/lib/community-of-point'
 import { fetchSurveyWaypoints, type SurveyWaypoint } from '../src/lib/survey'
 
 import { communityTargets, pcdRound22ComparableSeries, publicSurveyGridCells, surveyDistributionColumns, type PublicGridCell } from './utils/kok-contract'
@@ -82,7 +84,7 @@ watch(selectedCommunityId, (newId) => {
   }
 })
 const zoomScope = ref<'inner' | 'outer'>('inner')
-const selectedTimeRange = ref<'today' | '24h' | '7d' | '30d' | 'all'>('all')
+const selectedTimeRange = ref<'today' | '24h' | '7d' | '30d' | 'none'>('today')
 const selectedStatusFilter = ref<'all' | 'normal' | 'alert'>('all')
 const waterwayTrigger = ref(0)
 const waterwayMessage = ref<string | null>(null)
@@ -174,17 +176,23 @@ const selectedDistributionCol = ref(distributionColumns[1]?.colKey ?? distributi
 
 
 
+// Only the points of the selected community (within 10 km of its centre), so a village with no surveys shows none.
+const communityWaypoints = computed(() => {
+  // R10 safety: only <= 50 ppb (or approved) in public waypoints
+  const published = waypoints.value.filter((wp) => wp.arsenic_level_ppb <= 50 || wp.publication_status === 'approved')
+  if (selectedCommunityId.value === 'all') return published
+  return published.filter((wp) => communityOfPoint(wp.latitude, wp.longitude, communityTargets)?.id === selectedCommunityId.value)
+})
+
 // Filtered Public Waypoints (R08)
 const filteredWaypoints = computed(() => {
   const now = Date.now()
-  return waypoints.value.filter((wp) => {
-    // R10 safety: only <= 50 ppb in public waypoints
-    if (wp.arsenic_level_ppb > 50 && wp.publication_status !== 'approved') return false
-
+  return communityWaypoints.value.filter((wp) => {
     if (selectedStatusFilter.value === 'normal' && wp.arsenic_level_ppb > 10) return false
     if (selectedStatusFilter.value === 'alert' && wp.arsenic_level_ppb <= 10) return false
 
-    if (selectedTimeRange.value !== 'all') {
+    if (selectedTimeRange.value === 'none') return false
+    {
       const rawDate = wp.collection_time || wp.created_at
       const createdMs = Date.parse(rawDate)
       if (Number.isFinite(createdMs)) {
@@ -199,9 +207,12 @@ const filteredWaypoints = computed(() => {
   })
 })
 
+const selectedCommunityName = computed(() => communityTargets.find((c) => c.id === selectedCommunityId.value)?.fullName ?? 'ทุกพื้นที่')
+
+// The summary covers every published point of the chosen community, whatever time range the map shows.
 const statusSummary = computed(() => {
   const counts = { critical: 0, watch: 0, normal: 0, total: 0 }
-  for (const wp of filteredWaypoints.value) {
+  for (const wp of communityWaypoints.value) {
     if (wp.arsenic_level_ppb > 10) counts.critical += 1
     else if (wp.arsenic_level_ppb >= 5) counts.watch += 1
     else counts.normal += 1
@@ -266,8 +277,27 @@ function toggleQuickPanel(panel: 'guide' | 'summary') {
 }
 
 // View navigation state: the map dashboard is the first page; 'landing' (community picker) is only reachable with ?view=landing
-type AppView = 'landing' | 'dashboard' | 'admin'
+type AppView = 'landing' | 'dashboard' | 'admin' | 'news'
 const currentView = ref<AppView>('dashboard')
+
+function navigateToNews() {
+  currentView.value = 'news'
+  if (typeof window !== 'undefined' && window.history) {
+    const url = new URL(window.location.href)
+    url.searchParams.set('view', 'news')
+    window.history.pushState(null, '', url.toString())
+  }
+}
+
+function returnToDashboardFromNews() {
+  currentView.value = 'dashboard'
+  if (typeof window !== 'undefined' && window.history) {
+    const url = new URL(window.location.href)
+    url.searchParams.set('view', 'dashboard')
+    url.searchParams.delete('id')
+    window.history.pushState(null, '', url.toString())
+  }
+}
 
 function navigateToAdmin() {
   currentView.value = 'admin'
@@ -307,7 +337,7 @@ const colorMode = useColorMode()
 // S0 / S0.1: mascot loading screen while the first data loads; offer retry or skip when it drags on.
 const bootSkipped = ref(false)
 const bootSlow = ref(false)
-const bootVisible = computed(() => currentView.value !== 'admin' && loadingWaypoints.value && !bootSkipped.value)
+const bootVisible = computed(() => currentView.value !== 'admin' && currentView.value !== 'news' && loadingWaypoints.value && !bootSkipped.value)
 
 // The how-to video opens over the map on every visit (not on the admin page) once loading is over; closing it only lasts until the next load.
 const welcomeOpen = ref(false)
@@ -335,20 +365,17 @@ onMounted(() => {
   void loadPublicWaypoints()
   if (typeof window !== 'undefined') {
     const params = new URLSearchParams(window.location.search)
-    if (params.get('theme') === 'dark') {
-      colorMode.preference = 'dark'
-    } else {
-      colorMode.preference = 'light'
-    }
+    colorMode.preference = 'light'
 
     selectedCommunityId.value = getInitialCommunity()
     if (params.get('view') === 'admin') currentView.value = 'admin'
+    else if (params.get('view') === 'news') currentView.value = 'news'
     else if (params.get('view') === 'landing') currentView.value = 'landing'
     welcomeOpen.value = currentView.value === 'dashboard' && params.get('welcome') !== 'off'
     window.addEventListener('popstate', () => {
       const p = new URLSearchParams(window.location.search)
       const v = p.get('view')
-      currentView.value = v === 'admin' ? 'admin' : v === 'landing' ? 'landing' : 'dashboard'
+      currentView.value = v === 'admin' ? 'admin' : v === 'news' ? 'news' : v === 'landing' ? 'landing' : 'dashboard'
     })
   }
 })
@@ -362,6 +389,11 @@ onMounted(() => {
       @back-to-map="returnToDashboardFromAdmin"
     />
 
+    <KokNewsPage
+      v-else-if="currentView === 'news'"
+      @back-to-map="returnToDashboardFromNews"
+    />
+
     <!-- Page 1: Landing Page & Community Selection (R02 4 Focus Communities) -->
     <KokLandingHero
       v-else-if="currentView === 'landing'"
@@ -370,6 +402,8 @@ onMounted(() => {
       @selectCommunity="selectCommunityFromLanding"
       @enter-dashboard="enterDashboardDirectly"
       @enterDashboard="enterDashboardDirectly"
+      @open-news="navigateToNews"
+      @openNews="navigateToNews"
     />
 
     <!-- Page 2: Full-screen Map Dashboard -->
@@ -436,6 +470,15 @@ onMounted(() => {
           </button>
           <button
             type="button"
+            aria-label="ข่าวสารประชาสัมพันธ์"
+            title="ข่าวสารประชาสัมพันธ์"
+            class="round-control"
+            @click="navigateToNews"
+          >
+            <Newspaper class="h-4 w-4 text-[#0284C7] dark:text-[#00E5FF]" />
+          </button>
+          <button
+            type="button"
             aria-label="ระบบแอดมิน Data Table (>50 ppb)"
             title="ระบบแอดมิน Data Table (>50 ppb)"
             class="round-control"
@@ -458,6 +501,18 @@ onMounted(() => {
         />
       </div>
 
+      <!-- Desktop: ตัวกรองเวลาสารเคมีปนเปื้อน ลอยกึ่งกลางเหนือแถบเมนูล่าง -->
+      <div
+        v-if="activeCommunityMapType === 'chemical'"
+        class="pointer-events-none hidden sm:flex absolute bottom-[68px] left-1/2 -translate-x-1/2 z-20 items-center justify-center"
+      >
+        <KokChemicalTimeFilter
+          v-model="selectedTimeRange"
+          :point-count="filteredWaypoints.length"
+          :total-count="communityWaypoints.length"
+        />
+      </div>
+
       <!-- Desktop: ปุ่มทำแบบสำรวจ แสดงเฉพาะเมื่ออยู่ในแท็บ 'สารเคมีปนเปื้อน' -->
       <div v-if="activeCommunityMapType === 'chemical'" class="pointer-events-none hidden sm:block absolute bottom-[9px] right-4 z-20">
         <button
@@ -470,8 +525,8 @@ onMounted(() => {
         </button>
       </div>
 
-      <!-- Mobile: Floating Survey Button (แสดงเฉพาะเมื่ออยู่ในแท็บ 'สารเคมีปนเปื้อน' ลอยเหนือแถบไทม์ไลน์) -->
-      <div v-if="activeCommunityMapType === 'chemical'" class="pointer-events-none sm:hidden absolute bottom-[146px] right-3 z-20">
+      <!-- Mobile: Floating Survey Button (แสดงเฉพาะเมื่ออยู่ในแท็บ 'สารเคมีปนเปื้อน' ลอยเหนือตัวกรองเวลา) -->
+      <div v-if="activeCommunityMapType === 'chemical'" class="pointer-events-none sm:hidden absolute bottom-[144px] right-3 z-20">
         <button
           type="button"
           class="survey-button pointer-events-auto shadow-xl"
@@ -480,6 +535,19 @@ onMounted(() => {
           <ClipboardList class="h-5 w-5" />
           <span>ทำแบบสำรวจ</span>
         </button>
+      </div>
+
+      <!-- Mobile: ตัวกรองเวลาสารเคมีปนเปื้อน ลอยเหนือแถบเมนูด้านล่าง -->
+      <div
+        v-if="activeCommunityMapType === 'chemical'"
+        class="pointer-events-none sm:hidden fixed bottom-[66px] left-3 right-3 z-20 flex justify-center"
+      >
+        <KokChemicalTimeFilter
+          v-model="selectedTimeRange"
+          :point-count="filteredWaypoints.length"
+          :total-count="communityWaypoints.length"
+          class="w-full max-w-sm justify-between shadow-lg"
+        />
       </div>
 
       <!-- Mobile: Bottom Navigation Button Menu (4 tabs as native bottom menu bar) -->
@@ -542,7 +610,7 @@ onMounted(() => {
             <div class="flex items-center justify-between border-b border-slate-200 dark:border-[#2C2C2E] pb-3">
               <h2 class="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
                 <Activity class="h-5 w-5 text-[#16A34A] dark:text-[#32D74B]" />
-                <span>สรุปผลตรวจ คุณภาพน้ำ และกราฟแนวโน้มสารหนู</span>
+                <span>สรุปผลตรวจ คุณภาพน้ำ และกราฟแนวโน้มสารหนู · {{ selectedCommunityName }}</span>
               </h2>
               <button type="button" class="wv-btn-secondary text-xs" @click="activeQuickPanel = null">ปิด</button>
             </div>
@@ -552,7 +620,7 @@ onMounted(() => {
             <div v-else class="space-y-4">
               <!-- KPI Metric Cards -->
               <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                <KokKpiCard surface="subsurface" label="จุดสำรวจที่เผยแพร่" :value="filteredWaypoints.length" />
+                <KokKpiCard surface="subsurface" label="จุดสำรวจที่เผยแพร่" :value="communityWaypoints.length" />
                 <KokKpiCard surface="subsurface" label="ปกติ (&lt; 5 ppb)" :value="statusSummary.normal" value-class="text-[#16A34A] dark:text-[#32D74B]" />
                 <KokKpiCard surface="subsurface" label="เฝ้าระวัง (5–10 ppb)" :value="statusSummary.watch" value-class="text-[#CA8A04] dark:text-[#F7E752]" />
                 <KokKpiCard surface="subsurface" label="เกินเกณฑ์ คพ. (&gt; 10 ppb)" :value="statusSummary.critical" value-class="text-[#DC2626] dark:text-[#FF453A]" />
@@ -561,12 +629,12 @@ onMounted(() => {
               <!-- Interactive Graphs -->
               <div class="space-y-4 pt-1">
                 <!-- Stacked Bar Chart: Health Status distribution by Day/Month -->
-                <KokWaterHealthChart :waypoints="filteredWaypoints" />
+                <KokWaterHealthChart :waypoints="communityWaypoints" />
 
                 <!-- Arsenic PPB Time Series Chart with 5/10 ppb threshold lines -->
                 <KokPPBTrendChart
-                  :waypoints="filteredWaypoints"
-                  title="แนวโน้มระดับสารหนู (As ppb) ในลุ่มน้ำกกตามลำดับเวลา"
+                  :waypoints="communityWaypoints"
+                  :title="`แนวโน้มระดับสารหนู (As ppb) ${selectedCommunityName} ตามลำดับเวลา`"
                 />
               </div>
             </div>
