@@ -5,6 +5,8 @@ import { Activity, BookOpen, CheckCircle2, ClipboardList, Filter, ShieldAlert } 
 import KokLandingHero from './components/KokLandingHero.vue'
 import KokKpiCard from './components/KokKpiCard.vue'
 import KokLoadingScreen from './components/KokLoadingScreen.vue'
+import KokTutorialVideo from './components/KokTutorialVideo.vue'
+import KokWelcomeVideoModal from './components/KokWelcomeVideoModal.vue'
 import KokPPBTrendChart from './components/KokPPBTrendChart.vue'
 import KokWaterHealthChart from './components/KokWaterHealthChart.vue'
 import KokPointDetailModal from './components/KokPointDetailModal.vue'
@@ -306,6 +308,10 @@ const colorMode = useColorMode()
 const bootSkipped = ref(false)
 const bootSlow = ref(false)
 const bootVisible = computed(() => currentView.value !== 'admin' && loadingWaypoints.value && !bootSkipped.value)
+
+// The how-to video opens over the map on every visit (not on the admin page) once loading is over; closing it only lasts until the next load.
+const welcomeOpen = ref(false)
+const showWelcome = computed(() => welcomeOpen.value && currentView.value === 'dashboard' && !bootVisible.value)
 let bootSlowTimer: ReturnType<typeof setTimeout> | undefined
 
 function startBootTimer() {
@@ -338,6 +344,7 @@ onMounted(() => {
     selectedCommunityId.value = getInitialCommunity()
     if (params.get('view') === 'admin') currentView.value = 'admin'
     else if (params.get('view') === 'landing') currentView.value = 'landing'
+    welcomeOpen.value = currentView.value === 'dashboard' && params.get('welcome') !== 'off'
     window.addEventListener('popstate', () => {
       const p = new URLSearchParams(window.location.search)
       const v = p.get('view')
@@ -501,6 +508,7 @@ onMounted(() => {
               </h2>
               <button type="button" class="wv-btn-secondary text-xs" @click="activeQuickPanel = null">ปิด</button>
             </div>
+            <KokTutorialVideo class="max-w-sm" />
             <div class="space-y-3">
               <div class="wv-subsurface">
                 <strong class="text-sm text-[#0284C7] dark:text-[#00E5FF]">ขั้นที่ 1: เตรียมน้ำตัวอย่าง</strong>
@@ -595,6 +603,8 @@ onMounted(() => {
         @focus="handleFocusWaypoint"
       />
     </div>
+
+    <KokWelcomeVideoModal v-if="showWelcome" @close="welcomeOpen = false" />
 
     <KokLoadingScreen
       v-if="bootVisible"

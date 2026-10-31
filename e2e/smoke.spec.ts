@@ -28,6 +28,12 @@ test('app opens on the map dashboard and the survey form loads in Nuxt UI', asyn
   await page.goto('/')
   await expect(page).toHaveTitle('MFU Kok Water Watch')
 
+  // The how-to video opens over the map on every visit and can be closed
+  const welcome = page.getByRole('dialog')
+  await expect(welcome.locator('video')).toBeVisible()
+  await page.getByRole('button', { name: 'ปิดวิดีโอ' }).click()
+  await expect(welcome).toHaveCount(0)
+
   // First page is the map, no community picker in between; defaults to Light mode
   await expect(page.getByRole('region', { name: /แผนที่.*Leaflet/ })).toBeVisible()
   await expect(page.getByText('เลือกพื้นที่เป้าหมาย 4 ชุมชนลุ่มน้ำกก')).toHaveCount(0)
