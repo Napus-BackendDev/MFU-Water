@@ -36,7 +36,6 @@ const activeQuickPanel = ref<'guide' | 'summary' | null>(null)
 // Map & Filter State (R02, R03, R08, R23)
 const activeThematicLayer = ref<'arsenic' | 'survey_grid'>('arsenic')
 const activeCommunityMapType = ref<CommunityMapType | null>('chemical')
-const timelineSelectedDate = ref<number | null>(null)
 const floodStage = ref(2.5)
 // Simulated flood water is switched off for now; its toggle was removed from the layer menu.
 const simulationVisible = ref(false)
@@ -182,17 +181,6 @@ const filteredWaypoints = computed(() => {
 
     if (selectedStatusFilter.value === 'normal' && wp.arsenic_level_ppb > 10) return false
     if (selectedStatusFilter.value === 'alert' && wp.arsenic_level_ppb <= 10) return false
-
-    // Timeline filter: กรองจุดที่บันทึกสะสมถึงวันที่เลือกในไทม์ไลน์
-    if (timelineSelectedDate.value !== null && timelineSelectedDate.value !== undefined) {
-      const rawDate = wp.collection_time || wp.created_at
-      const createdMs = Date.parse(rawDate)
-      if (Number.isFinite(createdMs)) {
-        const targetDate = new Date(timelineSelectedDate.value)
-        targetDate.setHours(23, 59, 59, 999)
-        if (createdMs > targetDate.getTime()) return false
-      }
-    }
 
     if (selectedTimeRange.value !== 'all') {
       const rawDate = wp.collection_time || wp.created_at
@@ -453,18 +441,6 @@ onMounted(() => {
       </header>
 
 
-
-      <!-- Timeline Slider: แสดงเฉพาะเมื่ออยู่ในแท็บ 'สารเคมีปนเปื้อน' ลอยอยู่เหนือแถบเมนูล่าง -->
-      <div
-        v-if="activeCommunityMapType === 'chemical'"
-        class="pointer-events-none absolute z-20 transition-all duration-300 bottom-[64px] sm:bottom-[58px] left-2 right-2 sm:left-1/2 sm:-translate-x-1/2 sm:w-[540px]"
-      >
-        <KokSurveyTimeline
-          :waypoints="waypoints"
-          v-model="timelineSelectedDate"
-          class="pointer-events-auto shadow-2xl"
-        />
-      </div>
 
       <!-- Desktop Bottom Bar: Tabs centered at bottom-[9px], Survey Button on right at bottom-[9px] (+4px lifted) -->
       <div class="pointer-events-none hidden sm:flex absolute bottom-[9px] left-1/2 -translate-x-1/2 z-20 items-center justify-center">
