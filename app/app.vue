@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import type { ObservationDate } from './utils/flood-observations'
-import { Activity, ArrowLeft, BookOpen, CheckCircle2, ClipboardList, Filter, Newspaper, ShieldAlert, Waves } from 'lucide-vue-next'
+import { Activity, BookOpen, CheckCircle2, ClipboardList, Filter, ShieldAlert } from 'lucide-vue-next'
 import KokLandingHero from './components/KokLandingHero.vue'
 import KokKpiCard from './components/KokKpiCard.vue'
 import KokLoadingScreen from './components/KokLoadingScreen.vue'
@@ -9,7 +9,6 @@ import KokPPBTrendChart from './components/KokPPBTrendChart.vue'
 import KokWaterHealthChart from './components/KokWaterHealthChart.vue'
 import KokPointDetailModal from './components/KokPointDetailModal.vue'
 import KokAdminDataTablePage from './components/KokAdminDataTablePage.vue'
-import KokNewsPage from './components/KokNewsPage.vue'
 
 import type { CommunityMapType } from './utils/community-map-layers'
 import { fetchSurveyWaypoints, type SurveyWaypoint } from '../src/lib/survey'
@@ -277,27 +276,8 @@ function toggleQuickPanel(panel: 'guide' | 'summary') {
 }
 
 // View navigation state: 'landing' (Page 1), 'dashboard' (Page 2), or 'admin' (Dedicated Admin Data Table Page)
-type AppView = 'landing' | 'dashboard' | 'admin' | 'news'
+type AppView = 'landing' | 'dashboard' | 'admin'
 const currentView = ref<AppView>('landing')
-
-function navigateToNews() {
-  currentView.value = 'news'
-  if (typeof window !== 'undefined' && window.history) {
-    const url = new URL(window.location.href)
-    url.searchParams.set('view', 'news')
-    window.history.pushState(null, '', url.toString())
-  }
-}
-
-function returnToDashboardFromNews() {
-  currentView.value = 'dashboard'
-  if (typeof window !== 'undefined' && window.history) {
-    const url = new URL(window.location.href)
-    url.searchParams.set('view', 'dashboard')
-    url.searchParams.delete('id')
-    window.history.pushState(null, '', url.toString())
-  }
-}
 
 function navigateToAdmin() {
   currentView.value = 'admin'
@@ -330,16 +310,14 @@ function enterDashboardDirectly() {
   currentView.value = 'dashboard'
 }
 
-function returnToLanding() {
-  currentView.value = 'landing'
-}
+
 
 const colorMode = useColorMode()
 
 // S0 / S0.1: mascot loading screen while the first data loads; offer retry or skip when it drags on.
 const bootSkipped = ref(false)
 const bootSlow = ref(false)
-const bootVisible = computed(() => currentView.value !== 'admin' && currentView.value !== 'news' && loadingWaypoints.value && !bootSkipped.value)
+const bootVisible = computed(() => currentView.value !== 'admin' && loadingWaypoints.value && !bootSkipped.value)
 let bootSlowTimer: ReturnType<typeof setTimeout> | undefined
 
 function startBootTimer() {
@@ -371,8 +349,6 @@ onMounted(() => {
 
     if (params.get('view') === 'admin') {
       currentView.value = 'admin'
-    } else if (params.get('view') === 'news') {
-      currentView.value = 'news'
     } else if (params.get('view') === 'dashboard' || params.has('community')) {
       const comm = params.get('community')
       if (comm && ['thaton', 'ruammit', 'pongkhong', 'pakingtai'].includes(comm)) {
@@ -387,7 +363,6 @@ onMounted(() => {
       const p = new URLSearchParams(window.location.search)
       const v = p.get('view')
       if (v === 'admin') currentView.value = 'admin'
-      else if (v === 'news') currentView.value = 'news'
       else if (v === 'dashboard' || p.has('community')) currentView.value = 'dashboard'
       else currentView.value = 'landing'
     })
@@ -403,12 +378,6 @@ onMounted(() => {
       @back-to-map="returnToDashboardFromAdmin"
     />
 
-    <!-- Dedicated News & PR Page (ศูนย์ข่าวสารและประชาสัมพันธ์ลุ่มน้ำกก S12 / S12.1) -->
-    <KokNewsPage
-      v-else-if="currentView === 'news'"
-      @back-to-map="returnToDashboardFromNews"
-    />
-
     <!-- Page 1: Landing Page & Community Selection (R02 4 Focus Communities) -->
     <KokLandingHero
       v-else-if="currentView === 'landing'"
@@ -417,8 +386,6 @@ onMounted(() => {
       @selectCommunity="selectCommunityFromLanding"
       @enter-dashboard="enterDashboardDirectly"
       @enterDashboard="enterDashboardDirectly"
-      @open-news="navigateToNews"
-      @openNews="navigateToNews"
     />
 
     <!-- Page 2: Full-screen Map Dashboard -->
@@ -482,16 +449,6 @@ onMounted(() => {
             @click="toggleQuickPanel('summary')"
           >
             <Activity class="h-4 w-4 text-[#16A34A] dark:text-[#32D74B]" />
-          </button>
-          <button
-            type="button"
-            aria-label="ข่าวสารประชาสัมพันธ์"
-            title="ข่าวสารประชาสัมพันธ์"
-            class="round-control"
-            :class="{ 'ring-2 ring-[#0284C7] dark:ring-[#00E5FF]': currentView === 'news' }"
-            @click="navigateToNews"
-          >
-            <Newspaper class="h-4 w-4 text-[#0284C7] dark:text-[#00E5FF]" />
           </button>
           <button
             type="button"

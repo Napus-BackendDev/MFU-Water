@@ -3,7 +3,6 @@ import {
   ArrowRight,
   CheckCircle2,
   Clock,
-  Newspaper,
   Sparkles,
   Waves,
 } from 'lucide-vue-next'
@@ -18,8 +17,6 @@ const emit = defineEmits<{
   (e: 'selectCommunity', id: 'all' | 'thaton' | 'ruammit' | 'pongkhong' | 'pakingtai'): void
   (e: 'enter-dashboard'): void
   (e: 'enterDashboard'): void
-  (e: 'open-news'): void
-  (e: 'openNews'): void
 }>()
 
 function onSelect(id: 'all' | 'thaton' | 'ruammit' | 'pongkhong' | 'pakingtai') {
@@ -55,14 +52,6 @@ const communityRoleBadges: Record<string, { role: string; riverPart: string; col
         </div>
 
         <div class="flex items-center gap-3">
-          <button
-            type="button"
-            class="wv-btn-secondary flex items-center gap-1.5 text-xs font-semibold py-1.5 px-3.5 rounded-xl border border-slate-200 bg-white/95 dark:border-[#2C2C2E] dark:bg-[#1E1E1E]/95 text-slate-700 dark:text-slate-200 hover:border-[#0284C7] dark:hover:border-[#00E5FF] transition cursor-pointer"
-            @click="emit('openNews')"
-          >
-            <Newspaper class="h-3.5 w-3.5 text-[#0284C7] dark:text-[#00E5FF]" />
-            <span>ข่าวสารประชาสัมพันธ์</span>
-          </button>
           <button
             type="button"
             class="wv-btn-primary flex items-center gap-1.5 text-xs font-semibold py-1.5 px-3.5"
