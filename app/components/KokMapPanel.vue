@@ -395,6 +395,11 @@ function renderThematicLayers() {
   if (!L || !mapInstance || !thematicGroup) return
   thematicGroup.clearLayers()
 
+  // ซ่อนจุดตรวจสารเคมีเมื่อผู้ใช้เลือกแท็บอื่น (หย่อมบ้าน, สถานที่สำคัญ, อพยพกลุ่มเปราะบาง)
+  if (props.communityMapType && props.communityMapType !== 'chemical') {
+    return
+  }
+
   // Community landmark rings removed upon user request
 
   if (props.activeThematicLayer === 'survey_grid') {
@@ -624,7 +629,7 @@ watch(myMapsLayerId,(id) => {
 watch(() => props.communityMapType,(type) => { if (type) myMapsLayerId.value = '' })
 
 watch(
-  () => [props.waypoints, props.activeThematicLayer, props.selectedCommunityId],
+  () => [props.waypoints, props.activeThematicLayer, props.selectedCommunityId, props.communityMapType],
   () => {
     renderThematicLayers()
   },

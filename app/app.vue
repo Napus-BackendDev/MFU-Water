@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import type { ObservationDate } from './utils/flood-observations'
-import { Activity, ArrowLeft, BookOpen, CheckCircle2, ClipboardList, Filter, ShieldAlert, Waves } from 'lucide-vue-next'
+import { Activity, ArrowLeft, BookOpen, CheckCircle2, ClipboardList, Filter, Newspaper, ShieldAlert, Waves } from 'lucide-vue-next'
 import KokLandingHero from './components/KokLandingHero.vue'
 import KokKpiCard from './components/KokKpiCard.vue'
 import KokLoadingScreen from './components/KokLoadingScreen.vue'
@@ -9,6 +9,7 @@ import KokPPBTrendChart from './components/KokPPBTrendChart.vue'
 import KokWaterHealthChart from './components/KokWaterHealthChart.vue'
 import KokPointDetailModal from './components/KokPointDetailModal.vue'
 import KokAdminDataTablePage from './components/KokAdminDataTablePage.vue'
+import KokNewsPage from './components/KokNewsPage.vue'
 
 import type { CommunityMapType } from './utils/community-map-layers'
 import { fetchSurveyWaypoints, type SurveyWaypoint } from '../src/lib/survey'
@@ -35,13 +36,51 @@ const activeQuickPanel = ref<'guide' | 'summary' | null>(null)
 
 // Map & Filter State (R02, R03, R08, R23)
 const activeThematicLayer = ref<'arsenic' | 'survey_grid'>('arsenic')
-const activeCommunityMapType = ref<CommunityMapType | null>(null)
+const activeCommunityMapType = ref<CommunityMapType | null>('chemical')
+const timelineSelectedDate = ref<number | null>(null)
 const floodStage = ref(2.5)
 // Simulated flood water is switched off for now; its toggle was removed from the layer menu.
 const simulationVisible = ref(false)
 const observationsVisible = ref(false)
 const observationDate = ref<ObservationDate>('2024-09-15')
-const selectedCommunityId = ref<'all' | 'thaton' | 'ruammit' | 'pongkhong' | 'pakingtai'>('all')
+const STORAGE_KEY_COMMUNITY = 'kok_selected_community'
+const validCommunities = ['thaton', 'ruammit', 'pongkhong', 'pakingtai'] as const
+
+function getInitialCommunity(): 'thaton' | 'ruammit' | 'pongkhong' | 'pakingtai' {
+  if (typeof window !== 'undefined') {
+    const params = new URLSearchParams(window.location.search)
+    const comm = params.get('community')
+    if (comm && validCommunities.includes(comm as any)) {
+      return comm as any
+    }
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY_COMMUNITY)
+      if (stored && validCommunities.includes(stored as any)) {
+        return stored as any
+      }
+    } catch {
+      // ignore
+    }
+  }
+  return 'thaton'
+}
+
+const selectedCommunityId = ref<'all' | 'thaton' | 'ruammit' | 'pongkhong' | 'pakingtai'>(getInitialCommunity())
+
+watch(selectedCommunityId, (newId) => {
+  if (newId && validCommunities.includes(newId as any)) {
+    try {
+      localStorage.setItem(STORAGE_KEY_COMMUNITY, newId)
+    } catch {
+      // ignore
+    }
+    if (typeof window !== 'undefined' && window.history && currentView.value === 'dashboard') {
+      const url = new URL(window.location.href)
+      url.searchParams.set('community', newId)
+      window.history.replaceState(null, '', url.toString())
+    }
+  }
+})
 const zoomScope = ref<'inner' | 'outer'>('inner')
 const selectedTimeRange = ref<'today' | '24h' | '7d' | '30d' | 'all'>('all')
 const selectedStatusFilter = ref<'all' | 'normal' | 'alert'>('all')
@@ -50,7 +89,7 @@ const waterwayMessage = ref<string | null>(null)
 const virtualPolygonActive = ref(false)
 
 watch(activeCommunityMapType, (newType) => {
-  if ((newType === 'flood' || newType === 'evacuation') && selectedCommunityId.value === 'all') {
+  if (newType === 'evacuation' && selectedCommunityId.value === 'all') {
     selectedCommunityId.value = 'thaton'
   }
 })
@@ -145,6 +184,17 @@ const filteredWaypoints = computed(() => {
     if (selectedStatusFilter.value === 'normal' && wp.arsenic_level_ppb > 10) return false
     if (selectedStatusFilter.value === 'alert' && wp.arsenic_level_ppb <= 10) return false
 
+    // Timeline filter: กรองจุดที่บันทึกสะสมถึงวันที่เลือกในไทม์ไลน์
+    if (timelineSelectedDate.value !== null && timelineSelectedDate.value !== undefined) {
+      const rawDate = wp.collection_time || wp.created_at
+      const createdMs = Date.parse(rawDate)
+      if (Number.isFinite(createdMs)) {
+        const targetDate = new Date(timelineSelectedDate.value)
+        targetDate.setHours(23, 59, 59, 999)
+        if (createdMs > targetDate.getTime()) return false
+      }
+    }
+
     if (selectedTimeRange.value !== 'all') {
       const rawDate = wp.collection_time || wp.created_at
       const createdMs = Date.parse(rawDate)
@@ -227,8 +277,27 @@ function toggleQuickPanel(panel: 'guide' | 'summary') {
 }
 
 // View navigation state: 'landing' (Page 1), 'dashboard' (Page 2), or 'admin' (Dedicated Admin Data Table Page)
-type AppView = 'landing' | 'dashboard' | 'admin'
+type AppView = 'landing' | 'dashboard' | 'admin' | 'news'
 const currentView = ref<AppView>('landing')
+
+function navigateToNews() {
+  currentView.value = 'news'
+  if (typeof window !== 'undefined' && window.history) {
+    const url = new URL(window.location.href)
+    url.searchParams.set('view', 'news')
+    window.history.pushState(null, '', url.toString())
+  }
+}
+
+function returnToDashboardFromNews() {
+  currentView.value = 'dashboard'
+  if (typeof window !== 'undefined' && window.history) {
+    const url = new URL(window.location.href)
+    url.searchParams.set('view', 'dashboard')
+    url.searchParams.delete('id')
+    window.history.pushState(null, '', url.toString())
+  }
+}
 
 function navigateToAdmin() {
   currentView.value = 'admin'
@@ -250,12 +319,14 @@ function returnToDashboardFromAdmin() {
 }
 
 function selectCommunityFromLanding(id: 'all' | 'thaton' | 'ruammit' | 'pongkhong' | 'pakingtai') {
-  selectedCommunityId.value = id
+  selectedCommunityId.value = id === 'all' ? getInitialCommunity() : id
+  activeCommunityMapType.value = 'chemical'
   currentView.value = 'dashboard'
 }
 
 function enterDashboardDirectly() {
-  selectedCommunityId.value = 'all'
+  selectedCommunityId.value = getInitialCommunity()
+  activeCommunityMapType.value = 'chemical'
   currentView.value = 'dashboard'
 }
 
@@ -268,7 +339,7 @@ const colorMode = useColorMode()
 // S0 / S0.1: mascot loading screen while the first data loads; offer retry or skip when it drags on.
 const bootSkipped = ref(false)
 const bootSlow = ref(false)
-const bootVisible = computed(() => currentView.value !== 'admin' && loadingWaypoints.value && !bootSkipped.value)
+const bootVisible = computed(() => currentView.value !== 'admin' && currentView.value !== 'news' && loadingWaypoints.value && !bootSkipped.value)
 let bootSlowTimer: ReturnType<typeof setTimeout> | undefined
 
 function startBootTimer() {
@@ -300,13 +371,26 @@ onMounted(() => {
 
     if (params.get('view') === 'admin') {
       currentView.value = 'admin'
+    } else if (params.get('view') === 'news') {
+      currentView.value = 'news'
     } else if (params.get('view') === 'dashboard' || params.has('community')) {
       const comm = params.get('community')
-      if (comm && ['all', 'thaton', 'ruammit', 'pongkhong', 'pakingtai'].includes(comm)) {
+      if (comm && ['thaton', 'ruammit', 'pongkhong', 'pakingtai'].includes(comm)) {
         selectedCommunityId.value = comm as any
+      } else {
+        selectedCommunityId.value = getInitialCommunity()
       }
+      activeCommunityMapType.value = 'chemical'
       currentView.value = 'dashboard'
     }
+    window.addEventListener('popstate', () => {
+      const p = new URLSearchParams(window.location.search)
+      const v = p.get('view')
+      if (v === 'admin') currentView.value = 'admin'
+      else if (v === 'news') currentView.value = 'news'
+      else if (v === 'dashboard' || p.has('community')) currentView.value = 'dashboard'
+      else currentView.value = 'landing'
+    })
   }
 })
 </script>
@@ -319,6 +403,12 @@ onMounted(() => {
       @back-to-map="returnToDashboardFromAdmin"
     />
 
+    <!-- Dedicated News & PR Page (ศูนย์ข่าวสารและประชาสัมพันธ์ลุ่มน้ำกก S12 / S12.1) -->
+    <KokNewsPage
+      v-else-if="currentView === 'news'"
+      @back-to-map="returnToDashboardFromNews"
+    />
+
     <!-- Page 1: Landing Page & Community Selection (R02 4 Focus Communities) -->
     <KokLandingHero
       v-else-if="currentView === 'landing'"
@@ -327,6 +417,8 @@ onMounted(() => {
       @selectCommunity="selectCommunityFromLanding"
       @enter-dashboard="enterDashboardDirectly"
       @enterDashboard="enterDashboardDirectly"
+      @open-news="navigateToNews"
+      @openNews="navigateToNews"
     />
 
     <!-- Page 2: Full-screen Map Dashboard -->
@@ -361,27 +453,15 @@ onMounted(() => {
       <!-- Floating Top Header Bar -->
       <header class="no-print absolute top-3 left-3 right-3 z-20 flex items-start justify-between gap-3 pointer-events-none">
         <div class="pointer-events-auto flex items-center gap-1 shrink-0">
-          <!-- Back to Landing Button -->
-          <button
-            type="button"
-            class="wv-btn-secondary text-xs flex items-center gap-1.5 py-1.5 px-3 rounded-xl border border-slate-200 bg-white/95 dark:border-[#2C2C2E] dark:bg-[#1E1E1E]/95 backdrop-blur-md text-[#0284C7] dark:text-[#00E5FF] shadow-lg hover:border-[#0284C7] dark:hover:border-[#00E5FF] transition"
-            @click="returnToLanding"
-          >
-            <ArrowLeft class="h-3.5 w-3.5" />
-            <span>เลือกพื้นที่ (หน้าแรก)</span>
-          </button>
-
-          <div class="flex items-center gap-2 rounded-xl border border-slate-200 bg-white/95 dark:border-[#2C2C2E] dark:bg-[#1E1E1E]/95 px-3 py-1.5 backdrop-blur-md shadow-lg">
-            <div class="flex h-6 w-6 items-center justify-center rounded-lg bg-[#00E5FF]/20 text-[#0284C7] dark:text-[#00E5FF]">
-              <Waves class="h-3.5 w-3.5" />
-            </div>
-            <strong class="text-xs font-semibold text-slate-900 dark:text-white hidden sm:inline">MFU Kok Water Watch</strong>
-          </div>
+          <!-- Community Target Dropdown (4 Focus Communities) -->
+          <KokCommunityDropdown
+            v-model="selectedCommunityId"
+          />
         </div>
 
         <!-- Header Actions / Map Actions (Vertical on mobile, horizontal on sm+) -->
         <div class="map-actions pointer-events-auto flex flex-col sm:flex-row items-center gap-2 shrink-0">
-          <KokFloodLayersControl v-if="(selectedCommunityId === 'thaton' || selectedCommunityId === 'all') && (activeCommunityMapType === 'flood' || activeCommunityMapType === 'evacuation')"
+          <KokFloodLayersControl v-if="(selectedCommunityId === 'thaton' || selectedCommunityId === 'all') && activeCommunityMapType === 'evacuation'"
             v-model:observations-visible="observationsVisible" v-model:date="observationDate" />
           <button
             type="button"
@@ -405,6 +485,16 @@ onMounted(() => {
           </button>
           <button
             type="button"
+            aria-label="ข่าวสารประชาสัมพันธ์"
+            title="ข่าวสารประชาสัมพันธ์"
+            class="round-control"
+            :class="{ 'ring-2 ring-[#0284C7] dark:ring-[#00E5FF]': currentView === 'news' }"
+            @click="navigateToNews"
+          >
+            <Newspaper class="h-4 w-4 text-[#0284C7] dark:text-[#00E5FF]" />
+          </button>
+          <button
+            type="button"
             aria-label="ระบบแอดมิน Data Table (>50 ppb)"
             title="ระบบแอดมิน Data Table (>50 ppb)"
             class="round-control"
@@ -418,6 +508,18 @@ onMounted(() => {
 
 
 
+      <!-- Timeline Slider: แสดงเฉพาะเมื่ออยู่ในแท็บ 'สารเคมีปนเปื้อน' ลอยอยู่เหนือแถบเมนูล่าง -->
+      <div
+        v-if="activeCommunityMapType === 'chemical'"
+        class="pointer-events-none absolute z-20 transition-all duration-300 bottom-[64px] sm:bottom-[58px] left-2 right-2 sm:left-1/2 sm:-translate-x-1/2 sm:w-[540px]"
+      >
+        <KokSurveyTimeline
+          :waypoints="waypoints"
+          v-model="timelineSelectedDate"
+          class="pointer-events-auto shadow-2xl"
+        />
+      </div>
+
       <!-- Desktop Bottom Bar: Tabs centered at bottom-[9px], Survey Button on right at bottom-[9px] (+4px lifted) -->
       <div class="pointer-events-none hidden sm:flex absolute bottom-[9px] left-1/2 -translate-x-1/2 z-20 items-center justify-center">
         <KokMapTypesControl
@@ -427,7 +529,8 @@ onMounted(() => {
         />
       </div>
 
-      <div class="pointer-events-none hidden sm:block absolute bottom-[9px] right-4 z-20">
+      <!-- Desktop: ปุ่มทำแบบสำรวจ แสดงเฉพาะเมื่ออยู่ในแท็บ 'สารเคมีปนเปื้อน' -->
+      <div v-if="activeCommunityMapType === 'chemical'" class="pointer-events-none hidden sm:block absolute bottom-[9px] right-4 z-20">
         <button
           type="button"
           class="survey-button pointer-events-auto"
@@ -438,8 +541,8 @@ onMounted(() => {
         </button>
       </div>
 
-      <!-- Mobile: Floating Survey Button (Taken out of bottom bar) -->
-      <div class="pointer-events-none sm:hidden absolute bottom-[68px] right-3 z-20">
+      <!-- Mobile: Floating Survey Button (แสดงเฉพาะเมื่ออยู่ในแท็บ 'สารเคมีปนเปื้อน' ลอยเหนือแถบไทม์ไลน์) -->
+      <div v-if="activeCommunityMapType === 'chemical'" class="pointer-events-none sm:hidden absolute bottom-[146px] right-3 z-20">
         <button
           type="button"
           class="survey-button pointer-events-auto shadow-xl"

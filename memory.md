@@ -2040,3 +2040,243 @@
 - 2026-10-30 (ต่อ) แตก KokSurveyModal 566→205 บรรทัด: composables `useSurveyPhotos`/`useGpsLocation` + `KokArsenicLevelPicker`/`KokLocationFields`/`KokPhotoPicker`; เอา savedMessage/submittedPhotos ที่ไม่เคยแสดงออก; `KokModalShell` ใช้ร่วม (admin dialogs + PointDetail, มี role=dialog); `KokKpiCard` มี surface=subsurface ใช้กับ KPI หน้าแผนที่; Express ลงทะเบียน route ด้วยตาราง
 - ตรวจ UI ในเบราว์เซอร์: loading, KPI สาธารณะ, ฟอร์มแบบสำรวจ (validation, ส่งจริงสำเร็จ KOK-…-0006, หน้ากำลังส่ง), แอดมิน (ตัวกรอง, ปฏิเสธ+toast, KPI, รายละเอียด+รูป) ผ่านทั้งหมด; ลบข้อมูลทดสอบของผมแล้ว; vitest 69/69, build ผ่าน, ไม่แตะ KokMapPanel.vue/evacuation-priority.ts ของอีกเซสชัน
 - 2026-10-30 Vercel: โปรเจกต์ production คือ `mfu-water-simulation` (team napus-projects-863f3b4b, บัญชี napusdev-7975) ผูก GitHub repo, push main → deploy อัตโนมัติ; เครื่องนี้ล็อกอิน CLI เป็น napusdev-7975 และ `vercel link` แล้ว (.vercel/ ถูก gitignore); ตั้ง env แล้ว: MONGODB_URI (production), ADMIN_PASSCODE และ SURVEY_SIGNING_SECRET (production+preview, ค่าสุ่มใหม่), redeploy แล้ว; ตรวจ production: waypoints จาก Atlas 200, รหัสเก่าถูกปฏิเสธ, รหัสใหม่ล็อกอินได้, admin/photo ต้องมี token, rewrite pending-samples/review ทำงาน, รูปที่ย้ายมาเปิดได้; env SUPABASE_* ใน Vercel ยังค้าง (ไม่ใช้แล้ว)
+
+## 2026-10-30 — เปิด Excalidraw Canvas สด และสรุปการอ่านระบบอย่างละเอียดสำหรับเตรียมวางแผน
+- ผู้ใช้สั่งให้อ่านระบบอย่างละเอียดและเปิด Excalidraw Canvas เพื่อมาวางแผนระบบร่วมกัน
+- ตรวจสอบเซิร์ฟเวอร์ Excalidraw Canvas พบว่ารันอยู่ที่ `http://127.0.0.1:3000` (PID 24072) แต่ก่อนหน้านี้มี 0 elements จึงได้ import ข้อมูล `docs/canvas-backup-2026-10-26.excalidraw` (942 องค์ประกอบ ครอบคลุม System Plan, 3-Week Work Plan 18 งาน, Requirements Checklist R01–R29, System Architecture และ Tech Stack ล่าสุด) เข้าสู่ Canvas สดเรียบร้อย
+- สั่งเปิดเบราว์เซอร์ไปยัง `http://127.0.0.1:3000` ให้ผู้ใช้แล้ว
+- สรุปภาพรวมระบบละเอียดทั้งด้าน Tech Stack (Nuxt 4 + Nuxt UI + Express + MongoDB Atlas + Vercel Blob/GridFS + GEE), 5 ส่วนงานหลัก (K1 แผนที่/กริด/น้ำท่วม, K2 ฟอร์มสำรวจ/คิวแอดมิน, K3 สื่อสารเตือนภัย, S1–S4 ข้อมูลชุมชน/ดาวเทียม/คู่มือ, F0 ธรรมาภิบาลข้อมูล), สถานะ Requirement ล่าสุด (เสร็จ 5 / บางส่วน 16 / รอดำเนินการ 8) และจุดตัดสินใจสำหรับวางแผนรอบนี้
+
+## 2026-10-30 — รันระบบ Dev Server (Nuxt 4 + Express)
+- ผู้ใช้สั่งให้รันระบบ ("รันระบบให้หน่อยสิ")
+- ตรวจสอบพอร์ต 5173 ว่าง จึงสั่งรัน `npm run dev` ใน `C:\Users\asus\Desktop\Fastwork\mfu kok water watch` (task-243 แบบ daemon)
+- ระบบคอมไพล์ Vite + Nitro เสร็จสมบูรณ์ ให้บริการที่ `http://127.0.0.1:5173/`
+- ตรวจสอบการตอบสนอง: หน้าแรก `HTTP 200` และ API `/api/contract` ตอบกลับข้อมูลครบถ้วน
+- สั่งเปิดเบราว์เซอร์ไปยัง `http://127.0.0.1:5173/` ให้ผู้ใช้แล้ว
+
+## 2026-10-30 — เริ่มสัมภาษณ์ออกแบบหน้าประชาสัมพันธ์ข่าวสาร (User & Admin Production UI บน Excalidraw) ด้วย `/grill-me`
+- ผู้ใช้สั่งให้ทำ Production UI หน้าประชาสัมพันธ์ข่าวสารในเว็บไซต์ลงบน Excalidraw Canvas โดยประกอบด้วย (1) หน้าโชว์ข่าวฝั่ง User และ (2) หน้าสร้าง/จัดการข่าวฝั่ง Admin พร้อมเรียก `/grill-me` เพื่อซักถามความต้องการทีละประเด็นก่อนลงมือ
+- สำรวจโค้ดปัจจุบัน (`app/app.vue`, `KokLandingHero.vue`, `KokAdminDataTablePage.vue`, `docs/mockups/mock.mjs`) พบว่าปัจจุบันยังไม่มีโมดูลข่าวประชาสัมพันธ์ทั่วไป (มีเฉพาะร่างแจ้งเตือนผู้ประสานงาน `S10` ใน mockup) เริ่มถามคำถามข้อที่ 1 เรื่องตำแหน่งและรูปแบบการแสดงข่าวฝั่ง User
+- สรุปผลการตอบคำถาม `/grill-me` ครบ 5 ข้อจากผู้ใช้:
+  1. **การเข้าถึงฝั่ง User:** แยกเป็น "หน้ารวมข่าวประชาสัมพันธ์" + "หน้าอ่านข่าวเต็ม" โดยกดเข้าจากปุ่มเมนูบนแถบด้านบนของเว็บ
+  2. **โครงสร้างและตัวกรองหน้ารวมข่าว (User):** มีแบนเนอร์ข่าวปักหมุดด้านบนสุด + กรองตามหมวดหมู่ (`แจ้งเตือนสำคัญ / ผลตรวจน้ำ / กิจกรรมโครงการ / ความรู้ชุมชน`) + กรองตาม 4 ชุมชนเป้าหมาย (`ทุกชุมชน / ท่าตอน / กะเหรี่ยงรวมมิตร / ปงของ / ปากอิงใต้`) + ช่องค้นหา + การ์ดข่าว
+  3. **องค์ประกอบหน้าอ่านข่าวเต็ม (User):** หน้าอ่านข่าวมาตรฐาน (ภาพปก + วันที่/หมวดหมู่/ชุมชน + เนื้อหาข่าว + แกลเลอรีรูปภาพประกอบ 3 ภาพ) ไม่ใส่กล่องสรุปใจความ/ไฟล์แนบ PDF/ปุ่มโดดไปแผนที่
+  4. **โครงสร้างฝั่ง Admin:** เป็นแท็บสลับในหน้า Admin เดิม (`"ตรวจตัวอย่างน้ำ (>50 ppb)" | "จัดการข่าวสารประชาสัมพันธ์"`) แยกเป็น 2 หน้าจอ: (1) ตารางจัดการข่าวสาร (ค้นหา/กรอง, ปักหมุด, แก้ไข, ลบ, สถานะเผยแพร่/ฉบับร่าง, ปุ่ม `+ สร้างข่าวใหม่`) และ (2) ฟอร์มสร้าง/แก้ไขข่าว (หัวข้อ, หมวดหมู่, ชุมชน, อัปโหลดภาพปก/รูปประกอบ, เนื้อหา, สวิตช์ปักหมุดข่าวสำคัญ, สถานะเผยแพร่/ฉบับร่าง)
+  5. **การจัดวางบน Excalidraw Canvas (`http://127.0.0.1:3000`):** แยกวางตามบทบาทในหมวด `2 · Production UI` พร้อมคู่ Desktop (`1440×900` ย่อ `960×600`) + Mobile (`390×844` ย่อ `277×600`) ครบทุกหน้า:
+     - ฝั่ง Admin วางต่อด้านขวาของ `S5 · แอดมิน · ตารางตรวจข้อมูล` (`y = 6742`): `S5.1 · แอดมิน · ตารางจัดการข่าวสาร` (`x = 3677, y = 6742`) และ `S5.2 · แอดมิน · สร้าง/แก้ไขข่าวสาร` (`x = 5154, y = 6742`)
+     - ฝั่ง User วางต่อด้านล่างของ `S11 · รายงานและงานรวมผล 7 ทีม` (`y = 12582`): `S12 · ประชาสัมพันธ์ข่าวสาร · หน้ารวมข่าว (User)` (`x = 2200, y = 12582`) และ `S12.1 · ประชาสัมพันธ์ข่าวสาร · อ่านรายละเอียดข่าว (User)` (`x = 3677, y = 12582`)
+- สร้างสคริปต์เรนเดอร์ `docs/mockups/news-mock.mjs` และ `docs/mockups/inject-news-excalidraw.mjs` เรนเดอร์ภาพ Production UI ครบ 8 ไฟล์ (`s12-news-list-d/m.png`, `s12-1-news-detail-d/m.png`, `s5-1-admin-news-table-d/m.png`, `s5-2-admin-news-form-d/m.png`) ใน `docs/mockups/shots/`
+- อัปเดตไฟล์ `docs/canvas-backup-2026-10-26.excalidraw` (`982` elements, `62` files) และ `docs/product-scope.excalidraw` (`445` elements, `57` files) พร้อม import + ซิงก์ไฟล์ภาพทั้ง 62 รายการเข้าสู่ Excalidraw Canvas สดที่ `http://127.0.0.1:3000` และแคปภาพตรวจสอบ (`verify-canvas-admin-news.png`, `verify-canvas-user-news.png`) ยืนยันแสดงผลครบถ้วนไม่ซ้อนทับ
+
+
+
+## 2026-10-30 — พัฒนาระบบประชาสัมพันธ์ข่าวสาร (News & PR Module) ครบวงจรลงระบบจริง
+
+- ผู้ใช้สั่ง: "จัดการ" (พัฒนาระบบประชาสัมพันธ์ข่าวสารลงในระบบจริงตามแบบโปรโตไทป์ Excalidraw แต่คงรูปแบบเดิมของแผนที่: บนแผนที่ต้องใช้ปุ่มกลม `.round-control` ไอคอน Newspaper ไม่ใส่แถบ navbar เว็บไซต์ทับ)
+- สิ่งที่พัฒนาจริง:
+  1. **Backend & MongoDB Storage:**
+     - Collection `kok_news_articles` พร้อม index `status + is_pinned + published_at`
+     - `api/news/_news_db.js`: CRUD methods พร้อมฟังก์ชัน auto-seed บทความเริ่มต้น 6 ข่าว (`NW-2026-014` ถึง `NW-2026-009`) ครอบคลุมภาพดาวเทียม Sentinel-2 น้ำท่วมท่าตอน, แนวโน้มสารหนู KK01-KK03, กิจกรรมคืนข้อมูลชุมชนแม่ยาว, แผนเผชิญเหตุน้ำท่วม, คู่มืออ่านค่าสี, และรายงานน้ำเอ่อปากอิง
+     - `api/news/index.js`: Endpoint สาธารณะ `GET /api/news` (รองรับ filter category, community, search, limit) และ `GET /api/news/:id`
+     - `api/news/admin.js`: Endpoint แอดมิน `GET /api/admin/news`, `POST /api/admin/news`, `PUT /api/admin/news/:id`, `DELETE /api/admin/news/:id`, `POST /api/admin/news/:id/pin` (ครอบด้วย `adminEndpoint` + dev bypass)
+     - `api/express-app.js` & `server/middleware/express.ts`: ลงทะเบียน routes และ dynamic re-import ป้องกัน Vite memory caching
+  2. **Frontend Types & Composables:**
+     - `app/utils/news-types.ts`: ประกาศ types `NewsArticle`, `NewsCategory`, `NewsStatus`, `AdminNewsCounts`, `NEWS_CATEGORIES`, `COMMUNITY_OPTIONS`, และฟังก์ชัน `getCategoryBadge`
+     - `app/composables/useNews.ts`: จัดการข่าวสารสาธารณะ, การกรองหมวดหมู่/ชุมชน/ค้นหา, การดึงบทความเดี่ยว, ซิงก์ URL query (`?view=news`, `?view=news&id=...`) และดักจับ browser back/forward (`popstate`)
+     - `app/composables/useAdminNews.ts`: จัดการข้อมูลข่าวสารฝั่งแอดมิน, KPI 4 ตัว, สร้าง/แก้ไข/ลบ, สลับสถานะปักหมุด
+  3. **UI Components (ตรงตามแบบ Excalidraw Prototype และระบบจริง):**
+     - `app/components/KokNewsPage.vue`: หน้ารวมข่าว (`S12`) + หน้าอ่านบทความฉบับเต็ม (`S12.1`) พร้อมการ์ดปักหมุด Hero, ชิปหมวดหมู่, ตัวเลือกชุมชน, การ์ดข่าว 3 คอลัมน์ (Desktop) / 1 คอลัมน์ (Mobile), แกลเลอรีภาพถ่ายดาวเทียม 3 ภาพ, สรุปใจความสำคัญ, ปุ่มคัดลอกลิงก์แชร์ และสลับธีมมืด/สว่าง
+     - `app/components/KokAdminNewsTable.vue` (`S5.1`): 4 KPI cards (ข่าวทั้งหมด, เผยแพร่แล้ว, ฉบับร่าง, ปักหมุด), แถวฟิลเตอร์/ค้นหา, ตารางจัดการ, สลับปักหมุด, ปุ่มแก้ไข, ปุ่มลบ
+     - `app/components/KokAdminNewsForm.vue` (`S5.2`): ฟอร์มสร้าง/แก้ไขข่าว, หัวข้อ, หมวดหมู่, ชุมชน, ภาพหน้าปกพร้อมปุ่มพรีเซ็ตด่วนและพรีวิวสด, แกลเลอรี, สรุป, เนื้อหาเต็ม, ผู้เขียน, สลับเผยแพร่/ฉบับร่าง, สวิตช์ปักหมุด
+     - `app/components/KokAdminDataTablePage.vue`: เพิ่มแท็บสลับด้านบน `[ 🧪 ตรวจตัวอย่างน้ำ (>50 ppb) ]` | `[ 📰 จัดการข่าวสารประชาสัมพันธ์ ]` และ Modal ยืนยันการลบ
+     - `app/components/KokLandingHero.vue`: เพิ่มปุ่ม "ข่าวสารประชาสัมพันธ์" บน Header หน้าแรก
+     - `app/app.vue`: **บนหน้าแผนที่ใช้ปุ่มกลม `.round-control` ไอคอน Newspaper ตามข้อตกลงและกติการะบบจริง** (ไม่ใส่ navbar เว็บไซต์ทับแผนที่); เพิ่มการสลับมุมมอง `currentView = 'news'` และ URL navigation
+     - รูปภาพหน้าปกและดาวเทียมคัดลอกลง `public/data/news/` เรียบร้อย
+  4. **การตรวจสอบและทดสอบ (Verification):**
+     - `vitest run` ผ่านครบ 13 ไฟล์ 74 เทสต์ (รวม `api/news/news.test.js` 5 เทสต์ใหม่)
+     - `nuxt build` สร้าง production bundle ผ่านสมบูรณ์ใน 17.5 วินาที
+     - Dev server รันอยู่ที่ `http://127.0.0.1:5173/` ทดสอบ API และโหลดหน้าเว็บตอบสนอง HTTP 200 ทั้งหมด
+     - แคปภาพถ่ายหน้าจอจริงด้วย Playwright บันทึกไว้ใน `test-results/`:
+       - `real-news-list.png`: หน้ารวมข่าวสารสาธารณะ (`S12`)
+       - `real-news-detail.png`: หน้าอ่านบทความฉบับเต็ม (`S12.1`)
+       - `real-map-dashboard.png`: หน้าแดชบอร์ดแผนที่ แสดงปุ่มกลม `.round-control` ไอคอน Newspaper
+       - `real-admin-news.png`: หน้าแอดมินแท็บจัดการข่าวสารประชาสัมพันธ์ (`S5.1`)
+       - `real-admin-news-form.png`: หน้าแอดมินฟอร์มสร้าง/แก้ไขข่าวสารประชาสัมพันธ์ (`S5.2`)
+
+
+## 2026-10-30 — พัฒนาระบบอัปโหลดภาพข่าวสารตรงเข้า MongoDB GridFS (ทั้งหน้าปกและแกลเลอรี)
+
+- ผู้ใช้สั่ง: "ปรับให้ภาพ อัพเข้า mongodb เลย" พร้อมแนบภาพแคปหน้าจอ `KokAdminNewsForm.vue`
+- สิ่งที่พัฒนาจริง:
+  1. **MongoDB GridFS Bucket สำหรับข่าวสาร:**
+     - สร้าง `api/news/_news_photos.js` จัดการ bucket `news_photos` ใน MongoDB (เชื่อมต่อ dev/prod ตาม settings)
+     - ฟังก์ชัน `saveNewsPhoto`: ตรวจนามสกุลไฟล์ ป้องกัน path injection สร้างชื่อไฟล์ unique `news-<timestamp>-<rand>-<name>.<ext>` สตรีมเข้า GridFS พร้อม metadata `contentType`, `originalName`, `uploadedAt`
+     - ฟังก์ชัน `readNewsPhoto`: อ่านสตรีมไบนารีจาก GridFS คืนค่า buffer และ contentType
+     - ฟังก์ชัน `seedDefaultNewsPhotosToGridFs`: นำภาพชุดเริ่มต้นของโครงการเข้า GridFS อัตโนมัติเมื่อเริ่มระบบ
+  2. **API Endpoints:**
+     - `POST /api/admin/news/upload`: Endpoint สำหรับแอดมินอัปโหลดไฟล์ภาพ (รองรับทั้ง binary stream และ base64 body, จำกัดขนาดไม่เกิน 10MB) เซฟลง MongoDB GridFS และคืนค่า URL `/api/news/photo/<filename>`
+     - `GET /api/news/photo/:filename`: Endpoint สาธารณะ เสิร์ฟไบนารีภาพจาก MongoDB GridFS พร้อม Cache-Control 24 ชม. และ X-Content-Type-Options: nosniff (พร้อม fallback ไดเรกทอรี public เดิม)
+     - ปรับ `api/express-app.js` ลงทะเบียน routes ทั้งสอง
+  3. **UI ในฟอร์มแอดมิน (`KokAdminNewsForm.vue`):**
+     - **ภาพหน้าปก (Cover Image):** เพิ่มปุ่ม `[ ☁️ อัปโหลดภาพหน้าปกเข้า MongoDB ]` ผูกกับ input file อัปโหลดตรงเข้า MongoDB GridFS อัตโนมัติ พร้อมแสดงป้ายแท็กเขียว `MongoDB GridFS` บนภาพตัวอย่าง และปุ่มลบ/เปลี่ยนภาพ
+     - **ภาพประกอบแกลเลอรี (Gallery Images):** เพิ่มปุ่ม `[ + เพิ่มภาพประกอบเข้า MongoDB ]` เลือกไฟล์ได้พร้อมกันหลายภาพ อัปโหลดเข้า GridFS ทั้งหมด และแสดงเป็นการ์ดภาพขนาดเล็กพร้อมปุ่มถังขยะสีแดงสำหรับลบแต่ละภาพ
+     - อัปเดต `useAdminNews.ts` เพิ่มเมธอด `uploadNewsPhoto(file: File)`
+  4. **การตรวจสอบและทดสอบ (Verification):**
+     - Unit tests: `api/news/news.test.js` เพิ่มเทสต์อัปโหลดไบนารีเข้า GridFS และอ่านกลับคืนมา ตรวจ Content-Type และขนาด byte ตรงกัน 100%
+     - รัน Vitest ผ่านครบ 13/13 ไฟล์ (75 passed)
+     - รัน `npm run build` ผ่านสมบูรณ์ (14.9s)
+     - ทดสอบ E2E อัปโหลดภาพจริงผ่าน Playwright (`verify-file-upload-e2e.mjs`) ได้ผลภาพหน้าปกและภาพแกลเลอรี 2 ภาพ บันทึกลง MongoDB GridFS สำเร็จ
+     - แคปภาพถ่ายหน้าจอหลังอัปโหลดจริง: `test-results/real-admin-uploaded-mongodb.png`
+
+
+## 2026-10-31 — ปรับแท็บเมนูล่าง: เปลี่ยน "น้ำท่วม" เป็น "สารเคมีปนเปื้อน", เพิ่ม Timeline Slider และตั้งค่าปุ่มทำแบบสำรวจ
+
+- **ข้อตกลงและคำสั่งผู้ใช้ (`/grill-me`):**
+  - เปลี่ยนแท็บ "น้ำท่วม" เป็น "สารเคมีปนเปื้อน" (ชื่อย่อ: 'สารเคมี') พร้อมไอคอนขวดทดลองเคมี `FlaskConical` โทนสีฟ้าอมเขียว (`#0284C7`)
+  - เอาฟังก์ชันน้ำท่วม (MyMaps KML polygon/marker) ออก และนำจุดสำรวจผลตรวจคุณภาพน้ำ/สารหนูมาแสดงในแท็บนี้
+  - เพิ่ม Timeline Slider ลอยอยู่เหนือแท็บล่าง เพื่อเลื่อนเลือกวัน/เดือน/ปี หรือกด Play/Pause เล่นลำดับเวลาสะสมของจุดตรวจอัตโนมัติ
+  - ปุ่ม "ทำแบบสำรวจ" แสดงเฉพาะเมื่ออยู่ในแท็บ "สารเคมีปนเปื้อน" เท่านั้น (ซ่อนเมื่ออยู่แท็บหย่อมบ้าน, สถานที่สำคัญ, หรืออพยพ)
+  - ตั้งค่าให้แท็บ "สารเคมีปนเปื้อน" เป็น Default ทันทีเมื่อเข้าสู่หน้าแผนที่ Dashboard
+
+- **สิ่งที่พัฒนาจริง:**
+  1. `app/utils/community-map-layers.ts`:
+     - เพิ่ม `CommunityMapType = 'hamlets' | 'chemical' | 'places' | 'evacuation' | 'flood'`
+     - ปรับ `hasPublicMapLayer`: อนุญาตให้เลเยอร์ `chemical` เปิดใช้งานได้ในทุกชุมชน
+  2. `app/components/KokMapTypesControl.vue`:
+     - แทนที่ไอคอน `Waves` ด้วย `FlaskConical` จาก `lucide-vue-next`
+     - กำหนดรายการเมนู `chemical` สารเคมีปนเปื้อน สี `#0284C7`
+     - ตั้งค่า default model value เป็น `'chemical'`
+  3. `app/components/KokSurveyTimeline.vue`:
+     - สร้างคอมโพเนนต์แถบควบคุมไทม์ไลน์ เลื่อนดูการกระจายตัวของผลตรวจสะสมตามวัน/เดือน/ปี
+     - มีปุ่ม Play / Pause (เล่นอัตโนมัติทีละวัน), ปุ่มก้าวหน้า/ถอยหลัง, แถบสไลเดอร์, ป้ายแสดงวันที่ภาษาไทย, และจำนวนจุดที่พบ (เช่น `4 / 4 จุด`) พร้อมปุ่ม "ทั้งหมด"
+  4. `app/components/KokMapPanel.vue`:
+     - เมื่ออยู่ในแท็บ `chemical`: แสดงหมุดจุดสำรวจคุณภาพน้ำ/สารหนูพร้อมคลัสเตอร์และป็อปอัปผลตรวจ
+     - เมื่อผู้ใช้สลับไปแท็บอื่น (`hamlets`, `places`, `evacuation`): ซ่อนจุดสำรวจสารเคมีทันที
+     - อัปเดต watcher ติดตาม `props.communityMapType` เพื่อ re-render เลเยอร์ทันทีที่มีการเปลี่ยนแท็บ
+  5. `app/app.vue`:
+     - กำหนด `activeCommunityMapType = ref<CommunityMapType | null>('chemical')` เป็นค่าเริ่มต้น
+     - เพิ่ม `timelineSelectedDate` และผูกเงื่อนไขกรอง `filteredWaypoints` ตามช่วงเวลาที่สไลเดอร์เลือก
+     - วางตำแหน่ง `<KokSurveyTimeline>` ลอยเหนือแท็บล่างทั้ง Desktop (`bottom-[58px]`) และ Mobile (`bottom-[64px]`)
+     - กำหนดให้ปุ่ม "ทำแบบสำรวจ" แสดงเฉพาะเมื่อ `activeCommunityMapType === 'chemical'` ทั้งเวอร์ชัน Desktop และ Mobile
+  6. **การตรวจสอบและทดสอบ (Verification):**
+     - Vitest: ผ่านครบ 13/13 ชุด (75 tests passed)
+     - Nuxt build: ผ่านสมบูรณ์ (`✨ Build complete in 41.5s`)
+     - Playwright E2E UI Test:
+       - ตรวจพบแท็บ "สารเคมีปนเปื้อน" ถูกเลือกเป็น Default และแสดง Timeline + ปุ่มทำแบบสำรวจ (`true`)
+       - เมื่อกดแท็บ "หย่อมบ้าน" ทั้ง Timeline, ปุ่มทำแบบสำรวจ และจุดสำรวจ ถูกซ่อนทันที (`true`)
+       - เมื่อสลับกลับแท็บ "สารเคมีปนเปื้อน" และกดปุ่ม Play สามารถเล่นไทม์ไลน์เลื่อนตามวันได้ราบรื่น
+       - แคปภาพหลักฐาน: `dashboard-chemical-default.png`, `dashboard-hamlets-tab.png`, `dashboard-timeline-playing.png`, `dashboard-mobile-view.png`
+
+
+### 2026-10-31 13:36 — เริ่มระบบและตรวจสอบสถานะเซิร์ฟเวอร์
+- ผู้ใช้สั่ง: "รันระบบหน่อย"
+- ผลที่ทำจริง:
+  1. ตรวจสอบ MongoDB Service: สถานะ `Running` พร้อมใช้งาน
+  2. สตาร์ต Nuxt Dev Server (`npm run dev` ที่ `mfu kok water watch`) ผ่าน task daemon: `task-1061`
+  3. ตรวจสอบ HTTP Endpoint:
+     - `http://127.0.0.1:5173/?view=dashboard` คืนสถานะ `200 OK`
+     - `http://127.0.0.1:5173/api/news` คืนสถานะ `200 OK`
+- สถานะปัจจุบัน: เซิร์ฟเวอร์พร้อมใช้งานเต็มรูปแบบ
+
+
+## 2026-10-31 — ปรับส่วนหัวแผนที่: แทนที่ปุ่มเลือกพื้นที่และป้าย MFU Kok ด้วย Dropdown 4 ชุมชนเป้าหมาย
+
+- **ข้อตกลงและคำสั่งผู้ใช้ (`/grill-me`):**
+  - เปลี่ยนปุ่ม "เลือกพื้นที่ (หน้าแรก)" และป้าย "MFU Kok Water Watch" ที่มุมบน ให้เป็น Dropdown สำหรับเลือกดูสถานะ 4 ชุมชนเป้าหมาย:
+    1. บ้านท่าตอน (เน้นหมู่ 3 ต.ท่าตอน อ.แม่อาย จ.เชียงใหม่)
+    2. บ้านกะเหรี่ยงรวมมิตร (ต.แม่ยาว อ.เมืองเชียงราย จ.เชียงราย)
+    3. บ้านปงของ (ต.แม่เงิน อ.เชียงแสน จ.เชียงราย)
+    4. บ้านปากอิงใต้ (ต.ศรีดอนชัย อ.เชียงของ จ.เชียงราย)
+  - มีเฉพาะ 4 ชุมชนเป้าหมายล้วนๆ 100% ใน Dropdown (ไม่ต้องการตัวเลือกอื่นและไม่มีปุ่มกลับหน้าแรก)
+  - ปุ่มหลักแสดงชื่อชุมชนปัจจุบัน (เช่น `📍 บ้านท่าตอน`) พร้อมลูกศรชี้ลง `ChevronDown` และในลิสต์แสดงชื่อบ้านพร้อมตำบล/อำเภอ/จังหวัด
+  - ระบบจดจำชุมชนล่าสุดที่ผู้ใช้เคยเลือกไว้ผ่าน `localStorage` (key: `kok_selected_community`) หากไม่มีให้เริ่มที่ 'บ้านท่าตอน' เป็นค่าเริ่มต้นเสมอ
+
+- **สิ่งที่พัฒนาจริง:**
+  1. `app/components/KokCommunityDropdown.vue`:
+     - สร้างคอมโพเนนต์ Dropdown สไตล์ Glassmorphic card เข้าชุดกับแถบควบคุมแผนที่
+     - แสดงชื่อชุมชนปัจจุบัน พร้อมตำบล/อำเภอ และลูกศรหมุนสลับทิศทางเมื่อเปิดเมนู
+     - รายการตัวเลือก 4 ชุมชน พร้อมไอคอน `MapPin` และเครื่องหมายถูกสีฟ้า `Check` บนชุมชนที่เลือกอยู่
+     - ปิดเมนูอัตโนมัติเมื่อคลิกพื้นที่ด้านนอก (`click outside`)
+  2. `app/app.vue`:
+     - แทนที่ปุ่ม `<button>เลือกพื้นที่ (หน้าแรก)</button>` และบล็อก `MFU Kok Water Watch` ใน `<header>` ด้วย `<KokCommunityDropdown v-model="selectedCommunityId" />`
+     - เพิ่มฟังก์ชัน `getInitialCommunity()` ตรวจสอบค่าจาก URL param `community` หรือ `localStorage` หากไม่มีคืนค่าเริ่มต้น `'thaton'`
+     - เพิ่ม `watch(selectedCommunityId)` ซิงก์ค่าลง `localStorage` และ URL query parameters ทันทีเมื่อผู้ใช้เปลี่ยนชุมชน
+     - เมื่อผู้ใช้เลือกเปลี่ยนชุมชน แผนที่จะเคลื่อนที่และซูม (`flyTo`) ไปยังพิกัดศูนย์กลางของชุมชนนั้นทันทีผ่าน `applyScopeAndCommunity()`
+  3. **การตรวจสอบและทดสอบ (Verification):**
+     - Vitest: 13/13 test suites ผ่านครบ (75 passed)
+     - Playwright E2E UI Test:
+       - เริ่มต้น: Dropdown แสดง `บ้านท่าตอน` เป็นค่าเริ่มต้น
+       - เมื่อคลิกเปิด Dropdown: รายการ 4 ชุมชนเป้าหมายแสดงครบถ้วน ไม่พบตัวเลือกอื่นที่ไม่เกี่ยวข้อง
+       - เมื่อคลิกเลือก `บ้านกะเหรี่ยงรวมมิตร`: ปุ่ม Dropdown อัปเดตชื่อเป็น `กะเหรี่ยงรวมมิตร` ทันที และแผนที่บินไปยังพิกัดบ้านกะเหรี่ยงรวมมิตรโดยอัตโนมัติ
+       - ทดสอบ Mobile View (390x844): Dropdown วางระดับสมดุล เมนูกางออกอ่านง่ายและไม่บังองค์ประกอบสำคัญ
+     - แคปภาพหลักฐาน: `header-dropdown-default.png`, `header-dropdown-open.png`, `header-dropdown-selected-ruammit.png`, `header-dropdown-mobile.png`
+
+
+## 2026-10-31 — ปรับแต่ง Dropdown เลือกพื้นที่ให้แสดงข้อมูล 3 แถว (เลือกพื้นที่ / บ้านท่าตอน / ต. อ. จ.)
+
+- **คำสั่งผู้ใช้:**
+  "ใน dropdown ปรับหน่อยให้มีแสดงแบบนี้
+  ลักษณะเล็กๆ บอก เลือกพื้นที่
+  บ้านท่าตอน 
+  ลักษณะเล็กๆ บอก ต.ท่าตอน อ.แม่สาย จ.เชียงใหม่"
+  พร้อมแนบภาพแคปหน้าจอมือถือ
+
+- **สิ่งที่พัฒนาจริง:**
+  1. `app/components/KokCommunityDropdown.vue`:
+     - ปรับโครงสร้างเลย์เอาต์ปุ่ม Trigger ของ Dropdown เป็น 3 บรรทัด (รองรับการแสดงผลทั้งบน Desktop และ Mobile โดยไม่ถูกซ่อน):
+       - บรรทัดที่ 1 (ตัวอักษรเล็ก): `เลือกพื้นที่` (สี slate-500/zinc-400 font-medium ขนาด 9–10px)
+       - บรรทัดที่ 2 (ตัวหนาหลัก): `บ้านท่าตอน` (ฟอนต์ตัวหนาเด่นชัด ขนาด 12–14px)
+       - บรรทัดที่ 3 (ตัวอักษรเล็ก): `ต.ท่าตอน อ.แม่อาย จ.เชียงใหม่` (แสดงตำบล อำเภอ จังหวัด แบบเต็ม)
+     - เพิ่มฟังก์ชัน `communityDisplayName` นำหน้าชื่อชุมชนด้วย "บ้าน" ให้เป็นทางการและสอดคล้องกัน (เช่น บ้านท่าตอน, บ้านกะเหรี่ยงรวมมิตร, บ้านปงของ, บ้านปากอิงใต้) ทั้งในปุ่ม Trigger และรายการในเมนู
+  2. **การตรวจสอบและทดสอบ (Verification):**
+     - Vitest: 13/13 test suites ผ่านครบ (75 passed)
+     - Playwright E2E UI Test:
+       - แคปภาพหน้าจอ Desktop และ Mobile: พบปุ่ม Dropdown แสดงครบ 3 แถวตรงตามที่ระบุ
+       - ในเมนู Dropdown แสดงรายชื่อ 4 ชุมชนเป้าหมายในรูปแบบเดียวกัน พร้อมเครื่องหมายเลือก
+     - แคปภาพหลักฐาน: `header-dropdown-default.png`, `header-dropdown-mobile.png`
+
+
+### 2026-10-31 14:23 — เริ่มระบบและตรวจสอบสถานะเซิร์ฟเวอร์
+- ผู้ใช้สั่ง: "รันระบบ"
+- ผลที่ทำจริง:
+  1. ตรวจสอบสถานะ MongoDB: Service `Running`
+  2. สตาร์ต Nuxt Dev Server (`task-1162`) ที่ `http://127.0.0.1:5173/`
+  3. ตรวจสอบ Endpoint `http://127.0.0.1:5173/?view=dashboard` คืนสถานะ `200 OK`
+- สถานะปัจจุบัน: ระบบพร้อมใช้งานเต็มรูปแบบ
+
+
+### 2026-10-31 15:03 — เริ่มระบบและตรวจสอบสถานะเซิร์ฟเวอร์
+- ผู้ใช้สั่ง: "รันระบบ"
+- ผลที่ทำจริง:
+  1. ตรวจสอบสถานะ MongoDB: Service `Running`
+  2. สตาร์ต Nuxt Dev Server (`task-1179`) ที่ `http://127.0.0.1:5173/` (พร้อมใน 11.8s)
+  3. ตรวจสอบ Endpoint `http://127.0.0.1:5173/?view=dashboard` คืนสถานะ `200 OK`
+- สถานะปัจจุบัน: ระบบพร้อมใช้งานเต็มรูปแบบ
+
+
+## 2026-10-31 — ปิดการคลิกปุ่ม 'หย่อมบ้าน' และ 'สถานที่สำคัญ' โดยคงปุ่มไว้บน UI
+
+- **คำสั่งผู้ใช้:**
+  "ปิดปุ่ม ให้ไม่สามารถกดได้หน่อยสิ หย่อมบ้าน กับ สถานที่สำคัญ ไม่ต้องเอาปุ่มออกจาก UI นะ"
+
+- **สิ่งที่พัฒนาจริง:**
+  1. `app/utils/community-map-layers.ts`:
+     - ในฟังก์ชัน `hasPublicMapLayer`: กำหนดเงื่อนไข `if (type === 'hamlets' || type === 'places') return false` เพื่อปิดสถานะความพร้อมใช้งานของสองเลเยอร์นี้อย่างเป็นระบบ
+  2. `app/components/KokMapTypesControl.vue`:
+     - ปรับฟังก์ชัน `selectType(id: CommunityMapType)` ให้บล็อกการคลิกทันทีหากเลเยอร์ไม่พร้อมใช้งาน
+     - ผูกแอตทริบิวต์ `:disabled="!hasPublicMapLayer(communityId, type.id)"` และปรับสไตล์ CSS `.map-type-option:disabled` ให้เป็นสีเทาจาง (opacity 0.55, cursor not-allowed)
+     - บน Mobile: แสดงผลด้วยคลาส `opacity-40 cursor-not-allowed` คงปุ่มครบ 4 ปุ่มบน Bottom Nav Bar
+     - ป้ายกำกับ Tooltip/ARIA: ระบุว่า `ปิดการใช้งาน (ไม่สามารถกดได้)`
+  3. **การตรวจสอบและทดสอบ (Verification):**
+     - Vitest: 13/13 test suites ผ่านครบ (75 passed)
+     - Playwright E2E UI Test:
+       - ปุ่ม "หย่อมบ้าน" และ "สถานที่สำคัญ" ยังคงปรากฏบนหน้าจอครบถ้วน
+       - สถานะของปุ่มเป็น `disabled = true`
+       - ทดสอบคลิกปุ่มที่ถูกปิด ไม่มีการเปลี่ยนแท็บ (แท็บยังคงอยู่ที่ 'สารเคมีปนเปื้อน' เสมอ)
+       - แคปภาพหลักฐาน: `disabled-buttons-desktop.png`, `disabled-buttons-mobile.png`
+
+
+### 2026-10-31 16:07 — รีสตาร์ต Dev Server ให้ทำงานต่อเนื่อง
+- ตรวจพบโพรเซส Dev Server เดิมสิ้นสุดจากการ compile error ชั่วคราวช่วงแก้ไขโค้ด
+- รัน `npm run dev` ใหม่ผ่าน daemon `task-1238` บนพอร์ต 5173
+- ทดสอบการเข้าถึง `http://127.0.0.1:5173/?view=dashboard` สำเร็จ คืนสถานะ `200 OK`

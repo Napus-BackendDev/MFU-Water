@@ -19,9 +19,9 @@ function getApiModuleInfo() {
 }
 
 async function getExpressApp() {
-  if (!expressAppInstance) {
+  if (!expressAppInstance || process.env.NODE_ENV !== 'production') {
     const { filePath, rootDir } = getApiModuleInfo()
-    const moduleUrl = pathToFileURL(filePath).href
+    const moduleUrl = `${pathToFileURL(filePath).href}?t=${Date.now()}`
     const mod = await import(moduleUrl)
     expressAppInstance = mod.createExpressApp(rootDir)
   }

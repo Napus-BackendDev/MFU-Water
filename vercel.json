@@ -1,6 +1,36 @@
 {
   "rewrites": [
-    { "source": "/api/admin/pending-samples", "destination": "/api/admin/samples" },
-    { "source": "/api/admin/samples/:sampleCode/review", "destination": "/api/admin/review?sampleCode=:sampleCode" }
+    {
+      "source": "/api/admin/pending-samples",
+      "destination": "/api/admin/samples"
+    },
+    {
+      "source": "/api/admin/samples/:sampleCode/review",
+      "destination": "/api/admin/review?sampleCode=:sampleCode"
+    },
+    {
+      "source": "/api/news/photo/:filename",
+      "destination": "/api/news?route=photo&filename=:filename"
+    },
+    {
+      "source": "/api/news/:id",
+      "destination": "/api/news?id=:id"
+    },
+    {
+      "source": "/api/admin/news/upload",
+      "destination": "/api/news?route=admin-upload"
+    },
+    {
+      "source": "/api/admin/news/:id/pin",
+      "destination": "/api/news?route=admin-pin&id=:id"
+    },
+    {
+      "source": "/api/admin/news/:id",
+      "destination": "/api/news?route=admin&id=:id"
+    },
+    {
+      "source": "/api/admin/news",
+      "destination": "/api/news?route=admin"
+    }
   ]
 }

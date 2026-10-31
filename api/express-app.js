@@ -12,6 +12,17 @@ import adminPhotoHandler from './admin/photo.js'
 import adminReviewHandler from './admin/review.js'
 import adminSamplesHandler from './admin/samples.js'
 import verifyPasscodeHandler from './admin/verify-passcode.js'
+import newsIndexHandler from './news/_public.js'
+import newsPhotoHandler from './news/_photo.js'
+import {
+  getAdminNewsHandler,
+  createAdminNewsHandler,
+  updateAdminNewsHandler,
+  deleteAdminNewsHandler,
+  toggleAdminPinHandler,
+  uploadAdminNewsPhotoHandler,
+} from './news/_admin.js'
+import { seedDefaultNewsPhotosToGridFs } from './news/_news_photos.js'
 
 const serverEnvKeys = [
   'ADMIN_PASSCODE',
@@ -98,6 +109,33 @@ export function createExpressApp(rootDir = process.cwd()) {
   })
   app.get('/api/admin/photo', adminPhotoHandler)
 
+  // Public News API
+  app.get('/api/news/photo/:filename', (req, res) => {
+    return newsPhotoHandler(req, res)
+  })
+  app.get('/api/news/photo', newsPhotoHandler)
+  app.get('/api/news', newsIndexHandler)
+  app.get('/api/news/:id', (req, res) => {
+    req.query.id = req.params.id
+    return newsIndexHandler(req, res)
+  })
+
+  // Admin News API
+  app.get('/api/admin/news', getAdminNewsHandler)
+  app.post('/api/admin/news/upload', uploadAdminNewsPhotoHandler)
+  app.post('/api/admin/news', createAdminNewsHandler)
+  app.put('/api/admin/news/:id', (req, res) => {
+    return updateAdminNewsHandler(req, res)
+  })
+  app.put('/api/admin/news', updateAdminNewsHandler)
+  app.delete('/api/admin/news/:id', (req, res) => {
+    return deleteAdminNewsHandler(req, res)
+  })
+  app.delete('/api/admin/news', deleteAdminNewsHandler)
+  app.post('/api/admin/news/:id/pin', (req, res) => {
+    return toggleAdminPinHandler(req, res)
+  })
+
   app.get('/api/contract', (_req, res) => {
     try {
       const filePath = resolveProjectFile(rootDir, 'data/contract-v5.json')
@@ -118,5 +156,6 @@ export function createExpressApp(rootDir = process.cwd()) {
     })
   })
 
+  void seedDefaultNewsPhotosToGridFs({}, rootDir)
   return app
 }

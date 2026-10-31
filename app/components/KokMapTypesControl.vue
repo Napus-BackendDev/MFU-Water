@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { watch } from 'vue'
-import { House, Waves, MapPin, Accessibility } from 'lucide-vue-next'
+import { House, FlaskConical, MapPin, Accessibility } from 'lucide-vue-next'
 import { hasPublicMapLayer, type CommunityMapType } from '../utils/community-map-layers'
 
 const props = withDefaults(
@@ -12,22 +12,30 @@ const props = withDefaults(
     variant: 'pill',
   },
 )
-const selectedId = defineModel<CommunityMapType | null>({ default: null })
+const selectedId = defineModel<CommunityMapType | null>({ default: 'chemical' })
 const mapTypes: Array<{ id: CommunityMapType; label: string; shortLabel: string; icon: typeof House; color: string }> = [
   { id: 'hamlets', label: 'หย่อมบ้าน', shortLabel: 'หย่อมบ้าน', icon: House, color: '#6D28D9' },
-  { id: 'flood', label: 'น้ำท่วม', shortLabel: 'น้ำท่วม', icon: Waves, color: '#0369A1' },
+  { id: 'chemical', label: 'สารเคมีปนเปื้อน', shortLabel: 'สารเคมี', icon: FlaskConical, color: '#0284C7' },
   { id: 'places', label: 'สถานที่สำคัญ', shortLabel: 'สถานที่', icon: MapPin, color: '#047857' },
   { id: 'evacuation', label: 'อพยพกลุ่มเปราะบาง', shortLabel: 'อพยพ', icon: Accessibility, color: '#B45309' },
 ]
+
+function selectType(id: CommunityMapType) {
+  if (!hasPublicMapLayer(props.communityId, id)) return
+  selectedId.value = selectedId.value === id ? null : id
+}
+
 watch(() => props.communityId, () => {
   if (selectedId.value && hasPublicMapLayer(props.communityId, selectedId.value)) return
-  selectedId.value = mapTypes.find((type) => hasPublicMapLayer(props.communityId, type.id))?.id ?? null
+  selectedId.value = 'chemical'
 }, { immediate: true })
 
 function label(id: CommunityMapType, name: string) {
   const status = hasPublicMapLayer(props.communityId, id)
-    ? id === 'evacuation' ? 'จุดศูนย์พักพิงและรวมพล ตำแหน่งประมาณจากภาพ PDF' : 'แบบจำลองคาดการณ์ตามระดับน้ำ ไม่ใช่น้ำท่วมสด'
-    : 'ปิดระบบชั่วคราว (ยังไม่มีพิกัดสาธารณะพร้อมแสดง)'
+    ? id === 'chemical' ? 'จุดสำรวจคุณภาพน้ำและสารเคมีปนเปื้อนตามช่วงเวลา'
+      : id === 'evacuation' ? 'จุดศูนย์พักพิงและรวมพล ตำแหน่งประมาณจากภาพ PDF'
+      : 'ข้อมูลชุมชน'
+    : 'ปิดการใช้งาน (ไม่สามารถกดได้)'
   return `แผนที่${name}: ${status}`
 }
 </script>
@@ -58,7 +66,7 @@ function label(id: CommunityMapType, name: string) {
         :aria-pressed="selectedId === type.id"
         :aria-label="label(type.id, type.label)"
         :title="label(type.id, type.label)"
-        @click="selectedId = selectedId === type.id ? null : type.id"
+        @click="selectType(type.id)"
       >
         <component :is="type.icon" :size="20" class="mb-0.5" />
         <span class="text-[11px] leading-tight font-medium">{{ type.shortLabel }}</span>
@@ -71,10 +79,10 @@ function label(id: CommunityMapType, name: string) {
     <button
       v-for="type in mapTypes" :key="type.id" type="button"
       class="map-type-option" :class="{ selected: selectedId === type.id, disabled: !hasPublicMapLayer(communityId, type.id) }"
-      :style="{ '--type-color': hasPublicMapLayer(communityId, type.id) ? type.color : '#DC2626' }"
+      :style="{ '--type-color': hasPublicMapLayer(communityId, type.id) ? type.color : '#94A3B8' }"
       :disabled="!hasPublicMapLayer(communityId, type.id)"
       :aria-pressed="selectedId === type.id" :aria-label="label(type.id, type.label)" :title="label(type.id, type.label)"
-      @click="selectedId = selectedId === type.id ? null : type.id"
+      @click="selectType(type.id)"
     >
       <component :is="type.icon" :size="16" class="map-type-icon" aria-hidden="true" />
       <span class="hidden sm:inline">{{ type.label }}</span>
@@ -128,10 +136,10 @@ function label(id: CommunityMapType, name: string) {
 }
 .map-type-option:disabled {
   cursor: not-allowed;
-  border-color: color-mix(in srgb, var(--type-color) 35%, transparent);
-  background: color-mix(in srgb, var(--type-color) 12%, transparent);
-  color: var(--type-color);
-  opacity: 0.9;
+  border-color: rgba(148, 163, 184, 0.25);
+  background: rgba(148, 163, 184, 0.08);
+  color: #94A3B8;
+  opacity: 0.55;
 }
 .map-type-option.selected {
   border-color: var(--type-color);
@@ -145,9 +153,10 @@ function label(id: CommunityMapType, name: string) {
   color: color-mix(in srgb, var(--type-color) 55%, white);
 }
 :global(html.dark) .map-type-option:disabled {
-  color: #F87171;
-  border-color: rgba(239, 68, 68, 0.4);
-  background: rgba(239, 68, 68, 0.12);
+  color: #71717A;
+  border-color: rgba(113, 113, 122, 0.25);
+  background: rgba(113, 113, 122, 0.1);
+  opacity: 0.55;
 }
 @media (max-width: 639px) {
   .map-type-option {
