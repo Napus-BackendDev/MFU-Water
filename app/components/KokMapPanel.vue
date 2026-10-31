@@ -553,6 +553,8 @@ onMounted(async () => {
   if (!mapContainer.value) return
   const leafletModule = await import('leaflet')
   L = (leafletModule.default ?? leafletModule) as typeof import('leaflet')
+  // The view can change while Leaflet loads (e.g. ?view=landing), which unmounts this panel.
+  if (!mapContainer.value) return
 
   const initialTarget =
     props.selectedCommunityId === 'all'

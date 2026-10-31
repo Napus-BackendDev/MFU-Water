@@ -64,7 +64,7 @@ function getInitialCommunity(): 'thaton' | 'ruammit' | 'pongkhong' | 'pakingtai'
   return 'thaton'
 }
 
-const selectedCommunityId = ref<'all' | 'thaton' | 'ruammit' | 'pongkhong' | 'pakingtai'>(getInitialCommunity())
+const selectedCommunityId = ref<'all' | 'thaton' | 'ruammit' | 'pongkhong' | 'pakingtai'>('thaton')
 
 watch(selectedCommunityId, (newId) => {
   if (newId && validCommunities.includes(newId as any)) {
@@ -275,9 +275,9 @@ function toggleQuickPanel(panel: 'guide' | 'summary') {
   activeQuickPanel.value = activeQuickPanel.value === panel ? null : panel
 }
 
-// View navigation state: 'landing' (Page 1), 'dashboard' (Page 2), or 'admin' (Dedicated Admin Data Table Page)
+// View navigation state: the map dashboard is the first page; 'landing' (community picker) is only reachable with ?view=landing
 type AppView = 'landing' | 'dashboard' | 'admin'
-const currentView = ref<AppView>('landing')
+const currentView = ref<AppView>('dashboard')
 
 function navigateToAdmin() {
   currentView.value = 'admin'
@@ -347,24 +347,13 @@ onMounted(() => {
       colorMode.preference = 'light'
     }
 
-    if (params.get('view') === 'admin') {
-      currentView.value = 'admin'
-    } else if (params.get('view') === 'dashboard' || params.has('community')) {
-      const comm = params.get('community')
-      if (comm && ['thaton', 'ruammit', 'pongkhong', 'pakingtai'].includes(comm)) {
-        selectedCommunityId.value = comm as any
-      } else {
-        selectedCommunityId.value = getInitialCommunity()
-      }
-      activeCommunityMapType.value = 'chemical'
-      currentView.value = 'dashboard'
-    }
+    selectedCommunityId.value = getInitialCommunity()
+    if (params.get('view') === 'admin') currentView.value = 'admin'
+    else if (params.get('view') === 'landing') currentView.value = 'landing'
     window.addEventListener('popstate', () => {
       const p = new URLSearchParams(window.location.search)
       const v = p.get('view')
-      if (v === 'admin') currentView.value = 'admin'
-      else if (v === 'dashboard' || p.has('community')) currentView.value = 'dashboard'
-      else currentView.value = 'landing'
+      currentView.value = v === 'admin' ? 'admin' : v === 'landing' ? 'landing' : 'dashboard'
     })
   }
 })
