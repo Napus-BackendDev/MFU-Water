@@ -1,11 +1,27 @@
-export type ObservationDate = '2024-09-05' | '2024-09-10' | '2024-09-15'
+export type ObservationYear = '2022' | '2023' | '2024' | '2025' | '2026'
+export type ObservationDate = '2024-09-05' | '2024-09-10' | '2024-09-15' | ObservationYear
 export const observationWaterColor = '#A21CAF'
-export const observationDates: Array<{date: ObservationDate; label: string}> = [
-  { date: '2024-09-05', label: '5 ก.ย. 2024' },
-  { date: '2024-09-15', label: '15 ก.ย. 2024' },
+export const observationYears: Array<{date: ObservationYear; label: string}> = [
+  { date: '2026', label: 'ปี 2569' },
+  { date: '2025', label: 'ปี 2568' },
+  { date: '2024', label: 'ปี 2567' },
+  { date: '2023', label: 'ปี 2566' },
+  { date: '2022', label: 'ปี 2565' },
 ]
+export type FloodYear = {
+  date: ObservationYear
+  labelYear: number
+  file: string
+  totalKm2: number
+  totalRai: number
+  riverKm2: number
+  floodKm2: number
+  analysedFloodKm2: number
+  eventLabels: string[]
+  undetectedLabels: string[]
+}
 export type FloodObservation = {
-  dates: Array<{date: ObservationDate; usableFraction: number; waterAreaKm2: number | null; capturedBangkok: string; file: string}>
+  years: FloodYear[]
 }
 export type ObservationRegions = { features: Array<{
   properties: {kind: 'water' | 'unobservable'}

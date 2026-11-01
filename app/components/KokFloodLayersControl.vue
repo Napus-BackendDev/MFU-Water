@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { Layers, X } from 'lucide-vue-next'
-import { observationDates, observationWaterColor, loadFloodObservations, type FloodObservation, type ObservationDate } from '../utils/flood-observations'
+import { observationYears, observationWaterColor, loadFloodObservations, type FloodObservation, type ObservationDate } from '../utils/flood-observations'
 
 const observationsVisible = defineModel<boolean>('observationsVisible', { required: true })
 const date = defineModel<ObservationDate>('date', { required: true })
 const observations = ref<FloodObservation | null>(null)
 const observationFailed = ref(false)
-const selectedObservation = computed(() => observations.value?.dates.find((item) => item.date === date.value))
+const selectedYear = computed(() => observations.value?.years.find((item) => item.date === date.value))
 watch(observationsVisible, (value) => {
   if (!value || observations.value) return
   observationFailed.value = false
@@ -28,17 +28,19 @@ const open = ref(false)
       </div>
       <label class="layer-toggle"><input v-model="observationsVisible" type="checkbox">ข้อมูลน้ำท่วมจริง</label>
       <div v-if="observationsVisible" class="layer-settings">
-        <label for="observation-date" class="text-sm font-semibold">ภาพดาวเทียม Sentinel-2</label>
+        <label for="observation-date" class="text-sm font-semibold">ช่วงเวลาน้ำท่วมย้อนหลัง</label>
         <select id="observation-date" v-model="date" class="observation-select">
-          <option v-for="item in observationDates" :key="item.date" :value="item.date">{{ item.label }}</option>
+          <option v-for="item in observationYears" :key="item.date" :value="item.date">{{ item.label }}</option>
         </select>
         <p v-if="observationFailed" role="alert" class="text-sm">โหลดข้อมูลไม่สำเร็จ ลองสลับหัวข้ออีกครั้ง</p>
-        <p v-else-if="!selectedObservation" role="status" class="text-sm">กำลังโหลดข้อมูล…</p>
+        <p v-else-if="!selectedYear" role="status" class="text-sm">กำลังโหลดข้อมูล…</p>
         <template v-else>
-          <p role="status" class="text-sm">{{ selectedObservation.usableFraction === 0 ? 'เมฆบังทั้งหมด — ประเมินพื้นที่น้ำวันนี้ไม่ได้' : `ประเมินภาพได้ ${(selectedObservation.usableFraction * 100).toFixed(1)}% ของพื้นที่` }}</p>
-          <div class="level-row"><span class="observation-swatch" :style="{background:observationWaterColor}" /><span class="text-sm">พื้นที่น้ำที่ตรวจพบ รวมแม่น้ำเดิม</span></div>
-          <div class="level-row"><span class="observation-swatch" style="background:#64748b" /><span class="text-sm">เมฆ / ประเมินไม่ได้</span></div>
-          <p class="text-xs">ข้อมูลภาพจริงผ่านการจำแนกพื้นที่น้ำ ไม่ใช่ค่าความลึกหรือข้อมูลสด</p>
+          <p role="status" class="text-sm font-semibold">พื้นที่น้ำเฉลี่ยรวมแม่น้ำ {{ selectedYear.totalKm2 }} ตร.กม. (ประมาณ {{ selectedYear.totalRai }} ไร่)</p>
+          <p class="mt-1 text-sm">แม่น้ำ {{ selectedYear.riverKm2 }} ตร.กม. + น้ำท่วมรอบนอก {{ selectedYear.floodKm2 }} ตร.กม.</p>
+          <p class="mt-1 text-sm">เฉลี่ยจาก {{ selectedYear.eventLabels.length }} เหตุการณ์: {{ selectedYear.eventLabels.join(', ') }}</p>
+          <p v-if="selectedYear.undetectedLabels.length" class="mt-1 text-sm">ไม่นับ {{ selectedYear.undetectedLabels.join(', ') }} เพราะดาวเทียมไม่พบน้ำท่วมเกินเกณฑ์</p>
+          <div class="level-row"><span class="observation-swatch" :style="{background:observationWaterColor}" /><span class="text-sm">แม่น้ำและพื้นที่น้ำท่วมรอบนอก</span></div>
+          <p class="text-xs">ข้อมูลจากดาวเทียม Sentinel-1 และ Sentinel-2 ไม่ใช่ค่าความลึกหรือข้อมูลสด</p>
         </template>
       </div>
     </section>

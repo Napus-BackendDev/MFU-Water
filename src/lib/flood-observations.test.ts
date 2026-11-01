@@ -25,6 +25,26 @@ it('keeps a fully cloudy date missing rather than claiming zero flood', () => {
   expect(cloudy.features.every((feature: {properties:{kind:string}}) => feature.properties.kind === 'unobservable')).toBe(true)
 })
 
+it('publishes each year as river plus surrounding flood without counting the overlap twice', () => {
+  const { years } = JSON.parse(readFileSync('public/flood-observations/thaton.json','utf8'))
+  expect(years.map((item: {date:string}) => item.date)).toEqual(['2022','2023','2024','2025','2026'])
+  for (const year of years) {
+    const display = JSON.parse(readFileSync(`public${year.file}`,'utf8'))
+    expect(display.displayOnly).toBe(true)
+    expect(display.features.length).toBeGreaterThan(0)
+    expect(year.floodKm2).toBeGreaterThan(0)
+    expect(year.totalKm2).toBeCloseTo(year.riverKm2 + year.floodKm2,2)
+    expect(year.eventLabels.length).toBeGreaterThan(0)
+  }
+  expect(years.find((item: {date:string}) => item.date === '2026').undetectedLabels).toHaveLength(1)
+})
+
+it('offers exactly the published years in the menu', async () => {
+  const { observationYears } = await import('../../app/utils/flood-observations')
+  const { years } = JSON.parse(readFileSync('public/flood-observations/thaton.json','utf8'))
+  expect(observationYears.map((item) => item.date).sort()).toEqual(years.map((item: {date:string}) => item.date))
+})
+
 it('does not reuse the previous date geometry and caches successful dates', async () => {
   const fetchMock = vi.fn().mockImplementation(async (url: string) => ({ok:true,json:async () => ({url})}))
   vi.stubGlobal('fetch',fetchMock)

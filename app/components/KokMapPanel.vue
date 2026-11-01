@@ -7,7 +7,7 @@ import { hasPublicMapLayer, publicFloodHistory, publicEvacuationReference, type 
 import { existingWaterColor, floodDepthLevels, floodImpactStages, loadFloodSimulation, loadFloodScenario, sampleFloodGrid, floodDepthAtPoint, type FloodScenario, type FloodSimulation, type FloodView } from '../utils/flood-simulation'
 import { loadMyMapsData, type MyMapsReview, type MyMapsRecord } from '../utils/mymaps-review'
 import { loadPublicEvacuation, type EvacuationPoint } from '../utils/public-evacuation'
-import { loadObservationRegions, observationDates, observationWaterColor, type ObservationDate, type ObservationRegions } from '../utils/flood-observations'
+import { loadObservationRegions, observationYears, observationWaterColor, type ObservationDate, type ObservationRegions } from '../utils/flood-observations'
 import { rankEvacuationPriority, priorityTiers, type EvacuationPriority } from '../utils/evacuation-priority'
 import KokMyMapsControl from './KokMyMapsControl.vue'
 
@@ -157,7 +157,7 @@ function renderObservationLayer() {
     const water = feature.properties.kind === 'water'
     const rings: Array<Array<[number,number]>> = feature.geometry.coordinates.map((ring) => ring.map((p) => [p[1]!,p[0]!]))
     const popup = document.createElement('div')
-    popup.textContent = `${observationDates.find((item) => item.date === date)?.label} · Sentinel-2 · ${water ? 'พื้นที่น้ำที่ตรวจพบ รวมแหล่งน้ำเดิม ไม่ใช่ความลึกน้ำ' : 'เมฆหรือข้อมูลที่ประเมินไม่ได้ ไม่ได้หมายถึงพื้นที่แห้ง'}`
+    popup.textContent = `${observationYears.find((item) => item.date === date)?.label} · Sentinel-1/2 · ค่าเฉลี่ยพื้นที่น้ำรวมแม่น้ำและน้ำท่วมรอบนอก ไม่ใช่ความลึกน้ำ`
     L.polygon(rings,{renderer:observationRenderer,stroke:water,color:observationWaterColor,weight:.8,opacity:.85,fillColor:water ? observationWaterColor : '#64748B',fillOpacity:water ? .5 : .3,smoothFactor:0,bubblingMouseEvents:false})
       .bindPopup(popup,{autoPan:false}).addTo(observationMapGroup)
   }
@@ -536,17 +536,25 @@ function updateVirtualPolygon(active: boolean) {
   }
 }
 
+function moveMap(center: [number, number], zoom: number) {
+  if (!mapInstance) return
+  const { x, y } = mapInstance.invalidateSize({ pan: false }).getSize()
+  // flyTo computes NaN on a zero-size map (hidden tab or pane), so jump there instead.
+  if (x && y) mapInstance.flyTo(center, zoom, { duration: 0.6 })
+  else mapInstance.setView(center, zoom, { animate: false })
+}
+
 function applyScopeAndCommunity() {
   if (!mapInstance) return
   if (props.selectedCommunityId === 'all') {
-    mapInstance.flyTo([20.08, 99.85], 9, { duration: 0.6 })
+    moveMap([20.08, 99.85], 9)
     return
   }
   const target: CommunityTarget | undefined =
     communityTargets.find((item) => item.id === props.selectedCommunityId) ?? communityTargets[0]
   if (!target) return
   const zoom = props.zoomScope === 'inner' ? target.zoomInner : target.zoomOuter
-  mapInstance.flyTo(target.center, zoom, { duration: 0.6 })
+  moveMap(target.center, zoom)
 }
 
 onMounted(async () => {

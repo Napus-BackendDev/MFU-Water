@@ -44,7 +44,7 @@ const floodStage = ref(2.5)
 // Simulated flood water is switched off for now; its toggle was removed from the layer menu.
 const simulationVisible = ref(false)
 const observationsVisible = ref(false)
-const observationDate = ref<ObservationDate>('2024-09-15')
+const observationDate = ref<ObservationDate>('2024')
 const STORAGE_KEY_COMMUNITY = 'kok_selected_community'
 const validCommunities = ['thaton', 'ruammit', 'pongkhong', 'pakingtai'] as const
 
