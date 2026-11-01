@@ -58,7 +58,8 @@ export const adminEndpoint = (method, handle) => async (request, response) => {
   if (!verifyAdminAuth(request)) return respond(response, 401, { error: 'กรุณาเข้าสู่ระบบด้วยรหัสผ่านแอดมินก่อน' })
   try {
     return await handle(request, response, getAdminSettings())
-  } catch {
+  } catch (error) {
+    console.error('ADMIN ENDPOINT ERROR:', error?.message)
     return respond(response, 503, { error: 'ดำเนินการไม่สำเร็จ กรุณาลองใหม่' })
   }
 }

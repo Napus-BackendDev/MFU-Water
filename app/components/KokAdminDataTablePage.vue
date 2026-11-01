@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { AlertTriangle, ArrowLeft, CheckCircle2, Download, FlaskConical, LogOut, Newspaper, RefreshCw, ShieldAlert, ShieldCheck, X } from 'lucide-vue-next'
 import { useAdminQueue } from '../composables/useAdminQueue'
 import { useSampleFilters } from '../composables/useSampleFilters'
@@ -23,15 +23,20 @@ const queue = useAdminQueue()
 const { isUnlocked, counts, feedback, loading, actionLoading } = queue
 const { tab, severity, query, page, pageSize, filtered, paged } = useSampleFilters(queue.samples)
 
-const adminNews = useAdminNews()
+const adminNews = useAdminNews(queue.logout)
 const adminTab = ref<'samples' | 'news'>('samples')
 const isNewsFormOpen = ref(false)
 const editingNews = ref<NewsArticle | null>(null)
 const deleteConfirmArticle = ref<NewsArticle | null>(null)
+const newsError = computed(() => adminNews.feedback.value?.type === 'error' ? adminNews.feedback.value.message : null)
 
 watch(isUnlocked, (unlocked) => {
   if (unlocked) {
     void adminNews.fetchAdminNews()
+  } else {
+    deleteConfirmArticle.value = null
+    isNewsFormOpen.value = false
+    editingNews.value = null
   }
 })
 
@@ -48,11 +53,13 @@ function handleCreateNews() {
 }
 
 function handleEditNews(article: NewsArticle) {
+  adminNews.feedback.value = null
   editingNews.value = article
   isNewsFormOpen.value = true
 }
 
 function handleDeleteNews(article: NewsArticle) {
+  adminNews.feedback.value = null
   deleteConfirmArticle.value = article
 }
 
@@ -266,6 +273,7 @@ const headerButton = 'flex items-center gap-1.5 rounded-lg border border-slate-2
             v-if="isNewsFormOpen"
             :initial-data="editingNews"
             :saving="adminNews.actionLoading.value !== null"
+            :save-error="newsError"
             @save="handleSaveNews"
             @cancel="isNewsFormOpen = false; editingNews = null"
           />
@@ -302,6 +310,7 @@ const headerButton = 'flex items-center gap-1.5 rounded-lg border border-slate-2
         <p class="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
           คุณต้องการลบข่าว <strong>"{{ deleteConfirmArticle.title }}"</strong> (รหัส {{ deleteConfirmArticle.id }}) ใช่หรือไม่? ข้อมูลจะถูกลบออกจากฐานข้อมูลอย่างถาวร
         </p>
+        <p v-if="newsError" role="alert" class="rounded-xl bg-rose-50 p-3 text-xs font-medium text-rose-800 dark:bg-rose-950/40 dark:text-rose-200">{{ newsError }}</p>
         <div class="flex items-center justify-end gap-2 pt-2">
           <button
             type="button"

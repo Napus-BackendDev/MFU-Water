@@ -231,8 +231,10 @@ export async function createNewsArticle(settings, data) {
   const col = await getNewsCollection(settings)
   const now = new Date()
   const year = now.getFullYear()
-  const total = await col.countDocuments({})
-  const id = data.id || `NW-${year}-${String(total + 1).padStart(3, '0')}`
+  // Next number after the highest id this year; counting articles would reuse ids once news are deleted.
+  const [latest] = await col.find({ id: { $regex: `^NW-${year}-\\d+$` } }, { projection: { id: 1 } }).sort({ id: -1 }).limit(1).toArray()
+  const next = latest ? Number(latest.id.split('-')[2]) + 1 : 1
+  const id = data.id || `NW-${year}-${String(next).padStart(3, '0')}`
   const doc = {
     id,
     title: String(data.title || '').trim(),
@@ -269,8 +271,10 @@ export async function updateNewsArticle(settings, id, data) {
   if (data.is_pinned !== undefined) update.is_pinned = Boolean(data.is_pinned)
   if (data.status !== undefined) {
     update.status = data.status
-    if (data.status === 'published' && !data.published_at) {
-      update.published_at = now
+    // Keep the original date when an already published article is edited.
+    if (data.status === 'published') {
+      const existing = await col.findOne({ id }, { projection: { published_at: 1 } })
+      if (!existing?.published_at) update.published_at = now
     }
   }
   if (data.author !== undefined) update.author = data.author

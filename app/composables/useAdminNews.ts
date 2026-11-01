@@ -2,7 +2,9 @@ import { computed, ref } from 'vue'
 import { getAdminToken } from '../utils/admin-session'
 import type { AdminNewsCounts, NewsArticle } from '../utils/news-types'
 
-export function useAdminNews() {
+const sessionExpiredMessage = 'เซสชันแอดมินหมดอายุ กรุณาเข้าสู่ระบบใหม่'
+
+export function useAdminNews(onSessionExpired?: (message: string) => void) {
   const articles = ref<NewsArticle[]>([])
   const counts = ref<AdminNewsCounts>({
     total: 0,
@@ -31,6 +33,10 @@ export function useAdminNews() {
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
     })
+    if (response.status === 401) {
+      onSessionExpired?.(sessionExpiredMessage)
+      throw new Error(sessionExpiredMessage)
+    }
     return response
   }
 
@@ -136,16 +142,17 @@ export function useAdminNews() {
   async function togglePin(id: string): Promise<boolean> {
     actionLoading.value = id
     try {
+      const item = articles.value.find((a) => a.id === id)
       const res = await adminFetch(`/api/admin/news/${encodeURIComponent(id)}/pin`, {
         method: 'POST',
+        body: JSON.stringify({ is_pinned: !item?.is_pinned }),
       })
       const result = await res.json()
       if (!res.ok || !result.ok) {
         throw new Error(result.error || 'เปลี่ยนสถานะปักหมุดไม่สำเร็จ')
       }
-      const item = articles.value.find((a) => a.id === id)
       if (item) {
-        item.is_pinned = result.is_pinned
+        item.is_pinned = result.article.is_pinned
         // Recalculate pinned count
         counts.value.pinned = articles.value.filter((a) => a.is_pinned).length
       }

@@ -28,6 +28,7 @@ import { useAdminNews } from '../composables/useAdminNews'
 const props = defineProps<{
   initialData?: NewsArticle | null
   saving: boolean
+  saveError?: string | null
 }>()
 
 const emit = defineEmits<{
@@ -543,6 +544,8 @@ function handleSubmit() {
           </label>
         </div>
       </div>
+
+      <p v-if="saveError" role="alert" class="rounded-xl bg-rose-50 p-3 text-xs font-medium text-rose-800 dark:bg-rose-950/40 dark:text-rose-200">{{ saveError }}</p>
 
       <!-- Action Buttons -->
       <div class="flex items-center justify-end gap-3 pt-4 border-t border-slate-100 dark:border-[#2C2C2E]">

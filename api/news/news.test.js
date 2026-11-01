@@ -39,14 +39,18 @@ describe('public news api', () => {
   })
 
   it('retrieves single article by id', async () => {
-    const req = { method: 'GET', query: { id: 'NW-2026-014' } }
+    const list = reply()
+    await newsIndexHandler({ method: 'GET', query: {} }, list)
+    const { id } = list.json.mock.calls[0][0].items[0]
+
+    const req = { method: 'GET', query: { id } }
     const res = reply()
     await newsIndexHandler(req, res)
 
     expect(res.status).toHaveBeenCalledWith(200)
     const payload = res.json.mock.calls[0][0]
     expect(payload.ok).toBe(true)
-    expect(payload.article.id).toBe('NW-2026-014')
+    expect(payload.article.id).toBe(id)
   })
 
   it('returns 404 for non-existent article', async () => {
@@ -129,12 +133,27 @@ describe('admin news api and MongoDB GridFS photo upload', () => {
     expect(createRes.status).toHaveBeenCalledWith(201)
     const createdId = createRes.json.mock.calls[0][0].article.id
     expect(createdId).toMatch(/^NW-/)
+    const publishedAt = createRes.json.mock.calls[0][0].article.published_at
+
+    // The next article takes the number after the highest id, not the article count
+    const secondRes = reply()
+    await createAdminNewsHandler({ method: 'POST', headers: {}, body: { title: 'ข่าวทดสอบที่สอง', content: 'เนื้อหา' } }, secondRes)
+    expect(secondRes.status).toHaveBeenCalledWith(201)
+    const secondId = secondRes.json.mock.calls[0][0].article.id
+    expect(Number(secondId.split('-')[2])).toBe(Number(createdId.split('-')[2]) + 1)
+    await deleteAdminNewsHandler({ method: 'DELETE', headers: {}, params: { id: secondId } }, reply())
 
     // Toggle Pin
-    const pinReq = { method: 'POST', headers: {}, params: { id: createdId } }
+    const pinReq = { method: 'POST', headers: {}, params: { id: createdId }, body: { is_pinned: true } }
     const pinRes = reply()
     await toggleAdminPinHandler(pinReq, pinRes)
     expect(pinRes.status).toHaveBeenCalledWith(200)
+    expect(pinRes.json.mock.calls[0][0].article.is_pinned).toBe(true)
+
+    // Editing a published article keeps its publish date
+    const keepDateRes = reply()
+    await updateAdminNewsHandler({ method: 'PUT', headers: {}, params: { id: createdId }, body: { status: 'published' } }, keepDateRes)
+    expect(keepDateRes.json.mock.calls[0][0].article.published_at).toBe(new Date(publishedAt).toISOString())
 
     // Update
     const updateReq = {

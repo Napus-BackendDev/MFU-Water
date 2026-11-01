@@ -124,5 +124,5 @@ export function useAdminQueue() {
     }
   })
 
-  return { isUnlocked, passcode, reviewer, verifying, loginError, loading, samples, counts, feedback, actionLoading, login, logout: () => logout(), fetchSamples, review }
+  return { isUnlocked, passcode, reviewer, verifying, loginError, loading, samples, counts, feedback, actionLoading, login, logout: (error?: string) => logout(error), fetchSamples, review }
 }
