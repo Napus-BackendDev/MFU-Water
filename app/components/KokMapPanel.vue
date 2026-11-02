@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vu
 import { clusterSurveyWaypoints } from '../../src/lib/waypoints'
 import type { SurveyWaypoint } from '../../src/lib/survey'
 import { communityTargets, publicSurveyGridCells, type CommunityTarget, type PublicGridCell } from '../utils/kok-contract'
+import { buildChemicalPopup } from '../utils/chemical-popup'
 import { hasPublicMapLayer, publicFloodHistory, publicEvacuationReference, type CommunityMapType } from '../utils/community-map-layers'
 import { existingWaterColor, floodDepthLevels, floodImpactStages, loadFloodSimulation, loadFloodScenario, sampleFloodGrid, floodDepthAtPoint, type FloodScenario, type FloodSimulation, type FloodView } from '../utils/flood-simulation'
 import { loadMyMapsData, type MyMapsReview, type MyMapsRecord } from '../utils/mymaps-review'
@@ -319,25 +320,6 @@ function renderCommunityMapLayer() {
     return
   }
 
-  if (props.communityMapType === 'hamlets') {
-    for (const cell of publicSurveyGridCells) {
-      const poly = L.polygon(cell.latLngBounds, {
-        color: '#6D28D9',
-        weight: 2,
-        dashArray: '5 5',
-        fillColor: '#8B5CF6',
-        fillOpacity: 0.15,
-      })
-      poly.bindPopup(
-        `<strong>โซนหย่อมบ้าน / กริดสำรวจ 1 กม. ${cell.cellId}</strong><br/>` +
-        `จำนวนแถวสำรวจ: <strong>${cell.records}</strong> ครัวเรือน (${cell.unit})<br/>` +
-        `เกณฑ์ปกป้องข้อมูลส่วนบุคคล k>=5 (อ้างอิงแผนเผชิญเหตุ 9 หย่อมบ้าน R05/R15)`,
-      )
-      poly.addTo(communityMapGroup)
-    }
-    return
-  }
-
   if (props.communityMapType === 'places') {
     for (const point of publicEvacuationReference.points) {
       const isShelter = point.kind === 'shelter'
@@ -424,13 +406,6 @@ function renderThematicLayers() {
   }
 
   const clusters = clusterSurveyWaypoints(props.waypoints)
-  if (typeof window !== 'undefined') {
-    ;(window as any).__selectKokWaypoint = (code: string) => {
-      const target = props.waypoints.find((w) => w.sample_code === code)
-      if (target) emit('selectWaypoint', target)
-    }
-  }
-
   for (const cluster of clusters) {
     const color = levelColor(cluster.maxPpb)
     const circle = L.circleMarker([cluster.latitude, cluster.longitude], {
@@ -441,40 +416,7 @@ function renderThematicLayers() {
       fillOpacity: 0.92,
     })
 
-    const sampleCode = cluster.latest.sample_code
-    const contributor = cluster.latest.contributor_label || 'ผู้ส่งผลตรวจ'
-    const statusText = cluster.maxPpb > 10 ? 'เกินเกณฑ์ คพ.' : cluster.maxPpb >= 5 ? 'เฝ้าระวัง' : 'ปกติ'
-    const statusColor = cluster.maxPpb > 10 ? '#FF453A' : cluster.maxPpb >= 5 ? '#FF9F0A' : '#32D74B'
-
-    circle.bindPopup(`
-      <div style="font-family: inherit; font-size: 12px; line-height: 1.4; color: #1e293b; min-width: 210px;">
-        <div style="font-weight: bold; font-size: 13px; margin-bottom: 4px; color: #0f172a;">
-          ${cluster.latest.station_name || `จุดตรวจ ${sampleCode}`}
-        </div>
-        <div style="margin-bottom: 3px;">
-          รหัส: <code style="font-weight: bold; background: #f1f5f9; padding: 1px 4px; border-radius: 4px;">${sampleCode}</code>
-        </div>
-        <div style="margin-bottom: 3px;">
-          สารหนู: <strong style="font-size: 14px; color: ${statusColor};">${cluster.maxPpb} ppb</strong>
-          <span style="font-size: 10px; font-weight: bold; padding: 1px 6px; border-radius: 4px; background: ${statusColor}22; color: ${statusColor}; margin-left: 4px;">${statusText}</span>
-        </div>
-        <div style="color: #64748b; font-size: 11px; margin-bottom: 2px;">
-          เกณฑ์ คพ.: &le; 10 ppb (น้ำผิวดิน)
-        </div>
-        <div style="color: #64748b; font-size: 11px; margin-bottom: 6px;">
-          ผู้บันทึก: <span style="color: #0284c7; font-weight: 500;">${contributor}</span>
-        </div>
-        ${cluster.sampleCount > 1 ? `<div style="font-size: 11px; color: #d97706; margin-bottom: 6px; font-weight: bold;">🔥 ตรวจแล้ว ${cluster.sampleCount} ครั้งในบริเวณนี้</div>` : ''}
-        <button
-          onclick="window.__selectKokWaypoint && window.__selectKokWaypoint('${sampleCode}')"
-          style="width: 100%; background: #0284C7; color: #fff; border: none; padding: 6px 10px; border-radius: 6px; font-weight: bold; font-size: 11px; cursor: pointer;"
-        >
-          ดูรายละเอียดและกราฟ &rarr;
-        </button>
-      </div>
-    `)
-
-    circle.on('click', () => emit('selectWaypoint', cluster.latest))
+    circle.bindPopup(buildChemicalPopup(cluster, color, () => emit('selectWaypoint', cluster.latest)), { className: 'kok-popup', minWidth: 260, maxWidth: 320, autoPanPaddingTopLeft: [12, window.innerWidth < 640 ? 220 : 76], autoPanPaddingBottomRight: [12, 150] })
     circle.addTo(thematicGroup)
   }
 }

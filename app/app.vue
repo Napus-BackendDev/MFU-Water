@@ -9,6 +9,7 @@ import KokTutorialVideo from './components/KokTutorialVideo.vue'
 import KokWelcomeVideoModal from './components/KokWelcomeVideoModal.vue'
 import KokPPBTrendChart from './components/KokPPBTrendChart.vue'
 import KokWaterHealthChart from './components/KokWaterHealthChart.vue'
+import KokCommunityProfileCard from './components/KokCommunityProfileCard.vue'
 import KokPointDetailModal from './components/KokPointDetailModal.vue'
 import KokAdminDataTablePage from './components/KokAdminDataTablePage.vue'
 import KokNewsPage from './components/KokNewsPage.vue'
@@ -491,6 +492,9 @@ onMounted(() => {
       </header>
 
 
+
+      <!-- หย่อมบ้าน: การ์ดรู้จักชุมชน (เนื้อหาพื้นที่) ของทุกชุมชน -->
+      <KokCommunityProfileCard v-if="activeCommunityMapType === 'hamlets'" :community-id="selectedCommunityId" />
 
       <!-- Desktop Bottom Bar: Tabs centered at bottom-[9px], Survey Button on right at bottom-[9px] (+4px lifted) -->
       <div class="pointer-events-none hidden sm:flex absolute bottom-[9px] left-1/2 -translate-x-1/2 z-20 items-center justify-center">
