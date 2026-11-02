@@ -102,6 +102,8 @@ export function createExpressApp(rootDir = process.cwd()) {
   app.post('/api/admin/verify-passcode', verifyPasscodeHandler)
   app.get('/api/admin/samples', adminSamplesHandler)
   app.get('/api/admin/pending-samples', adminSamplesHandler)
+  app.put('/api/admin/samples/:sampleCode', adminSamplesHandler)
+  app.delete('/api/admin/samples/:sampleCode', adminSamplesHandler)
   app.post('/api/admin/review', adminReviewHandler)
   app.post('/api/admin/samples/:sampleCode/review', (req, res) => {
     req.body = { ...req.body, sampleCode: req.params.sampleCode }

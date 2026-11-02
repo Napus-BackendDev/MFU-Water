@@ -38,7 +38,7 @@ const selected = computed(() => levels.find((item) => item.ppb === level.value) 
       <div class="flex flex-wrap items-center justify-between gap-2">
         <span class="font-semibold text-slate-800 dark:text-white">
           ผลที่เลือก: <strong class="wv-mono text-sky-700 dark:text-[#00E5FF]">{{ selected.ppb }} ppb</strong>
-          ({{ selected.status === 'auto_published' ? 'เผยแพร่อัตโนมัติ <= 50 ppb' : 'เข้าคิวรอแอดมินตรวจ > 50 ppb' }})
+          ({{ selected.status === 'auto_published' ? 'อนุมัติแล้ว <= 50 ppb' : 'เข้าคิวรอแอดมินตรวจ > 50 ppb' }})
         </span>
         <span
           class="rounded-md px-2 py-0.5 font-semibold"

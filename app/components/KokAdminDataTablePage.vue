@@ -1,13 +1,16 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { AlertTriangle, ArrowLeft, CheckCircle2, Download, FlaskConical, LogOut, Newspaper, RefreshCw, ShieldAlert, ShieldCheck, X } from 'lucide-vue-next'
+import { AlertTriangle, ArrowLeft, CheckCircle2, Download, FlaskConical, LogOut, MousePointerClick, Newspaper, Plus, RefreshCw, Waves, X } from 'lucide-vue-next'
 import { useAdminQueue } from '../composables/useAdminQueue'
 import { useSampleFilters } from '../composables/useSampleFilters'
 import { useAdminNews } from '../composables/useAdminNews'
 import { exportSamplesCsv } from '../utils/admin-csv'
-import type { AdminSample, Decision } from '../utils/admin-types'
+import { actionButtonClass, adminCardClass, primaryButtonClass } from '../utils/admin-ui'
+import type { AdminSample, Decision, SampleEdit } from '../utils/admin-types'
 import type { NewsArticle } from '../utils/news-types'
 import KokAdminDecisionDialog from './KokAdminDecisionDialog.vue'
+import KokAdminSampleEditDialog from './KokAdminSampleEditDialog.vue'
+import KokModalShell from './KokModalShell.vue'
 import KokAdminFilters from './KokAdminFilters.vue'
 import KokAdminLogin from './KokAdminLogin.vue'
 import KokAdminSampleDetail from './KokAdminSampleDetail.vue'
@@ -35,6 +38,8 @@ watch(isUnlocked, (unlocked) => {
     void adminNews.fetchAdminNews()
   } else {
     deleteConfirmArticle.value = null
+    editingSample.value = null
+    deletingSample.value = null
     isNewsFormOpen.value = false
     editingNews.value = null
   }
@@ -83,85 +88,81 @@ async function handleTogglePin(article: NewsArticle) {
   await adminNews.togglePin(article.id)
 }
 
-const detail = ref<AdminSample | null>(null)
+// Looked up by code so the panel shows fresh data after a review reloads the list.
+const detailCode = ref<string | null>(null)
+const detail = computed(() => queue.samples.value.find((sample) => sample.sample_code === detailCode.value) ?? null)
 const decision = ref<{ sample: AdminSample; type: Decision } | null>(null)
+
+const editingSample = ref<AdminSample | null>(null)
+const deletingSample = ref<AdminSample | null>(null)
+const sampleError = computed(() => feedback.value?.type === 'error' ? feedback.value.message : null)
+
+async function saveSample(values: SampleEdit) {
+  if (editingSample.value && await queue.updateSample(editingSample.value.sample_code, values)) editingSample.value = null
+}
+
+async function confirmDeleteSample() {
+  if (!deletingSample.value || !await queue.deleteSample(deletingSample.value.sample_code)) return
+  deletingSample.value = null
+  detailCode.value = null
+}
 
 async function confirmDecision(reason: string) {
   if (!decision.value) return
   if (await queue.review(decision.value.sample.sample_code, decision.value.type, reason)) decision.value = null
 }
 
-
-const headerButton = 'flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 dark:border-[#2C2C2E] dark:bg-[#252525] dark:text-slate-200 dark:hover:bg-[#2E2E30] transition'
+const mobileTitle = computed(() => adminTab.value === 'news' ? 'แอดมิน · จัดการข่าวสาร' : 'แอดมิน · ตรวจตัวอย่างน้ำ')
+const tabClass = (active: boolean) => ['flex flex-1 cursor-pointer items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-semibold transition', active ? 'bg-[#0284C7] text-white' : 'text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white']
 </script>
 
 <template>
   <div class="min-h-screen bg-slate-50 text-slate-900 dark:bg-[#121212] dark:text-white flex flex-col">
-    <header class="sticky top-0 z-40 border-b border-slate-200 bg-white/95 backdrop-blur-md px-4 py-3 dark:border-[#2C2C2E] dark:bg-[#1E1E1E]/95 shadow-xs">
-      <div class="mx-auto flex max-w-7xl items-center justify-between gap-4">
-        <div class="flex items-center gap-3">
-          <button
-            type="button"
-            class="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 hover:text-slate-900 dark:border-[#2C2C2E] dark:bg-[#252525] dark:text-slate-200 dark:hover:bg-[#2E2E30] dark:hover:text-white transition"
-            @click="emit('backToMap')"
-          >
-            <ArrowLeft class="h-4 w-4" />
-            <span>กลับสู่แผนที่สาธารณะ</span>
+    <header class="sticky top-0 z-40 border-b border-slate-200 bg-white px-4 py-3 sm:px-6 dark:border-[#2C2C2E] dark:bg-[#1E1E1E]">
+      <div class="mx-auto flex max-w-[1440px] flex-wrap items-center gap-x-3 gap-y-2.5">
+        <button type="button" aria-label="กลับสู่แผนที่สาธารณะ" :class="actionButtonClass" @click="emit('backToMap')">
+          <ArrowLeft class="h-3.5 w-3.5" />
+          <span>กลับ</span>
+        </button>
+
+        <div class="hidden h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#0284C7] text-white sm:flex">
+          <Waves class="h-5 w-5" />
+        </div>
+
+        <div class="min-w-0 flex-1">
+          <h1 class="text-sm font-bold leading-tight text-slate-900 dark:text-white">
+            <span class="sm:hidden">{{ mobileTitle }}</span>
+            <span class="hidden sm:inline sm:text-[17px]">ระบบจัดการข้อมูลแอดมิน (Admin Management Console)</span>
+          </h1>
+          <p class="hidden truncate text-xs text-slate-500 sm:block dark:text-[#98A2A8]">มหาวิทยาลัยแม่ฟ้าหลวง • โครงการวิจัยและติดตามคุณภาพน้ำลุ่มน้ำกก</p>
+        </div>
+
+        <template v-if="isUnlocked">
+          <nav aria-label="ส่วนงานแอดมิน" class="order-last flex w-full rounded-xl border border-slate-200 bg-slate-100 p-1 xl:order-none xl:w-auto dark:border-[#2C2C2E] dark:bg-[#141416]">
+            <button type="button" :class="tabClass(adminTab === 'samples')" :aria-pressed="adminTab === 'samples'" @click="switchAdminTab('samples')">
+              <FlaskConical class="h-4 w-4 shrink-0" />
+              <span>ตรวจ<span class="hidden sm:inline">ตัวอย่าง</span>น้ำ (&gt;50 ppb)</span>
+              <span v-if="counts.pending > 0" class="rounded-full bg-[#DC2626] px-1.5 text-[10px] font-bold text-white">{{ counts.pending }}</span>
+            </button>
+            <button type="button" :class="tabClass(adminTab === 'news')" :aria-pressed="adminTab === 'news'" @click="switchAdminTab('news')">
+              <Newspaper class="h-4 w-4 shrink-0" />
+              <span>จัดการข่าวสาร<span class="hidden sm:inline">ประชาสัมพันธ์</span></span>
+            </button>
+          </nav>
+
+          <button v-if="adminTab === 'news' && !isNewsFormOpen" type="button" :class="primaryButtonClass" @click="handleCreateNews">
+            <Plus class="h-4 w-4" />
+            <span>สร้างข่าวใหม่</span>
           </button>
 
-          <div class="h-5 w-px bg-slate-200 dark:bg-[#2C2C2E] hidden sm:block" />
-
-          <div class="flex items-center gap-2.5">
-            <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-rose-50 text-rose-600 border border-rose-200 dark:bg-rose-950/40 dark:text-rose-400 dark:border-rose-900/50">
-              <ShieldAlert class="h-5 w-5" />
-            </div>
-            <div>
-              <div class="flex items-center gap-2">
-                <h1 class="text-sm font-bold text-slate-900 dark:text-white sm:text-base">ระบบตรวจสอบและจัดการข้อมูลน้ำ (Admin Data Table)</h1>
-                <span v-if="isUnlocked" class="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 hidden md:inline-flex items-center gap-1">
-                  <ShieldCheck class="h-3 w-3" /> แอดมินเข้าสู่ระบบแล้ว
-                </span>
-              </div>
-              <p class="text-[11px] text-slate-500 dark:text-[#98A2A8]">มหาวิทยาลัยแม่ฟ้าหลวง • โครงการวิจัยและติดตามคุณภาพน้ำลุ่มน้ำกก</p>
-            </div>
-          </div>
-        </div>
-
-        <div class="flex items-center gap-2">
-
-          <template v-if="isUnlocked">
-            <button
-              type="button"
-              :class="headerButton"
-              :disabled="loading || adminNews.loading.value"
-              @click="adminTab === 'samples' ? queue.fetchSamples() : adminNews.fetchAdminNews()"
-            >
-              <RefreshCw class="h-3.5 w-3.5" :class="{ 'animate-spin': loading || adminNews.loading.value }" />
-              <span class="hidden sm:inline">รีเฟรช</span>
-            </button>
-            <button
-              v-if="adminTab === 'samples'"
-              type="button"
-              :class="headerButton"
-              @click="exportSamplesCsv(filtered)"
-            >
-              <Download class="h-3.5 w-3.5" />
-              <span class="hidden sm:inline">ส่งออก CSV</span>
-            </button>
-            <button
-              type="button"
-              class="flex items-center gap-1.5 rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-100 dark:border-rose-900/50 dark:bg-rose-950/40 dark:text-rose-300 dark:hover:bg-rose-900/60 transition"
-              @click="queue.logout()"
-            >
-              <LogOut class="h-3.5 w-3.5" />
-              <span class="hidden sm:inline">ออกจากระบบ</span>
-            </button>
-          </template>
-        </div>
+          <button type="button" aria-label="ออกจากระบบ" title="ออกจากระบบ" :class="actionButtonClass" class="px-2.5!" @click="queue.logout()">
+            <LogOut class="h-4 w-4" />
+          </button>
+        </template>
       </div>
     </header>
 
-    <main class="flex-1 p-4 sm:p-6 max-w-7xl mx-auto w-full">
+    <main class="mx-auto w-full max-w-[1440px] flex-1 p-4 sm:p-6">
       <KokAdminLogin
         v-if="!isUnlocked"
         v-model:passcode="queue.passcode.value"
@@ -172,100 +173,82 @@ const headerButton = 'flex items-center gap-1.5 rounded-lg border border-slate-2
         @cancel="emit('backToMap')"
       />
 
-      <div v-else class="space-y-5">
-        <!-- Sub-Navigation Tab Switcher (S5 / S5.1) -->
-        <div class="flex items-center gap-2 border-b border-slate-200 dark:border-[#2C2C2E] pb-3">
-          <button
-            type="button"
-            class="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer"
-            :class="
-              adminTab === 'samples'
-                ? 'bg-[#0284C7] text-white shadow-xs'
-                : 'bg-white text-slate-700 hover:bg-slate-100 dark:bg-[#1E1E1E] dark:text-slate-200 dark:hover:bg-[#252525] border border-slate-200 dark:border-[#2C2C2E]'
-            "
-            @click="switchAdminTab('samples')"
-          >
-            <FlaskConical class="h-4 w-4" />
-            <span>ตรวจตัวอย่างน้ำ (>50 ppb)</span>
-            <span
-              v-if="counts.pending > 0"
-              class="rounded-full bg-rose-500 text-white px-1.5 py-0.2 text-[10px] font-bold"
-            >
-              {{ counts.pending }}
-            </span>
-          </button>
-
-          <button
-            type="button"
-            class="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer"
-            :class="
-              adminTab === 'news'
-                ? 'bg-[#0284C7] text-white shadow-xs'
-                : 'bg-white text-slate-700 hover:bg-slate-100 dark:bg-[#1E1E1E] dark:text-slate-200 dark:hover:bg-[#252525] border border-slate-200 dark:border-[#2C2C2E]'
-            "
-            @click="switchAdminTab('news')"
-          >
-            <Newspaper class="h-4 w-4" />
-            <span>จัดการข่าวสารประชาสัมพันธ์</span>
-            <span
-              v-if="adminNews.counts.value.total > 0"
-              class="rounded-full bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-300 px-1.5 py-0.2 text-[10px]"
-            >
-              {{ adminNews.counts.value.total }}
-            </span>
-          </button>
-        </div>
-
-        <!-- TAB 1: SAMPLES REVIEW -->
+      <div v-else class="space-y-4">
+        <!-- TAB 1: SAMPLES REVIEW (S5) -->
         <template v-if="adminTab === 'samples'">
           <div
             v-if="feedback"
-            class="rounded-xl p-3.5 text-xs font-medium flex items-center justify-between gap-3 shadow-sm transition"
-            :class="feedback.type === 'success' ? 'bg-emerald-50 text-emerald-800 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-200 dark:border-emerald-800' : 'bg-rose-50 text-rose-800 border border-rose-200 dark:bg-rose-950/40 dark:text-rose-200 dark:border-rose-800'"
+            class="flex items-center justify-between gap-3 rounded-xl border p-3.5 text-xs font-medium"
+            :class="feedback.type === 'success' ? 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200' : 'border-rose-200 bg-rose-50 text-rose-800 dark:border-rose-800 dark:bg-rose-950/40 dark:text-rose-200'"
           >
             <div class="flex items-center gap-2">
-              <CheckCircle2 v-if="feedback.type === 'success'" class="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
-              <AlertTriangle v-else class="h-4 w-4 text-rose-600 dark:text-rose-400 shrink-0" />
+              <CheckCircle2 v-if="feedback.type === 'success'" class="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+              <AlertTriangle v-else class="h-4 w-4 shrink-0 text-rose-600 dark:text-rose-400" />
               <span>{{ feedback.message }}</span>
             </div>
-            <button type="button" aria-label="ปิดข้อความ" class="text-slate-400 hover:text-slate-600" @click="feedback = null"><X class="h-4 w-4" /></button>
+            <button type="button" aria-label="ปิดข้อความ" class="text-slate-500 hover:text-slate-700" @click="feedback = null"><X class="h-4 w-4" /></button>
           </div>
 
-          <div class="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4">
-            <KokKpiCard label="ตัวอย่างน้ำทั้งหมด" :value="counts.total" />
-            <KokKpiCard label="รอตรวจสอบ (>50 ppb)" :value="counts.pending" tone="amber" :highlight="counts.pending > 0" />
-            <KokKpiCard label="อนุมัติแล้ว" :value="counts.approved" tone="emerald" />
-            <KokKpiCard label="เผยแพร่อัตโนมัติ (<=50 ppb)" :value="counts.autoPublished" tone="sky" />
+          <div class="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+            <KokKpiCard label="ทั้งหมด" :value="counts.total" caption="ตัวอย่างน้ำในระบบ" />
+            <KokKpiCard label="รอตรวจ > 50 ppb" :value="counts.pending" tone="rose" caption="รอแอดมินตรวจก่อนเผยแพร่" />
+            <KokKpiCard label="อนุมัติแล้ว" :value="counts.approved + counts.autoPublished" tone="emerald" caption="แสดงบนแผนที่สาธารณะ" />
+            <KokKpiCard label="ปฏิเสธ" :value="counts.rejected" tone="slate" caption="ไม่แสดงบนแผนที่" />
           </div>
 
-          <KokAdminFilters v-model:tab="tab" v-model:severity="severity" v-model:query="query" :counts="counts" />
+          <KokAdminFilters v-model:tab="tab" v-model:severity="severity" v-model:query="query" :counts="counts">
+            <button type="button" aria-label="รีเฟรช" title="รีเฟรช" :class="actionButtonClass" class="px-2.5!" :disabled="loading" @click="queue.fetchSamples()">
+              <RefreshCw class="h-4 w-4" :class="{ 'animate-spin': loading }" />
+            </button>
+            <button type="button" aria-label="Export CSV" :class="actionButtonClass" @click="exportSamplesCsv(filtered)">
+              <Download class="h-4 w-4" />
+              <span class="hidden sm:inline">Export CSV</span>
+            </button>
+          </KokAdminFilters>
 
-          <div class="rounded-2xl border border-slate-200 bg-white shadow-xs overflow-hidden dark:border-[#2C2C2E] dark:bg-[#1E1E1E]">
-            <KokAdminSampleTable
-              :items="paged"
-              :loading="loading"
-              :action-loading="actionLoading"
-              @detail="detail = $event"
-              @decide="(sample, type) => (decision = { sample, type })"
-            />
-            <KokPagination v-model:page="page" v-model:page-size="pageSize" :total="filtered.length" />
+          <div class="grid items-start gap-4 xl:grid-cols-[1.9fr_1fr]">
+            <div :class="adminCardClass" class="min-w-0 overflow-hidden">
+              <KokAdminSampleTable :items="paged" :loading="loading" :selected="detail?.sample_code ?? null" @select="detailCode = $event.sample_code" />
+              <KokPagination v-model:page="page" v-model:page-size="pageSize" :total="filtered.length" />
+            </div>
+
+            <!-- Detail: a side panel on wide screens, a dialog over the table below xl -->
+            <aside
+              class="xl:sticky xl:top-[5.5rem] xl:z-auto xl:block xl:bg-transparent xl:p-0"
+              :class="detail ? 'fixed inset-0 z-50 flex items-end justify-center bg-slate-900/60 sm:items-center sm:p-4' : 'hidden'"
+              @click.self="detailCode = null"
+            >
+              <KokAdminSampleDetail
+                v-if="detail"
+                :key="detail.sample_code"
+                :sample="detail"
+                :saving="actionLoading === detail.sample_code"
+                @close="detailCode = null"
+                @decide="decision = { sample: detail!, type: $event }"
+                @edit="feedback = null; editingSample = detail"
+                @delete="feedback = null; deletingSample = detail"
+              />
+              <div v-else :class="adminCardClass" class="flex h-64 flex-col items-center justify-center gap-2 p-5 text-center text-xs text-slate-500 dark:text-[#98A2A8]">
+                <MousePointerClick class="h-5 w-5" />
+                <span>เลือกแถวในตารางเพื่อดูรายละเอียดและตรวจตัวอย่าง</span>
+              </div>
+            </aside>
           </div>
         </template>
 
         <!-- TAB 2: NEWS MANAGEMENT (S5.1 & S5.2) -->
         <template v-else-if="adminTab === 'news'">
-          <!-- News Feedback Notice -->
           <div
             v-if="adminNews.feedback.value"
-            class="rounded-xl p-3.5 text-xs font-medium flex items-center justify-between gap-3 shadow-sm transition"
-            :class="adminNews.feedback.value.type === 'success' ? 'bg-emerald-50 text-emerald-800 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-200 dark:border-emerald-800' : 'bg-rose-50 text-rose-800 border border-rose-200 dark:bg-rose-950/40 dark:text-rose-200 dark:border-rose-800'"
+            class="flex items-center justify-between gap-3 rounded-xl border p-3.5 text-xs font-medium"
+            :class="adminNews.feedback.value.type === 'success' ? 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200' : 'border-rose-200 bg-rose-50 text-rose-800 dark:border-rose-800 dark:bg-rose-950/40 dark:text-rose-200'"
           >
             <div class="flex items-center gap-2">
-              <CheckCircle2 v-if="adminNews.feedback.value.type === 'success'" class="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
-              <AlertTriangle v-else class="h-4 w-4 text-rose-600 dark:text-rose-400 shrink-0" />
+              <CheckCircle2 v-if="adminNews.feedback.value.type === 'success'" class="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+              <AlertTriangle v-else class="h-4 w-4 shrink-0 text-rose-600 dark:text-rose-400" />
               <span>{{ adminNews.feedback.value.message }}</span>
             </div>
-            <button type="button" aria-label="ปิดข้อความ" class="text-slate-400 hover:text-slate-600" @click="adminNews.feedback.value = null"><X class="h-4 w-4" /></button>
+            <button type="button" aria-label="ปิดข้อความ" class="text-slate-500 hover:text-slate-700" @click="adminNews.feedback.value = null"><X class="h-4 w-4" /></button>
           </div>
 
           <!-- S5.2: Create / Edit News Form -->
@@ -291,10 +274,10 @@ const headerButton = 'flex items-center gap-1.5 rounded-lg border border-slate-2
             v-model:search-query="adminNews.searchQuery.value"
             v-model:page="adminNews.page.value"
             v-model:page-size="adminNews.pageSize.value"
-            @create="handleCreateNews"
             @edit="handleEditNews"
             @delete="handleDeleteNews"
             @toggle-pin="handleTogglePin"
+            @refresh="adminNews.fetchAdminNews()"
           />
         </template>
       </div>
@@ -331,6 +314,29 @@ const headerButton = 'flex items-center gap-1.5 rounded-lg border border-slate-2
       </div>
     </div>
 
+    <KokAdminSampleEditDialog
+      v-if="editingSample"
+      :sample="editingSample"
+      :saving="actionLoading === editingSample.sample_code"
+      :error="sampleError"
+      @save="saveSample"
+      @close="editingSample = null"
+    />
+
+    <KokModalShell v-if="deletingSample" width-class="max-w-md" @close="deletingSample = null">
+      <h3 class="text-base font-bold">ยืนยันการลบข้อมูลตัวอย่างน้ำ</h3>
+      <p class="text-xs leading-relaxed text-slate-600 dark:text-slate-300">
+        ลบรหัส <strong class="font-mono">{{ deletingSample.sample_code }}</strong> ({{ deletingSample.arsenic_ppb }} ppb) พร้อมข้อมูลติดต่อและภาพถ่าย จุดนี้จะหายจากแผนที่สาธารณะ และกู้คืนไม่ได้
+      </p>
+      <p v-if="sampleError" role="alert" class="rounded-xl bg-rose-50 p-3 text-xs font-medium text-rose-800 dark:bg-rose-950/40 dark:text-rose-200">{{ sampleError }}</p>
+      <div class="flex items-center justify-end gap-2 pt-2">
+        <button type="button" :class="actionButtonClass" @click="deletingSample = null">ยกเลิก</button>
+        <button type="button" class="cursor-pointer rounded-xl bg-rose-600 px-4 py-2 text-xs font-bold text-white hover:bg-rose-700 disabled:opacity-50" :disabled="actionLoading === deletingSample.sample_code" @click="confirmDeleteSample">
+          ยืนยันลบข้อมูล
+        </button>
+      </div>
+    </KokModalShell>
+
     <KokAdminDecisionDialog
       v-if="decision"
       :sample="decision.sample"
@@ -338,13 +344,6 @@ const headerButton = 'flex items-center gap-1.5 rounded-lg border border-slate-2
       :saving="actionLoading === decision.sample.sample_code"
       @confirm="confirmDecision"
       @close="decision = null"
-    />
-
-    <KokAdminSampleDetail
-      v-if="detail"
-      :sample="detail"
-      @close="detail = null"
-      @approve="decision = { sample: detail, type: 'approve' }; detail = null"
     />
   </div>
 </template>

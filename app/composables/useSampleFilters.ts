@@ -15,7 +15,13 @@ export function useSampleFilters(samples: Ref<AdminSample[]>) {
   const filtered = computed(() => {
     const q = query.value.trim().toLowerCase()
     return samples.value.filter((item) => {
-      if (tab.value !== 'all' && item.publication_status !== tab.value) return false
+      if (tab.value !== 'all') {
+        if (tab.value === 'approved' || tab.value === 'auto_published') {
+          if (item.publication_status !== 'approved' && item.publication_status !== 'auto_published') return false
+        } else if (item.publication_status !== tab.value) {
+          return false
+        }
+      }
       if (severity.value !== 'all' && arsenicSeverity(item.arsenic_ppb) !== severity.value) return false
       if (!q) return true
       return [item.sample_code, item.contact_name, item.contact_phone, item.station_name, String(item.arsenic_ppb), item.sample_nature?.water_source]

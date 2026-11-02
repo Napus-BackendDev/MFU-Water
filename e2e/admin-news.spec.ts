@@ -64,7 +64,7 @@ test('a failed save shows the error beside the save button', async ({ page }) =>
   await openLogin(page)
   await login(page, 'mock')
   await page.getByTitle('แก้ไขข่าวสาร').click()
-  await page.getByRole('button', { name: 'บันทึกการแก้ไข' }).click()
+  await page.getByRole('button', { name: 'บันทึกและเผยแพร่ข่าว' }).click()
   await expect(page.getByRole('alert').filter({ hasText: 'ข้อความจากเซิร์ฟเวอร์' })).toBeVisible()
 })
 
@@ -74,7 +74,84 @@ test('the pin button pins an unpinned article', async ({ page }) => {
   await login(page, 'mock')
   const pin = page.getByTitle('สลับสถานะปักหมุด')
   await pin.click()
-  await expect(pin).toHaveClass(/text-amber-500/)
+  await expect(pin).toHaveAttribute('aria-pressed', 'true')
+})
+
+const pendingSample = { sample_code: 'KOK-E2E-001', latitude: 20.05, longitude: 99.36, collection_time: '2026-10-01T00:00:00.000Z', gps_accuracy_meters: 5, arsenic_ppb: 100, publication_status: 'pending_review', private_photo_paths: [], contact_name: 'ผู้ทดสอบ', contact_phone: '0800000000' }
+
+async function mockSamples(page: Page) {
+  await page.route('**/api/admin/samples', (route) => route.fulfill({ json: { samples: [pendingSample], counts: { total: 1, pending: 1, approved: 0, autoPublished: 0, rejected: 0 }, alerts: [] } }))
+}
+
+for (const viewport of [{ width: 375, height: 812 }, { width: 1440, height: 900 }]) {
+  test(`selecting a sample shows its contact and review actions at ${viewport.width}px`, async ({ page }) => {
+    await page.setViewportSize(viewport)
+    await mockAdminApi(page, 503)
+    await mockSamples(page)
+    await openLogin(page)
+    await page.locator('input[type=password]').fill('mock')
+    await page.getByRole('button', { name: /เข้าสู่ระบบ/ }).click()
+    await page.getByRole('button', { name: 'KOK-E2E-001' }).click()
+    await expect(page.getByText('0800000000')).toBeVisible()
+    await page.getByRole('button', { name: 'ปฏิเสธ', exact: true }).click()
+    await expect(page.getByRole('dialog')).toBeVisible()
+  })
+}
+
+for (const width of [375, 768, 1024, 1280, 1440]) {
+  test(`the admin pages do not scroll sideways at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 800 })
+    await mockAdminApi(page, 503)
+    await mockSamples(page)
+    await openLogin(page)
+    await page.locator('input[type=password]').fill('mock')
+    await page.getByRole('button', { name: /เข้าสู่ระบบ/ }).click()
+    const fits = () => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)
+    await expect(page.getByRole('button', { name: 'KOK-E2E-001' })).toBeVisible()
+    expect(await fits()).toBe(true)
+    // The status column stays on screen without scrolling the table
+    expect((await page.locator('tbody tr').first().locator('td').last().boundingBox())!.x).toBeLessThan(width)
+    await page.getByRole('button', { name: /จัดการข่าวสาร/ }).click()
+    await expect(page.getByTitle('แก้ไขข่าวสาร')).toBeVisible()
+    expect(await fits()).toBe(true)
+    await expect(page.getByTitle('ลบข่าวสาร')).toBeInViewport()
+    await page.getByTitle('แก้ไขข่าวสาร').click()
+    await expect(page.getByRole('button', { name: 'บันทึกและเผยแพร่ข่าว' })).toBeVisible()
+    expect(await fits()).toBe(true)
+  })
+}
+
+test('an admin edits a sample and deletes it, and failures stay in the dialog', async ({ page }) => {
+  await mockAdminApi(page, 503)
+  await mockSamples(page)
+  const writes: string[] = []
+  let fail = true
+  await page.route('**/api/admin/samples/KOK-E2E-001', (route) => {
+    const request = route.request()
+    if (fail) return route.fulfill({ status: 503, json: { error: 'ข้อความจากเซิร์ฟเวอร์' } })
+    writes.push(request.method())
+    return route.fulfill({ json: { success: true } })
+  })
+  await openLogin(page)
+  await page.locator('input[type=password]').fill('mock')
+  await page.getByRole('button', { name: /เข้าสู่ระบบ/ }).click()
+  await page.getByRole('button', { name: 'KOK-E2E-001' }).click()
+
+  await page.getByRole('button', { name: 'แก้ไขข้อมูล' }).click()
+  await expect(page.getByLabel('ชื่อผู้รายงาน')).toHaveValue('ผู้ทดสอบ')
+  await page.getByLabel('ระดับสารหนู').selectOption('50')
+  await expect(page.getByText('จะเผยแพร่บนแผนที่สาธารณะทันที')).toBeVisible()
+  await page.getByRole('button', { name: 'บันทึกการแก้ไข' }).click()
+  await expect(page.getByRole('alert').filter({ hasText: 'ข้อความจากเซิร์ฟเวอร์' })).toBeVisible()
+  fail = false
+  await page.getByRole('button', { name: 'บันทึกการแก้ไข' }).click()
+  await expect(page.getByRole('button', { name: 'บันทึกการแก้ไข' })).toBeHidden()
+
+  await page.getByRole('button', { name: 'ลบข้อมูล' }).click()
+  await expect(page.getByText('กู้คืนไม่ได้')).toBeVisible()
+  await page.getByRole('button', { name: 'ยืนยันลบข้อมูล' }).click()
+  await expect(page.getByRole('button', { name: 'ยืนยันลบข้อมูล' })).toBeHidden()
+  expect(writes).toEqual(['PUT', 'DELETE'])
 })
 
 // Real create, edit, pin and delete of one temporary draft. Writes to the target's database, so it only runs when asked:
@@ -87,11 +164,11 @@ test('admin creates, edits, pins and deletes a draft article', async ({ page }) 
   await openLogin(page)
   await login(page, passcode!)
 
-  await page.getByRole('button', { name: 'สร้างข่าวประชาสัมพันธ์ใหม่' }).click()
+  await page.getByRole('button', { name: 'สร้างข่าวใหม่' }).click()
   await page.getByPlaceholder(/แจ้งผลตรวจคุณภาพน้ำ/).fill(title)
   await page.getByPlaceholder(/รายละเอียดผลการตรวจ/).fill('เนื้อหาทดสอบ')
-  await page.locator('input[type=radio][value=draft]').check()
-  await page.getByRole('button', { name: 'สร้างข่าวประชาสัมพันธ์', exact: true }).click()
+  await page.getByText('เก็บเป็นฉบับร่าง').click()
+  await page.getByRole('button', { name: 'บันทึกฉบับร่าง' }).click()
 
   const row = page.locator('tbody tr', { hasText: title })
   try {
@@ -99,12 +176,12 @@ test('admin creates, edits, pins and deletes a draft article', async ({ page }) 
 
     await row.getByTitle('แก้ไขข่าวสาร').click()
     await page.getByPlaceholder(/แจ้งผลตรวจคุณภาพน้ำ/).fill(`${title} แก้แล้ว`)
-    await page.getByRole('button', { name: 'บันทึกการแก้ไข' }).click()
+    await page.getByRole('button', { name: 'บันทึกฉบับร่าง' }).click()
     await expect(row.getByText(`${title} แก้แล้ว`).first()).toBeVisible()
 
     const pin = row.getByTitle('สลับสถานะปักหมุด')
     await pin.click()
-    await expect(pin).toHaveClass(/text-amber-500/)
+    await expect(pin).toHaveAttribute('aria-pressed', 'true')
   } finally {
     await row.getByTitle('ลบข่าวสาร').click()
     await page.getByRole('button', { name: 'ยืนยันลบข่าว' }).click()

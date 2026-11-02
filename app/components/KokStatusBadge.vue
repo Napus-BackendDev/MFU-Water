@@ -5,7 +5,7 @@ defineProps<{ status: PublicationStatus }>()
 </script>
 
 <template>
-  <span class="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold" :class="statusMeta[status].badge">
+  <span class="inline-flex items-center whitespace-nowrap rounded-full border px-2.5 py-0.5 text-[11px] font-semibold" :class="statusMeta[status].badge">
     {{ statusMeta[status].label }}
   </span>
 </template>

@@ -68,3 +68,10 @@ export async function readPhoto(settings, path) {
   if (!found) return null
   return { contentType: contentTypeOf(found.file, path), buffer: await readBytes(found.bucket.openDownloadStreamByName(path)) }
 }
+
+export async function deletePhotos(settings, paths) {
+  const bucket = await bucketFor(settings)
+  for (const path of paths) {
+    for (const file of await bucket.find({ filename: path }).toArray()) await bucket.delete(file._id)
+  }
+}

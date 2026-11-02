@@ -3,11 +3,19 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { adminBypass, loginAdmin, reviewerName, verifyAdminAuth } from './_admin_shared.js'
 import photo from './photo.js'
 import review from './review.js'
-import { reviewSample } from '../surveys/_db.js'
-import { readPhoto } from '../surveys/_photos.js'
+import samples, { parseSampleEdit } from './samples.js'
+import { deleteSampleRecords, findSamplePhotoPaths, reviewSample, updateSample } from '../surveys/_db.js'
+import { deletePhotos, readPhoto } from '../surveys/_photos.js'
 
-vi.mock('../surveys/_db.js', () => ({ reviewSample: vi.fn(), buildAdminQueue: vi.fn() }))
-vi.mock('../surveys/_photos.js', () => ({ readPhoto: vi.fn() }))
+vi.mock('../surveys/_db.js', async (importOriginal) => ({
+  statusAfterEdit: (await importOriginal()).statusAfterEdit,
+  reviewSample: vi.fn(),
+  buildAdminQueue: vi.fn(),
+  updateSample: vi.fn(),
+  findSamplePhotoPaths: vi.fn(),
+  deleteSampleRecords: vi.fn(),
+}))
+vi.mock('../surveys/_photos.js', () => ({ readPhoto: vi.fn(), deletePhotos: vi.fn() }))
 
 const secret = 's'.repeat(40)
 const reply = () => {
@@ -121,5 +129,73 @@ describe('admin review endpoint', () => {
     await review({ method: 'POST', headers: { authorization: tokenFor() }, query: {}, body: { sampleCode: 'KOK-20261030-0001', decision: 'approve', reason: 'ตรวจแล้ว', reviewer: ' สมหญิง ' } }, response)
     expect(response.status).toHaveBeenCalledWith(200)
     expect(reviewSample).toHaveBeenCalledWith(expect.anything(), 'KOK-20261030-0001', 'approve', 'ตรวจแล้ว', 'สมหญิง')
+  })
+})
+
+describe('admin sample edit and delete', () => {
+  const code = 'KOK-20261030-0001'
+  const edit = { arsenicPpb: 100, latitude: 20.05, longitude: 99.36, waterSource: 'บ่อ', collectionTime: '2026-10-30T07:30:00.000Z', contactName: ' สมชาย ', contactPhone: '081', reviewer: ' สมหญิง ' }
+
+  it('requires an admin token before changing anything', async () => {
+    configure()
+    for (const method of ['PUT', 'DELETE']) {
+      const response = reply()
+      await samples({ method, headers: {}, query: { sampleCode: code }, body: edit }, response)
+      expect(response.status).toHaveBeenCalledWith(401)
+    }
+    expect(updateSample).not.toHaveBeenCalled()
+    expect(deleteSampleRecords).not.toHaveBeenCalled()
+  })
+
+  it('saves valid values with the editor name, and refuses invalid ones', async () => {
+    configure()
+    updateSample.mockResolvedValue('pending_review')
+    const response = reply()
+    await samples({ method: 'PUT', headers: { authorization: tokenFor() }, query: { sampleCode: code }, body: edit }, response)
+    expect(response.status).toHaveBeenCalledWith(200)
+    expect(updateSample).toHaveBeenCalledWith(expect.anything(), code, expect.objectContaining({ arsenicPpb: 100, contactName: 'สมชาย' }), 'สมหญิง')
+
+    for (const bad of [{ arsenicPpb: '100' }, { arsenicPpb: -1 }, { latitude: 91 }, { longitude: 181 }, { waterSource: '' }, { collectionTime: 'x' }, { contactPhone: 'x'.repeat(41) }]) {
+      expect(parseSampleEdit({ ...edit, ...bad })).toBeNull()
+    }
+  })
+
+  it('answers 404 for an unknown sample', async () => {
+    configure()
+    updateSample.mockResolvedValue(null)
+    findSamplePhotoPaths.mockResolvedValue(null)
+    for (const method of ['PUT', 'DELETE']) {
+      const response = reply()
+      await samples({ method, headers: { authorization: tokenFor() }, query: { sampleCode: code }, body: edit }, response)
+      expect(response.status).toHaveBeenCalledWith(404)
+    }
+    expect(deleteSampleRecords).not.toHaveBeenCalled()
+  })
+
+  it('deletes the photos before the records, and keeps the records if the photos fail', async () => {
+    configure()
+    const paths = ['11111111-1111-4111-8111-111111111111/1.png']
+    findSamplePhotoPaths.mockResolvedValue(paths)
+    const response = reply()
+    await samples({ method: 'DELETE', headers: { authorization: tokenFor() }, query: { sampleCode: code } }, response)
+    expect(response.status).toHaveBeenCalledWith(200)
+    expect(deletePhotos).toHaveBeenCalledWith(expect.anything(), paths)
+    expect(deleteSampleRecords).toHaveBeenCalledWith(expect.anything(), code)
+
+    vi.clearAllMocks()
+    findSamplePhotoPaths.mockResolvedValue(paths)
+    deletePhotos.mockRejectedValue(new Error('down'))
+    const failed = reply()
+    await samples({ method: 'DELETE', headers: { authorization: tokenFor() }, query: { sampleCode: code } }, failed)
+    expect(failed.status).toHaveBeenCalledWith(503)
+    expect(deleteSampleRecords).not.toHaveBeenCalled()
+  })
+
+  it('re-queues a published sample above 50 ppb and publishes a pending one at or below it', async () => {
+    const { statusAfterEdit } = await import('../surveys/_db.js')
+    expect(statusAfterEdit('auto_published', 100)).toBe('pending_review')
+    expect(statusAfterEdit('pending_review', 50)).toBe('auto_published')
+    expect(statusAfterEdit('approved', 500)).toBe('approved')
+    expect(statusAfterEdit('rejected', 5)).toBe('rejected')
   })
 })

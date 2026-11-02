@@ -4,12 +4,12 @@ import { MongoClient } from 'mongodb'
 const clientKey = Symbol.for('kok.mongo.client')
 const indexedKey = Symbol.for('kok.mongo.indexed')
 
-const surveyFields = { _id: 0, id: 1, sample_code: 1, arsenic_level_ppb: 1, latitude: 1, longitude: 1, gps_accuracy_meters: 1, created_at: 1 }
+const surveyFields = { _id: 0, id: 1, sample_code: 1, arsenic_level_ppb: 1, latitude: 1, longitude: 1, gps_accuracy_meters: 1, created_at: 1, collection_time: 1, water_source_type: 1 }
 const publishedSampleFields = {
   _id: 0, sample_code: 1, station_name: 1, latitude: 1, longitude: 1, collection_time: 1, gps_accuracy_meters: 1,
   arsenic_ppb: 1, measurements: 1, sample_nature: 1, publication_status: 1, created_at: 1, private_photo_paths: 1,
 }
-const adminSampleFields = { ...publishedSampleFields, reviewed_at: 1, reviewed_by: 1, review_reason: 1 }
+const adminSampleFields = { ...publishedSampleFields, reviewed_at: 1, reviewed_by: 1, review_reason: 1, edited_at: 1, edited_by: 1 }
 
 // Serverless instances reuse one connection pool; a failed connect is dropped so the next call retries.
 export async function getDb(settings) {
@@ -141,7 +141,9 @@ export async function listPublishedSamples(settings) {
 export async function listSurveys(settings) {
   const db = await getDb(settings)
   const rows = await db.collection('water_quality_surveys').find({}, { projection: surveyFields }).sort({ created_at: -1 }).limit(1000).toArray()
-  return rows.map(plain)
+  // A survey stays off the public map while its sample is waiting for review or was rejected.
+  const hidden = new Set(await db.collection('kok_water_samples').distinct('sample_code', { publication_status: { $in: ['pending_review', 'rejected'] } }))
+  return rows.filter((row) => !hidden.has(row.sample_code)).map(plain)
 }
 
 export async function findSamplePhotoInfo(settings, code) {
@@ -185,4 +187,66 @@ export async function reviewSample(settings, sampleCode, decision, reason, revie
   if (result.matchedCount === 0) return null
   await db.collection('kok_admin_alerts').updateMany({ sample_code: sampleCode }, { $set: { publication_status: status } }).catch(() => {})
   return status
+}
+
+// Same rule as a new submission: above 50 ppb waits for an admin, otherwise it publishes. Reviewed samples keep their decision.
+export function statusAfterEdit(status, ppb) {
+  if (ppb > 50 && status === 'auto_published') return 'pending_review'
+  if (ppb <= 50 && status === 'pending_review') return 'auto_published'
+  return status
+}
+
+// A sample is stored in three places; all of them follow an admin edit so the public map and the contact stay in step.
+export async function updateSample(settings, sampleCode, values, editor = null) {
+  const db = await getDb(settings)
+  const samples = db.collection('kok_water_samples')
+  const current = await samples.findOne({ sample_code: sampleCode }, { projection: { publication_status: 1 } })
+  if (!current) return null
+  const status = statusAfterEdit(current.publication_status, values.arsenicPpb)
+  const collectionTime = toDate(values.collectionTime)
+  await samples.updateOne({ sample_code: sampleCode }, {
+    $set: {
+      arsenic_ppb: values.arsenicPpb,
+      'measurements.arsenic.value': values.arsenicPpb,
+      'measurements.arsenic.unit': 'ppb',
+      'measurements.arsenic.status': values.arsenicPpb > 10 ? 'danger' : values.arsenicPpb >= 5 ? 'watch' : 'normal',
+      latitude: values.latitude,
+      longitude: values.longitude,
+      collection_time: collectionTime,
+      'sample_nature.water_source': values.waterSource,
+      publication_status: status,
+      edited_at: new Date(),
+      edited_by: editor,
+    },
+  })
+  await db.collection('water_quality_surveys').updateOne({ sample_code: sampleCode }, {
+    $set: {
+      arsenic_level_ppb: values.arsenicPpb,
+      latitude: values.latitude,
+      longitude: values.longitude,
+      collection_time: collectionTime,
+      water_source_type: values.waterSource,
+      full_name: values.contactName,
+      phone_number: values.contactPhone,
+    },
+  })
+  await db.collection('kok_sample_contacts').updateOne({ sample_code: sampleCode }, { $set: { name: values.contactName, phone: values.contactPhone } }, { upsert: true })
+  await db.collection('kok_admin_alerts').updateMany({ sample_code: sampleCode }, { $set: { arsenic_ppb: values.arsenicPpb, publication_status: status } })
+  return status
+}
+
+// Every stored photo path of a sample, or null when the sample does not exist.
+export async function findSamplePhotoPaths(settings, sampleCode) {
+  const db = await getDb(settings)
+  const [sample, survey] = await Promise.all([
+    db.collection('kok_water_samples').findOne({ sample_code: sampleCode }, { projection: { private_photo_paths: 1 } }),
+    db.collection('water_quality_surveys').findOne({ sample_code: sampleCode }, { projection: { photo_1_path: 1, photo_2_path: 1 } }),
+  ])
+  if (!sample && !survey) return null
+  return [...new Set([...(sample?.private_photo_paths ?? []), survey?.photo_1_path, survey?.photo_2_path].filter(Boolean))]
+}
+
+export async function deleteSampleRecords(settings, sampleCode) {
+  const db = await getDb(settings)
+  await Promise.all(['water_quality_surveys', 'kok_sample_contacts', 'kok_admin_alerts', 'kok_water_samples'].map((name) => db.collection(name).deleteMany({ sample_code: sampleCode })))
 }

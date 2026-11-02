@@ -1,6 +1,6 @@
 import { onMounted, ref } from 'vue'
 import { getAdminToken, getReviewerName, requestAdminBypass, setAdminToken, setReviewerName } from '../utils/admin-session'
-import { emptyCounts, type AdminCounts, type AdminSample, type Decision } from '../utils/admin-types'
+import { emptyCounts, type AdminCounts, type AdminSample, type Decision, type SampleEdit } from '../utils/admin-types'
 
 type Feedback = { type: 'success' | 'error'; message: string }
 
@@ -116,6 +116,39 @@ export function useAdminQueue() {
     }
   }
 
+  // Saves or deletes one sample, then reloads the list. Returns true on success so the caller can close its dialog.
+  async function changeSample(sampleCode: string, init: RequestInit, failure: string, done: string) {
+    actionLoading.value = sampleCode
+    feedback.value = null
+    try {
+      const response = await adminFetch(`/api/admin/samples/${encodeURIComponent(sampleCode)}`, init)
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(data.error || failure)
+      await fetchSamples()
+      feedback.value = { type: 'success', message: done }
+      return true
+    } catch (error) {
+      feedback.value = { type: 'error', message: error instanceof Error ? error.message : failure }
+      return false
+    } finally {
+      actionLoading.value = null
+    }
+  }
+
+  const updateSample = (sampleCode: string, values: SampleEdit) => changeSample(
+    sampleCode,
+    { method: 'PUT', body: JSON.stringify({ ...values, reviewer: getReviewerName() }) },
+    'แก้ไขข้อมูลไม่สำเร็จ',
+    `แก้ไขข้อมูลรหัส ${sampleCode} เรียบร้อยแล้ว`,
+  )
+
+  const deleteSample = (sampleCode: string) => changeSample(
+    sampleCode,
+    { method: 'DELETE' },
+    'ลบข้อมูลไม่สำเร็จ',
+    `ลบข้อมูลรหัส ${sampleCode} เรียบร้อยแล้ว`,
+  )
+
   // Opens straight away with a stored session, or with the local-development bypass.
   onMounted(async () => {
     if (getAdminToken() || await requestAdminBypass()) {
@@ -124,5 +157,5 @@ export function useAdminQueue() {
     }
   })
 
-  return { isUnlocked, passcode, reviewer, verifying, loginError, loading, samples, counts, feedback, actionLoading, login, logout: (error?: string) => logout(error), fetchSamples, review }
+  return { isUnlocked, passcode, reviewer, verifying, loginError, loading, samples, counts, feedback, actionLoading, login, logout: (error?: string) => logout(error), fetchSamples, review, updateSample, deleteSample }
 }

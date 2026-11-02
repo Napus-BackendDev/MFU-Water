@@ -17,7 +17,7 @@ export function useAdminNews(onSessionExpired?: (message: string) => void) {
   const feedback = ref<{ type: 'success' | 'error'; message: string } | null>(null)
 
   const searchQuery = ref('')
-  const statusFilter = ref<'all' | 'published' | 'draft'>('all')
+  const statusFilter = ref<'all' | 'published' | 'pinned' | 'draft'>('all')
   const categoryFilter = ref<string>('all')
   const communityFilter = ref<string>('all')
 
@@ -63,7 +63,7 @@ export function useAdminNews(onSessionExpired?: (message: string) => void) {
   const filteredArticles = computed(() => {
     let list = articles.value
     if (statusFilter.value !== 'all') {
-      list = list.filter((a) => a.status === statusFilter.value)
+      list = list.filter((a) => statusFilter.value === 'pinned' ? a.is_pinned : a.status === statusFilter.value)
     }
     if (categoryFilter.value && categoryFilter.value !== 'all') {
       list = list.filter((a) => a.category === categoryFilter.value)

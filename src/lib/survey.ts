@@ -103,6 +103,15 @@ type PrepareResponse = {
   uploads: Array<{ index: number; path: string; token: string; url: string }>
 }
 
+// A rejected fetch means the request never got an answer; say so in the user's language instead of "Failed to fetch".
+const postJson = (url: string, body: unknown) => fetch(url, {
+  method: 'POST',
+  headers: { 'content-type': 'application/json' },
+  body: JSON.stringify(body),
+}).catch(() => {
+  throw new Error('เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ ข้อมูลยังไม่ถูกส่ง กรุณาตรวจอินเทอร์เน็ตแล้วกดส่งอีกครั้ง')
+})
+
 export async function submitWaterSurvey(input: WaterSurveyInput): Promise<SurveyWaypoint> {
   const inputError = validateSurveyInput(input)
   if (inputError) throw new Error(inputError)
@@ -127,11 +136,7 @@ export async function submitWaterSurvey(input: WaterSurveyInput): Promise<Survey
     waterSourceType: input.waterSourceType ?? null,
     rainContext: input.rainContext ?? null,
   }
-  const prepareResponse = await fetch('/api/surveys/prepare', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(payload),
-  })
+  const prepareResponse = await postJson('/api/surveys/prepare', payload)
   const prepared = await readApiResponse<PrepareResponse>(prepareResponse, 'เตรียมรายการไม่สำเร็จ')
 
   try {
@@ -142,20 +147,16 @@ export async function submitWaterSurvey(input: WaterSurveyInput): Promise<Survey
       if (!response?.ok) throw new Error('อัปโหลดรูปภาพไม่สำเร็จ กรุณาตรวจไฟล์แล้วลองใหม่')
     }
 
-    const completeResponse = await fetch('/api/surveys/complete', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        ticket: prepared.ticket,
-        fullName: payload.fullName,
-        phoneNumber: payload.phoneNumber,
-        arsenicLevelPpb: payload.arsenicLevelPpb,
-        coordinates: payload.coordinates,
-        gpsAccuracyMeters: payload.gpsAccuracyMeters,
-        sampleCollectedAt: input.sampleCollectedAt,
-        waterSourceType: input.waterSourceType,
-        rainContext: input.rainContext,
-      }),
+    const completeResponse = await postJson('/api/surveys/complete', {
+      ticket: prepared.ticket,
+      fullName: payload.fullName,
+      phoneNumber: payload.phoneNumber,
+      arsenicLevelPpb: payload.arsenicLevelPpb,
+      coordinates: payload.coordinates,
+      gpsAccuracyMeters: payload.gpsAccuracyMeters,
+      sampleCollectedAt: input.sampleCollectedAt,
+      waterSourceType: input.waterSourceType,
+      rainContext: input.rainContext,
     })
     return await readApiResponse<SurveyWaypoint>(completeResponse, 'บันทึกแบบสำรวจไม่สำเร็จ กรุณาลองใหม่')
   } catch (error) {

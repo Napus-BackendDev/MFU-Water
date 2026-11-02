@@ -17,6 +17,8 @@ export type AdminSample = {
   reviewed_at?: string | null
   reviewed_by?: string | null
   review_reason?: string | null
+  edited_at?: string | null
+  edited_by?: string | null
   private_photo_paths?: string[]
   contact_name: string | null
   contact_phone: string | null
@@ -26,29 +28,35 @@ export type AdminCounts = { total: number; pending: number; approved: number; au
 
 export type Decision = 'approve' | 'reject'
 
+export type SampleEdit = {
+  arsenicPpb: number
+  latitude: number
+  longitude: number
+  collectionTime: string
+  waterSource: string
+  contactName: string
+  contactPhone: string
+}
+
 export const emptyCounts = (): AdminCounts => ({ total: 0, pending: 0, approved: 0, autoPublished: 0, rejected: 0 })
 
 // Label and colours for each publication status, shared by the table, filters and detail view.
-export const statusMeta: Record<PublicationStatus, { label: string; badge: string; tab: string }> = {
+export const statusMeta: Record<PublicationStatus, { label: string; badge: string }> = {
   pending_review: {
-    label: '⏳ รอตรวจสอบ',
-    badge: 'bg-amber-100 text-amber-800 dark:bg-amber-950/80 dark:text-amber-300 border border-amber-300 dark:border-amber-800',
-    tab: 'bg-amber-600',
+    label: 'รอตรวจ',
+    badge: 'bg-rose-50 text-rose-700 border-rose-500 dark:bg-rose-950/60 dark:text-rose-300 dark:border-rose-800',
   },
   approved: {
-    label: '✅ อนุมัติแล้ว',
-    badge: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/80 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800',
-    tab: 'bg-emerald-600',
+    label: 'อนุมัติแล้ว',
+    badge: 'bg-emerald-50 text-emerald-700 border-emerald-500 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800',
   },
   auto_published: {
-    label: '🟢 เผยแพร่อัตโนมัติ',
-    badge: 'bg-sky-100 text-sky-800 dark:bg-sky-950/80 dark:text-sky-300 border border-sky-300 dark:border-sky-800',
-    tab: 'bg-sky-600',
+    label: 'อนุมัติแล้ว',
+    badge: 'bg-emerald-50 text-emerald-700 border-emerald-500 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800',
   },
   rejected: {
-    label: '❌ ปฏิเสธ',
-    badge: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400',
-    tab: 'bg-rose-600',
+    label: 'ปฏิเสธ',
+    badge: 'bg-slate-100 text-slate-600 border-slate-300 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700',
   },
 }
 

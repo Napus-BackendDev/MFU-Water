@@ -9,6 +9,10 @@
       "destination": "/api/admin/review?sampleCode=:sampleCode"
     },
     {
+      "source": "/api/admin/samples/:sampleCode",
+      "destination": "/api/admin/samples?sampleCode=:sampleCode"
+    },
+    {
       "source": "/api/news/photo/:filename",
       "destination": "/api/news?route=photo&filename=:filename"
     },
