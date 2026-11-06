@@ -25,6 +25,18 @@ export const setAdminToken = (token: string | null) => write(tokenKey, token)
 export const getReviewerName = () => read(reviewerKey) ?? ''
 export const setReviewerName = (name: string) => write(reviewerKey, name.trim().slice(0, 80) || null)
 
+export async function adminFetch(url: string, init: RequestInit = {}): Promise<Response> {
+  const token = getAdminToken()
+  const reviewer = getReviewerName()
+  const headers: Record<string, string> = {
+    ...(init.body && typeof init.body === 'string' ? { 'content-type': 'application/json' } : {}),
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...(reviewer ? { 'x-reviewer-name': reviewer } : {}),
+    ...((init.headers as Record<string, string>) || {}),
+  }
+  return fetch(url, { ...init, headers })
+}
+
 // Private photos need the admin token, which an <img src> cannot send, so fetch them and hand back an object URL.
 export async function fetchAdminPhoto(path: string): Promise<string | null> {
   const token = getAdminToken()

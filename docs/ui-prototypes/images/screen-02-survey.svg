@@ -1,0 +1,212 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 960" width="1200" height="960">
+  <defs>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@300;400;500;600;700;800&amp;display=swap');
+      * { font-family: 'Noto Sans Thai', 'Segoe UI', sans-serif; }
+      .bold { font-weight: 700; }
+      .semibold { font-weight: 600; }
+      .medium { font-weight: 500; }
+      .regular { font-weight: 400; }
+      .shadow { filter: drop-shadow(0px 4px 12px rgba(0,0,0,0.08)); }
+      .shadow-lg { filter: drop-shadow(0px 8px 24px rgba(0,0,0,0.14)); }
+      .btn-pulse { animation: pulse 2s infinite; }
+    </style>
+    <linearGradient id="grad-green" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#195640"/>
+      <stop offset="100%" stop-color="#113D2E"/>
+    </linearGradient>
+    <linearGradient id="grad-safe" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#E8F5E9"/>
+      <stop offset="100%" stop-color="#C8E6C9"/>
+    </linearGradient>
+    <linearGradient id="grad-danger" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#FFEBEE"/>
+      <stop offset="100%" stop-color="#FFCDD2"/>
+    </linearGradient>
+    <linearGradient id="river-grad" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#72B5CC"/>
+      <stop offset="50%" stop-color="#4A9BB8"/>
+      <stop offset="100%" stop-color="#3182A0"/>
+    </linearGradient>
+    <linearGradient id="flood-water" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#1976D2" stop-opacity="0.6"/>
+      <stop offset="100%" stop-color="#0D47A1" stop-opacity="0.8"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="960" fill="#F5F4ED"/>
+  
+    <rect x="0" y="0" width="1200" height="960" fill="#EBE9DF"/>
+    
+    <text x="60" y="56" fill="#195640" font-size="28" font-weight="800">📝 แบบฟอร์มส่งผลตรวจน้ำ — ใช้งานง่ายสำหรับเกษตรกร</text>
+    <text x="60" y="90" fill="#556B60" font-size="16" font-weight="500">เลือกสีที่ตาเห็น ไม่ต้องพิมพ์ตัวเลข มีรูปช่วยบอกแหล่งน้ำ ถ่ายภาพยืนยันได้ทันที</text>
+
+    <!-- Phone Mockup Container -->
+    <g transform="translate(380, 110)">
+      <rect x="-6" y="-6" width="452" height="832" rx="42" fill="#2D3732" opacity="0.15" class="shadow-lg"/>
+      <rect x="0" y="0" width="440" height="820" rx="36" fill="#FFFFFF" stroke="#D0D7D0" stroke-width="3"/>
+      
+      <!-- Top Speaker -->
+      <rect x="150" y="10" width="140" height="22" rx="11" fill="#213E32"/>
+
+      <!-- App Header: Back Button + Title -->
+      <rect x="0" y="38" width="440" height="66" fill="#FFFFFF" stroke="#E0E6E0" stroke-width="1"/>
+      <circle cx="36" cy="71" r="20" fill="#F0F4F1"/>
+      <text x="28" y="77" fill="#195640" font-size="18" font-weight="700">‹</text>
+      <text x="70" y="76" fill="#213E32" font-size="19" font-weight="800">ส่งผลตรวจน้ำของคุณ</text>
+      <!-- Audio Readout -->
+      <rect x="360" y="50" width="56" height="42" rx="21" fill="#E8F0EC"/>
+      <text x="375" y="77" font-size="18">🔊</text>
+
+      <!-- Scrollable Form Container Simulation -->
+      <g transform="translate(18, 116)">
+        
+        <!-- STEP 1: CHOOSE TEST STRIP COLOR (Visually obvious 4 buckets!) -->
+        <rect x="0" y="0" width="404" height="170" rx="14" fill="#FAFAFA" stroke="#D8DFD5" stroke-width="1.5"/>
+        <rect x="0" y="0" width="404" height="36" rx="14" fill="#E8F0EC"/>
+        <text x="14" y="24" fill="#195640" font-size="14" font-weight="700">ก้าวที่ 1: แผ่นตรวจของคุณเปลี่ยนเป็นสีอะไร? (แตะเลือก)</text>
+
+        <!-- 4 Color Choice Blocks (Large touch friendly 85px wide) -->
+        <!-- 1. Green / Safe -->
+        <g transform="translate(12, 48)">
+          <rect x="0" y="0" width="88" height="106" rx="10" fill="#FFFFFF" stroke="#2E7D32" stroke-width="2.5" class="shadow"/>
+          <rect x="10" y="10" width="68" height="34" rx="6" fill="#DFF0D8" stroke="#468847"/>
+          <text x="44" y="32" fill="#2E7D32" font-size="16" font-weight="800" text-anchor="middle">✓ ปลอดภัย</text>
+          <text x="44" y="66" fill="#213E32" font-size="12" font-weight="700" text-anchor="middle">สีไม่เปลี่ยน</text>
+          <text x="44" y="82" fill="#556B60" font-size="10" text-anchor="middle">หรือเหลืองอ่อน</text>
+          <circle cx="44" cy="96" r="6" fill="#2E7D32"/>
+        </g>
+
+        <!-- 2. Amber / Caution -->
+        <g transform="translate(108, 48)">
+          <rect x="0" y="0" width="88" height="106" rx="10" fill="#FFFFFF" stroke="#D8DFD5"/>
+          <rect x="10" y="10" width="68" height="34" rx="6" fill="#F8E5B8" stroke="#D19C24"/>
+          <text x="44" y="66" fill="#213E32" font-size="12" font-weight="700" text-anchor="middle">สีส้มอ่อน</text>
+          <text x="44" y="82" fill="#DE9922" font-size="10" font-weight="600" text-anchor="middle">เฝ้าระวัง</text>
+          <circle cx="44" cy="96" r="6" fill="#FFFFFF" stroke="#CCC"/>
+        </g>
+
+        <!-- 3. Dark Amber / Danger -->
+        <g transform="translate(204, 48)">
+          <rect x="0" y="0" width="88" height="106" rx="10" fill="#FFFFFF" stroke="#D8DFD5"/>
+          <rect x="10" y="10" width="68" height="34" rx="6" fill="#E89B58" stroke="#B85818"/>
+          <text x="44" y="66" fill="#213E32" font-size="12" font-weight="700" text-anchor="middle">สีส้มเข้ม</text>
+          <text x="44" y="82" fill="#C45A10" font-size="10" font-weight="600" text-anchor="middle">ห้ามดื่ม!</text>
+          <circle cx="44" cy="96" r="6" fill="#FFFFFF" stroke="#CCC"/>
+        </g>
+
+        <!-- 4. Brown-Black / Critical -->
+        <g transform="translate(300, 48)">
+          <rect x="0" y="0" width="92" height="106" rx="10" fill="#FFFFFF" stroke="#D8DFD5"/>
+          <rect x="10" y="10" width="72" height="34" rx="6" fill="#7A4328" stroke="#4A2010"/>
+          <text x="46" y="66" fill="#213E32" font-size="12" font-weight="700" text-anchor="middle">น้ำตาล-ดำ</text>
+          <text x="46" y="82" fill="#A33228" font-size="10" font-weight="700" text-anchor="middle">อันตรายมาก</text>
+          <circle cx="46" cy="96" r="6" fill="#FFFFFF" stroke="#CCC"/>
+        </g>
+
+        <!-- STEP 2: WATER SOURCE (The 5 real Thaton sources with big visual buttons) -->
+        <g transform="translate(0, 182)">
+          <rect x="0" y="0" width="404" height="144" rx="14" fill="#FAFAFA" stroke="#D8DFD5" stroke-width="1.5"/>
+          <rect x="0" y="0" width="404" height="36" rx="14" fill="#E8F0EC"/>
+          <text x="14" y="24" fill="#195640" font-size="14" font-weight="700">ก้าวที่ 2: น้ำนี้ตักมาจากที่ไหน? (แตะเลือก)</text>
+
+          <!-- 5 Big Source Buttons -->
+          <!-- 1. Bottled Water (Used by 91 households!) -->
+          <g transform="translate(10, 46)">
+            <rect x="0" y="0" width="120" height="42" rx="10" fill="#195640" stroke="#195640"/>
+            <text x="12" y="27" font-size="18">🍶</text>
+            <text x="36" y="26" fill="#FFFFFF" font-size="12" font-weight="700">น้ำถัง / น้ำขวด</text>
+          </g>
+
+          <!-- 2. Tap Water -->
+          <g transform="translate(140, 46)">
+            <rect x="0" y="0" width="120" height="42" rx="10" fill="#FFFFFF" stroke="#CCD5CC"/>
+            <text x="12" y="27" font-size="18">🚰</text>
+            <text x="36" y="26" fill="#213E32" font-size="12" font-weight="600">ประปาหมู่บ้าน</text>
+          </g>
+
+          <!-- 3. Well Water -->
+          <g transform="translate(270, 46)">
+            <rect x="0" y="0" width="120" height="42" rx="10" fill="#FFFFFF" stroke="#CCD5CC"/>
+            <text x="12" y="27" font-size="18">💧</text>
+            <text x="36" y="26" fill="#213E32" font-size="12" font-weight="600">บ่อบาดาล</text>
+          </g>
+
+          <!-- 4. River Kok -->
+          <g transform="translate(65, 94)">
+            <rect x="0" y="0" width="130" height="42" rx="10" fill="#FFFFFF" stroke="#CCD5CC"/>
+            <text x="12" y="27" font-size="18">🌊</text>
+            <text x="36" y="26" fill="#213E32" font-size="12" font-weight="600">แม่น้ำกกโดยตรง</text>
+          </g>
+
+          <!-- 5. Rainwater -->
+          <g transform="translate(205, 94)">
+            <rect x="0" y="0" width="130" height="42" rx="10" fill="#FFFFFF" stroke="#CCD5CC"/>
+            <text x="12" y="27" font-size="18">🌧️</text>
+            <text x="36" y="26" fill="#213E32" font-size="12" font-weight="600">น้ำฝนรองใส่โอ่ง</text>
+          </g>
+        </g>
+
+        <!-- STEP 3: DUAL PHOTO UPLOAD (Big Camera Tap Targets) -->
+        <g transform="translate(0, 338)">
+          <rect x="0" y="0" width="404" height="142" rx="14" fill="#FAFAFA" stroke="#D8DFD5" stroke-width="1.5"/>
+          <rect x="0" y="0" width="404" height="36" rx="14" fill="#E8F0EC"/>
+          <text x="14" y="24" fill="#195640" font-size="14" font-weight="700">ก้าวที่ 3: ถ่ายรูปยืนยันผล (กดรูปกล้อง)</text>
+
+          <!-- Box 1: Strip Photo -->
+          <g transform="translate(14, 46)">
+            <rect x="0" y="0" width="180" height="84" rx="10" fill="#E8F0EC" stroke="#195640" stroke-width="1.5" stroke-dasharray="4 4"/>
+            <circle cx="90" cy="34" r="18" fill="#195640"/>
+            <text x="81" y="41" font-size="16">📷</text>
+            <text x="90" y="66" fill="#195640" font-size="12" font-weight="700" text-anchor="middle">1. รูปแผ่นตรวจคู่แถบสี</text>
+            <text x="90" y="78" fill="#4B6B56" font-size="10" text-anchor="middle">✓ แนบแล้ว (IMG_0412.jpg)</text>
+          </g>
+
+          <!-- Box 2: Source Photo -->
+          <g transform="translate(210, 46)">
+            <rect x="0" y="0" width="180" height="84" rx="10" fill="#FFFFFF" stroke="#CCD5CC" stroke-dasharray="4 4"/>
+            <circle cx="90" cy="34" r="18" fill="#E8F0EC"/>
+            <text x="81" y="41" font-size="16">📷</text>
+            <text x="90" y="66" fill="#213E32" font-size="12" font-weight="700" text-anchor="middle">2. รูปจุดที่ตักน้ำ</text>
+            <text x="90" y="78" fill="#888" font-size="10" text-anchor="middle">(กดเพื่อเปิดกล้อง)</text>
+          </g>
+        </g>
+
+        <!-- STEP 4: VILLAGE SELECTION & GPS -->
+        <g transform="translate(0, 492)">
+          <rect x="0" y="0" width="404" height="74" rx="14" fill="#E8F5E9" stroke="#A5D6A7" stroke-width="1.5"/>
+          <text x="16" y="26" font-size="18">📍</text>
+          <text x="44" y="26" fill="#1B5E20" font-size="13" font-weight="700">ตำแหน่งของคุณ: บ้านท่าตอน หมู่ 3</text>
+          <text x="44" y="44" fill="#2E7D32" font-size="11">ดึงพิกัดอัตโนมัติจากมือถือ • ไม่เปิดเผยชื่อหรือเบอร์โทรสู่สาธารณะ</text>
+          <rect x="314" y="16" width="76" height="38" rx="8" fill="#FFFFFF" stroke="#2E7D32"/>
+          <text x="352" y="40" fill="#1B5E20" font-size="11" font-weight="700" text-anchor="middle">เปลี่ยนหมู่บ้าน</text>
+        </g>
+
+        <!-- BIG SUBMIT BUTTON (70px high - bold and tactile) -->
+        <g transform="translate(0, 580)">
+          <rect x="0" y="0" width="404" height="70" rx="20" fill="#195640" stroke="#113D2E" stroke-width="2" class="shadow"/>
+          <text x="202" y="38" fill="#FFFFFF" font-size="20" font-weight="800" text-anchor="middle">✓ กดส่งผลตรวจน้ำตรงนี้</text>
+          <text x="202" y="56" fill="#D2E7DC" font-size="12" font-weight="500" text-anchor="middle">ข้อมูลจะส่งไปยัง อสม. และอาจารย์ มฟล. ทันที</text>
+        </g>
+      </g>
+    </g>
+
+    <!-- Side Notes for Technical & Development Planning -->
+    <g transform="translate(860, 160)">
+      <rect x="0" y="0" width="280" height="340" rx="16" fill="#FFFFFF" stroke="#D8DFD5" class="shadow"/>
+      <rect x="0" y="0" width="280" height="44" rx="16" fill="#195640"/>
+      <text x="18" y="28" fill="#FFFFFF" font-size="15" font-weight="700">📌 จุดเด่นแบบฟอร์ม (R05, R10)</text>
+      
+      <text x="18" y="75" fill="#213E32" font-size="13" font-weight="700">1. รวม 9 ระดับเป็น 4 โซนสีชัดเจน:</text>
+      <text x="18" y="95" fill="#556B60" font-size="12">ชาวบ้านเลือกสีได้ทันที ไม่สับสนตัวเลข ppb</text>
+      
+      <text x="18" y="130" fill="#213E32" font-size="13" font-weight="700">2. มีน้ำถัง/น้ำขวด (ข้อมูลจริง):</text>
+      <text x="18" y="150" fill="#556B60" font-size="12">ตรงกับสถิติท่าตอน 91 หลังคาบริโภคน้ำถัง</text>
+
+      <text x="18" y="185" fill="#213E32" font-size="13" font-weight="700">3. ถ่ายภาพคู่ (Dual Photo):</text>
+      <text x="18" y="205" fill="#556B60" font-size="12">ภาพกระดาษตรวจ + สภาพแหล่งน้ำ</text>
+
+      <text x="18" y="240" fill="#213E32" font-size="13" font-weight="700">4. ป้องกันข้อมูลส่วนบุคคล (PDPA):</text>
+      <text x="18" y="260" fill="#556B60" font-size="12">ซ่อนชื่อ/เบอร์ เผยแพร่เฉพาะรหัสตัวอย่าง</text>
+    </g>
+    
+</svg>

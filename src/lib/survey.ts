@@ -7,6 +7,9 @@ const maxUploadBytes = 4 * 1024 * 1024
 const shrinkAboveBytes = 2 * 1024 * 1024
 const maxPhotoEdge = 2000
 
+// Level 0 on the colour strip means no colour change, i.e. below the kit's 5 ppb step, so it is never shown as a measured 0.
+export const formatPpb = (ppb: number, long = false) => (ppb === 0 ? (long ? 'น้อยกว่า 5 ppb' : '< 5 ppb') : `${ppb} ppb`)
+
 export type SurveyCoordinates = { latitude: number; longitude: number }
 export type SurveyPhoto = File | null
 export type SurveyWaypoint = {
@@ -21,6 +24,7 @@ export type SurveyWaypoint = {
   collection_time?: string
   water_source?: string
   rain_context?: string
+  test_kit?: string
   contributor_label?: string
   publication_status?: 'auto_published' | 'approved' | 'pending_review' | 'rejected'
   photo_count?: number
@@ -36,6 +40,7 @@ export type WaterSurveyInput = {
   turnstileToken: string
   publicConsent: boolean
   sampleCollectedAt?: string | null
+  testKit?: string | null
   waterSourceType?: 'แม่น้ำ' | 'บ่อ' | 'ประปา' | null
   rainContext?: 'ไม่ทราบ' | 'ไม่ตก' | 'ตก' | null
 }
@@ -93,6 +98,7 @@ function validateSurveyInput(input: WaterSurveyInput): string | null {
     || coordinates.latitude < -90 || coordinates.latitude > 90
     || coordinates.longitude < -180 || coordinates.longitude > 180) return 'กรุณาบันทึกพิกัด GPS ก่อนส่งแบบสำรวจ'
   if (input.gpsAccuracyMeters !== null && (!Number.isInteger(input.gpsAccuracyMeters) || input.gpsAccuracyMeters < 0)) return 'ค่าความแม่นยำ GPS ไม่ถูกต้อง'
+  if (input.testKit != null && (!input.testKit.trim() || input.testKit.trim().length > 80)) return 'กรุณาระบุชุดตรวจที่ใช้ (ไม่เกิน 80 ตัวอักษร)'
   if (turnstileEnabled && !input.turnstileToken) return 'กรุณายืนยัน CAPTCHA ก่อนส่งแบบสำรวจ'
   if (!input.publicConsent) return 'กรุณายินยอมเผยแพร่พิกัด GPS และผลตรวจบนแผนที่สาธารณะ'
   return null
@@ -133,6 +139,7 @@ export async function submitWaterSurvey(input: WaterSurveyInput): Promise<Survey
     publicConsent: input.publicConsent,
     turnstileToken: input.turnstileToken,
     sampleCollectedAt: input.sampleCollectedAt ?? null,
+    testKit: input.testKit?.trim() || null,
     waterSourceType: input.waterSourceType ?? null,
     rainContext: input.rainContext ?? null,
   }
@@ -155,6 +162,7 @@ export async function submitWaterSurvey(input: WaterSurveyInput): Promise<Survey
       coordinates: payload.coordinates,
       gpsAccuracyMeters: payload.gpsAccuracyMeters,
       sampleCollectedAt: input.sampleCollectedAt,
+      testKit: payload.testKit,
       waterSourceType: input.waterSourceType,
       rainContext: input.rainContext,
     })

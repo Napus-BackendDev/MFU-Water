@@ -1,0 +1,90 @@
+{
+  "question": "ชาวบ้านริมน้ำกกและผู้ดูแลระบบ มฟล. ใช้งานทั้ง 19 หน้าจอตั้งแต่หน้าโหลดระบบจนถึงการตั้งค่าและออกรายงานวิจัยอย่างไรให้ปลอดภัยและครบวงจร?",
+  "audience": "ชาวนา เกษตรกร ผู้นำชุมชน นักวิจัย มฟล. และผู้บริหารโครงการ",
+  "findings": [
+    "ผลตรวจภาคสนามที่มีค่าสารหนูสูงเกิน 50 ppb จะถูกกักไว้ในคิวรออนุมัติ (KokAdminSampleTable.vue:1) เพื่อให้นักวิจัยตรวจทานภาพถ่ายชุดตรวจก่อนเผยแพร่ขึ้นแผนที่สาธารณะ ป้องกันความตื่นตระหนกจากความคลาดเคลื่อน",
+    "หน้าโหลดระบบ (KokLoadingScreen.vue:58) มีกลไกรองรับอินเทอร์เน็ตช้าในพื้นที่หุบเขา ให้ชาวบ้านกดลองใหม่หรือข้ามไปเลือกพื้นที่ก่อนได้โดยไม่ค้าง"
+  ],
+  "exceptions": [
+    "อินเทอร์เน็ตภาคสนามช้าหรือเซิร์ฟเวอร์ตอบสนองช้าในหน้าโหลดระบบ (KokLoadingScreen.vue variant=slow)",
+    "ผลตรวจสารหนูเกินเกณฑ์วิกฤต >50 ppb ต้องผ่านการอนุมัติจากแอดมินและส่งตรวจซ้ำทางห้องแล็บ"
+  ],
+  "claims": {
+    "s0": {
+      "status": "verified",
+      "evidence": "app/components/KokLoadingScreen.vue:1"
+    },
+    "u1": {
+      "status": "verified",
+      "evidence": "app/components/KokChemicalTimeFilter.vue:1"
+    },
+    "u2": {
+      "status": "verified",
+      "evidence": "app/components/KokPointDetailModal.vue:1"
+    },
+    "u3": {
+      "status": "verified",
+      "evidence": "app/components/KokSurveyModal.vue:1"
+    },
+    "u4": {
+      "status": "verified",
+      "evidence": "app/components/KokWaterHealthChart.vue:1"
+    },
+    "u5": {
+      "status": "verified",
+      "evidence": "app/components/KokTutorialVideo.vue:1"
+    },
+    "u6": {
+      "status": "verified",
+      "evidence": "app/components/KokEvacuationMode.vue:1"
+    },
+    "u7": {
+      "status": "verified",
+      "evidence": "app/components/KokNewsPage.vue:1"
+    },
+    "a1": {
+      "status": "verified",
+      "evidence": "app/components/KokAdminMapOverview.vue:1"
+    },
+    "a2": {
+      "status": "verified",
+      "evidence": "app/components/KokAdminHamletsPage.vue:1"
+    },
+    "a3": {
+      "status": "verified",
+      "evidence": "app/components/KokAdminSampleTable.vue:1"
+    },
+    "a4": {
+      "status": "verified",
+      "evidence": "app/components/KokAdminEvacuationPage.vue:1"
+    },
+    "a5": {
+      "status": "verified",
+      "evidence": "app/components/KokAdminPlacesPage.vue:1"
+    },
+    "a6": {
+      "status": "verified",
+      "evidence": "app/components/KokAdminReporters.vue:1"
+    },
+    "a7": {
+      "status": "verified",
+      "evidence": "app/components/KokAdminPrintMap.vue:1"
+    },
+    "a8": {
+      "status": "verified",
+      "evidence": "app/components/KokAdminNewsTable.vue:1"
+    },
+    "a9": {
+      "status": "verified",
+      "evidence": "app/components/KokAdminResearchHub.vue:1"
+    },
+    "a10": {
+      "status": "verified",
+      "evidence": "app/components/KokAdminReports.vue:1"
+    },
+    "a11": {
+      "status": "verified",
+      "evidence": "app/components/KokAdminSettings.vue:1"
+    }
+  }
+}

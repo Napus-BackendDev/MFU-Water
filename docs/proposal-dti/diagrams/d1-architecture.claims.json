@@ -1,0 +1,51 @@
+{
+ "question": "ระบบประกอบด้วยส่วนใดบ้าง และข้อมูลไหลผ่านส่วนใด เพื่อให้ศูนย์ฯ ประเมินการติดตั้งได้",
+ "audience": "เจ้าหน้าที่ศูนย์เทคโนโลยีดิจิทัลและสารสนเทศ",
+ "findings": [
+  "เบราว์เซอร์ไม่ติดต่อฐานข้อมูลโดยตรง ทุกคำขอข้อมูลผ่าน Express API (api/express-app.js:92)",
+  "Earth Engine ใช้เพียงตรวจสถานะ ไม่ได้ให้ข้อมูลแก่หน้าเว็บ (api/earth-engine/status.js:52)"
+ ],
+ "noExceptionsBecause": "ภาพนี้แสดงองค์ประกอบ ไม่ใช่ลำดับงาน",
+ "claims": {
+  "u1": {
+   "status": "verified",
+   "evidence": "PRODUCT.md:15"
+  },
+  "u2": {
+   "status": "verified",
+   "evidence": "PRODUCT.md:17"
+  },
+  "web": {
+   "status": "verified",
+   "evidence": "package.json:24"
+  },
+  "stat": {
+   "status": "verified",
+   "evidence": "app/utils/mymaps-review.ts:31"
+  },
+  "osm": {
+   "status": "verified",
+   "evidence": "app/components/KokMapPanel.vue:121"
+  },
+  "api": {
+   "status": "verified",
+   "evidence": "api/express-app.js:92"
+  },
+  "ee": {
+   "status": "verified",
+   "evidence": "api/earth-engine/status.js:52"
+  },
+  "ts": {
+   "status": "verified",
+   "evidence": "api/surveys/_shared.js:46"
+  },
+  "mongo": {
+   "status": "verified",
+   "evidence": "api/surveys/_db.js:15"
+  },
+  "grid": {
+   "status": "verified",
+   "evidence": "api/surveys/_photos.js:13"
+  }
+ }
+}

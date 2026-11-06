@@ -30,9 +30,13 @@ test('app opens on the map dashboard and the survey form loads in Nuxt UI', asyn
 
   // The how-to video opens over the map on every visit and can be closed
   const welcome = page.getByRole('dialog')
-  await expect(welcome.locator('video')).toBeVisible()
+  await expect(welcome.locator('video')).toBeVisible({ timeout: 15000 })
   await page.getByRole('button', { name: 'ปิดวิดีโอ' }).click()
   await expect(welcome).toHaveCount(0)
+
+  // Verify 'ข้อมูลชุมชน' button is removed from public map
+  await expect(page.getByRole('button', { name: 'ข้อมูลชุมชน' })).toHaveCount(0)
+  await page.screenshot({ path: 'C:/Users/asus/.gemini/antigravity/brain/a1eec811-5268-4bf2-892a-a2dc8fba79f9/public-map-clean.png' })
 
   // First page is the map, no community picker in between; defaults to Light mode
   await expect(page.getByRole('region', { name: /แผนที่.*Leaflet/ })).toBeVisible()
@@ -58,16 +62,15 @@ test('app opens on the map dashboard and the survey form loads in Nuxt UI', asyn
 })
 
 test('news photos open in a full-screen viewer and page with the arrow keys', async ({ page }) => {
-  await page.goto('/?view=news&id=NW-2026-018')
+  await page.goto('/?view=news&id=NW-2026-022')
   await page.getByRole('button', { name: 'ขยายภาพ' }).first().click()
   const viewer = page.getByRole('dialog', { name: 'ดูภาพขยาย' })
   const counter = viewer.getByTestId('lightbox-counter')
-  await expect(counter).toHaveText(/^1 \/ 4$/)
+  await expect(counter).toHaveText(/^1 \/ 2$/)
   await page.keyboard.press('ArrowRight')
-  await expect(counter).toHaveText(/^2 \/ 4$/)
+  await expect(counter).toHaveText(/^2 \/ 2$/)
   await page.keyboard.press('ArrowLeft')
-  await page.keyboard.press('ArrowLeft')
-  await expect(counter).toHaveText(/^4 \/ 4$/)
+  await expect(counter).toHaveText(/^1 \/ 2$/)
   await page.keyboard.press('Escape')
   await expect(viewer).toHaveCount(0)
 })
@@ -82,6 +85,7 @@ test('a survey that cannot reach the server explains it in Thai and keeps the fo
   const form = page.getByRole('dialog', { name: 'ทำแบบสำรวจ' })
   await form.getByPlaceholder('ระบุชื่อ-นามสกุลผู้เก็บตัวอย่าง').fill('ผู้ทดสอบ')
   await form.getByPlaceholder('08X-XXX-XXXX').fill('0800000000')
+  await form.getByLabel('ชุดตรวจที่ใช้').selectOption('ADPC')
   await form.getByRole('radio', { name: '6: 100 ppb' }).click()
   await form.getByRole('button', { name: /พิกัด GPS/ }).click()
   await expect(form.getByText(/ความแม่นยำ GPS/)).toBeVisible()

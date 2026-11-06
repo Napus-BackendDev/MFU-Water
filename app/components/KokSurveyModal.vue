@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import { ClipboardList, ShieldCheck, X } from 'lucide-vue-next'
-import { submitWaterSurvey, type SurveyWaypoint } from '../../src/lib/survey'
+import { formatPpb, submitWaterSurvey, type SurveyWaypoint } from '../../src/lib/survey'
 import { useGpsLocation } from '../composables/useGpsLocation'
 import { useSurveyPhotos } from '../composables/useSurveyPhotos'
 import KokArsenicLevelPicker from './KokArsenicLevelPicker.vue'
@@ -9,7 +9,7 @@ import KokLoadingScreen from './KokLoadingScreen.vue'
 import KokLocationFields from './KokLocationFields.vue'
 import KokPhotoPicker from './KokPhotoPicker.vue'
 
-defineProps<{ open: boolean }>()
+const props = defineProps<{ open: boolean }>()
 
 const emit = defineEmits<{
   (e: 'close'): void
@@ -29,6 +29,21 @@ const arsenicLevel = ref<number | null>(null)
 const publicConsent = ref(false)
 const formError = ref<string | null>(null)
 const saving = ref(false)
+
+// ชุดตรวจ: ADPC และ Oxfam เป็นชุดที่โครงการแจกจ่าย ชุดอื่นให้ระบุยี่ห้อเอง
+const testKit = ref('')
+const testKitOther = ref('')
+const collectedAt = ref('')
+const nowLocal = () => {
+  const now = new Date()
+  return new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 16)
+}
+const maxCollectedAt = ref(nowLocal())
+watch(() => props.open, (isOpen) => {
+  if (!isOpen) return
+  maxCollectedAt.value = nowLocal()
+  if (!collectedAt.value) collectedAt.value = maxCollectedAt.value
+})
 
 const gps = useGpsLocation()
 const photo = useSurveyPhotos()
@@ -54,6 +69,9 @@ function resetForm() {
   phoneNumber.value = ''
   arsenicLevel.value = null
   publicConsent.value = false
+  testKit.value = ''
+  testKitOther.value = ''
+  collectedAt.value = ''
   formError.value = null
   gps.reset()
   photo.reset()
@@ -61,6 +79,11 @@ function resetForm() {
 
 function validate() {
   if (!fullName.value.trim() || !phoneNumber.value.trim()) return 'กรุณากรอกชื่อ-นามสกุลและเบอร์โทรศัพท์สำหรับติดต่อกลับ'
+  if (!testKit.value) return 'กรุณาเลือกชุดตรวจที่ใช้'
+  if (testKit.value === 'other' && !testKitOther.value.trim()) return 'กรุณาระบุยี่ห้อชุดตรวจ'
+  const collectedTime = new Date(collectedAt.value).getTime()
+  if (!collectedAt.value || Number.isNaN(collectedTime)) return 'กรุณาระบุวัน-เวลาที่เก็บตัวอย่าง'
+  if (collectedTime > Date.now() + 60_000) return 'วัน-เวลาที่เก็บตัวอย่างต้องไม่เป็นอนาคต'
   if (arsenicLevel.value === null) return 'กรุณาเลือกระดับสารหนู'
   if (!gps.coordinates.value) return 'กรุณาบันทึกพิกัด GPS ปัจจุบัน'
   if (!publicConsent.value) return 'กรุณายินยอมเผยแพร่พิกัด GPS และผลตรวจบนแผนที่สาธารณะ'
@@ -76,7 +99,7 @@ async function handleSubmit() {
   saving.value = true
   try {
     const level = arsenicLevel.value!
-    const recordedNow = new Date().toISOString()
+    const collectedIso = new Date(collectedAt.value).toISOString()
     const waypoint = await submitWaterSurvey({
       fullName: fullName.value,
       phoneNumber: phoneNumber.value,
@@ -86,7 +109,8 @@ async function handleSubmit() {
       photos: photo.photos.value,
       turnstileToken: '',
       publicConsent: publicConsent.value,
-      sampleCollectedAt: recordedNow,
+      sampleCollectedAt: collectedIso,
+      testKit: testKit.value === 'other' ? testKitOther.value.trim() : testKit.value,
       waterSourceType: 'แม่น้ำ',
       rainContext: 'ไม่ทราบ',
     })
@@ -97,11 +121,11 @@ async function handleSubmit() {
       waypoint,
       waterSourceType: 'แม่น้ำ',
       rainContext: 'ไม่ทราบ',
-      sampleCollectedAt: recordedNow,
+      sampleCollectedAt: collectedIso,
       reviewStatus,
       feedbackMessage: reviewStatus === 'pending_review'
-        ? `บันทึกรหัส ${waypoint.sample_code} (${level} ppb > 50 ppb) ในนาม "${contributor}" เข้าคิวรอผู้ดูแลระบบตรวจสอบก่อนแสดงผลสาธารณะ (R10)`
-        : `บันทึกผลสำรวจรหัส ${waypoint.sample_code} (${level} ppb) ในนาม "${contributor}" เผยแพร่บนแผนที่สาธารณะเรียบร้อยแล้ว`,
+        ? `บันทึกรหัส ${waypoint.sample_code} (${formatPpb(level, true)} > 50 ppb) ในนาม "${contributor}" เข้าคิวรอผู้ดูแลระบบตรวจสอบก่อนแสดงผลสาธารณะ (R10)`
+        : `บันทึกผลสำรวจรหัส ${waypoint.sample_code} (${formatPpb(level, true)}) ในนาม "${contributor}" เผยแพร่บนแผนที่สาธารณะเรียบร้อยแล้ว`,
     })
     resetForm()
     emit('close')
@@ -164,6 +188,26 @@ async function handleSubmit() {
           <label :class="label">
             เบอร์โทรศัพท์ / Phone Number <span class="text-rose-600 dark:text-[#FF453A]">*จำเป็น</span>
             <input v-model="phoneNumber" type="tel" autocomplete="tel" maxlength="40" :class="field" placeholder="08X-XXX-XXXX" :disabled="saving">
+          </label>
+        </div>
+
+        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <label :class="label">
+            วัน-เวลาที่เก็บตัวอย่าง <span class="text-rose-600 dark:text-[#FF453A]">*จำเป็น</span>
+            <input v-model="collectedAt" type="datetime-local" :max="maxCollectedAt" :class="field" :disabled="saving" @input="formError = null">
+          </label>
+          <label :class="label">
+            ชุดตรวจที่ใช้ (ยี่ห้อ) <span class="text-rose-600 dark:text-[#FF453A]">*จำเป็น</span>
+            <select v-model="testKit" :class="field" :disabled="saving" @change="formError = null">
+              <option value="" disabled>เลือกชุดตรวจ</option>
+              <option value="ADPC">ชุดตรวจจาก ADPC</option>
+              <option value="Oxfam">ชุดตรวจจาก Oxfam</option>
+              <option value="other">อื่น ๆ (ระบุยี่ห้อ)</option>
+            </select>
+          </label>
+          <label v-if="testKit === 'other'" :class="[label, 'sm:col-span-2']">
+            ยี่ห้อชุดตรวจ <span class="text-rose-600 dark:text-[#FF453A]">*จำเป็น</span>
+            <input v-model="testKitOther" type="text" maxlength="80" :class="field" placeholder="ระบุยี่ห้อหรือชื่อชุดตรวจ" :disabled="saving" @input="formError = null">
           </label>
         </div>
 

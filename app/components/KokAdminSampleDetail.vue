@@ -3,6 +3,7 @@ import { onBeforeUnmount, onMounted, ref } from 'vue'
 import { ExternalLink, ImageOff, Pencil, Phone, ShieldCheck, Trash2, User, X } from 'lucide-vue-next'
 import { actionButtonClass, adminCardClass } from '../utils/admin-ui'
 import { fetchAdminPhoto } from '../utils/admin-session'
+import { formatPpb } from '../../src/lib/survey'
 import { formatThaiDate, type AdminSample, type Decision } from '../utils/admin-types'
 import KokStatusBadge from './KokStatusBadge.vue'
 
@@ -75,7 +76,11 @@ const value = 'mt-0.5 text-[13px] font-semibold text-slate-900 dark:text-white'
     <dl class="grid grid-cols-2 gap-x-4 gap-y-3">
       <div>
         <dt :class="term">ระดับสารหนู</dt>
-        <dd :class="value"><span class="font-mono tabular-nums">{{ sample.arsenic_ppb }}</span> ppb</dd>
+        <dd :class="value"><span class="font-mono tabular-nums">{{ formatPpb(sample.arsenic_ppb, true) }}</span></dd>
+      </div>
+      <div v-if="sample.sample_nature?.test_kit">
+        <dt :class="term">ชุดตรวจ</dt>
+        <dd :class="value">{{ sample.sample_nature.test_kit }}</dd>
       </div>
       <div>
         <dt :class="term">แหล่งน้ำ</dt>

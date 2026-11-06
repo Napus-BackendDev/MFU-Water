@@ -1,8 +1,11 @@
 import { config, respond, toSurveyWaypointDto } from './_shared.js'
 import { listPublishedSamples, listSurveys } from './_db.js'
 import { isPublicSample } from './photo.js'
+import { publicMapDataHandler } from '../mapdata/_mapdata.js'
 
 export default async function handler(request, response) {
+  // Public map data (places, hamlets, community survey) shares this function because Hobby allows only 12.
+  if (request.query?.route === 'mapdata') return publicMapDataHandler(request, response)
   if (request.method !== 'GET') {
     response.setHeader('Allow', 'GET')
     return respond(response, 405, { error: 'Method not allowed' })

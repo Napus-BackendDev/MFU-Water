@@ -1,0 +1,50 @@
+{
+  "total": 88.904,
+  "timeline": [
+    {
+      "id": "login",
+      "start": 0,
+      "overran": 0
+    },
+    {
+      "id": "overview",
+      "start": 10.746,
+      "overran": 0
+    },
+    {
+      "id": "detail",
+      "start": 20.519,
+      "overran": 0
+    },
+    {
+      "id": "decide",
+      "start": 29.331,
+      "overran": 0
+    },
+    {
+      "id": "edit",
+      "start": 41.825,
+      "overran": 0.12099999999999866
+    },
+    {
+      "id": "newsList",
+      "start": 51.036,
+      "overran": 0
+    },
+    {
+      "id": "newsForm",
+      "start": 61.099,
+      "overran": 0
+    },
+    {
+      "id": "newsPublish",
+      "start": 69.799,
+      "overran": 0
+    },
+    {
+      "id": "wrap",
+      "start": 79.216,
+      "overran": 0
+    }
+  ]
+}

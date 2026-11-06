@@ -1,0 +1,45 @@
+{
+  "total": 58.76,
+  "timeline": [
+    {
+      "id": "open",
+      "start": 0,
+      "overran": 0
+    },
+    {
+      "id": "contact",
+      "start": 6.473,
+      "overran": 0
+    },
+    {
+      "id": "level",
+      "start": 11.662,
+      "overran": 0
+    },
+    {
+      "id": "gps",
+      "start": 16.373,
+      "overran": 0
+    },
+    {
+      "id": "photos",
+      "start": 21.484,
+      "overran": 0
+    },
+    {
+      "id": "consent",
+      "start": 26.355,
+      "overran": 0
+    },
+    {
+      "id": "result",
+      "start": 39.898,
+      "overran": 0
+    },
+    {
+      "id": "detail",
+      "start": 48.689,
+      "overran": 0.4389999999999974
+    }
+  ]
+}

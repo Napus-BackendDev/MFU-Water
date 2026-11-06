@@ -1,15 +1,10 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted } from 'vue'
 import { X } from 'lucide-vue-next'
 import KokModalShell from './KokModalShell.vue'
 import KokTutorialVideo from './KokTutorialVideo.vue'
 
-// Shown on every visit: just the video, large, with a way to close it.
+// Shown on every visit: just the video, large, with a way to close it (the shell also closes it on Escape).
 const emit = defineEmits<{ (e: 'close'): void }>()
-
-const closeOnEscape = (event: KeyboardEvent) => { if (event.key === 'Escape') emit('close') }
-onMounted(() => window.addEventListener('keydown', closeOnEscape))
-onBeforeUnmount(() => window.removeEventListener('keydown', closeOnEscape))
 </script>
 
 <template>

@@ -9,7 +9,7 @@ const props = withDefaults(defineProps<{ total: number; pageSize?: number }>(), 
 const totalPages = computed(() => Math.max(1, Math.ceil(props.total / props.pageSize)))
 watch(totalPages, (pages) => { if (page.value > pages) page.value = pages })
 
-const stepClass = 'rounded-lg border border-slate-300 p-1 text-slate-600 disabled:opacity-30 hover:bg-slate-100 dark:border-[#2C2C2E] dark:text-slate-300 dark:hover:bg-[#252525]'
+const stepClass = 'rounded-lg border border-slate-300 p-2 text-slate-600 disabled:opacity-30 hover:bg-slate-100 dark:border-[#2C2C2E] dark:text-slate-300 dark:hover:bg-[#252525]'
 </script>
 
 <template>

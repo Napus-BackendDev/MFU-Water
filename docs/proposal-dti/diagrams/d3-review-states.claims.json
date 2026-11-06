@@ -1,0 +1,55 @@
+{
+ "question": "สถานะการเผยแพร่ของตัวอย่างเปลี่ยนได้อย่างไร",
+ "audience": "เจ้าหน้าที่ศูนย์เทคโนโลยีดิจิทัลและสารสนเทศ",
+ "findings": [
+  "API การตัดสินไม่จำกัดสถานะต้นทาง จึงกลับคำตัดสินเดิมได้ (api/surveys/_db.js:186)",
+  "ชื่อผู้ตรวจเป็นข้อความที่พิมพ์เอง ไม่ผูกกับบัญชีรายบุคคล (api/admin/_admin_shared.js:48)"
+ ],
+ "noExceptionsBecause": "ภาพนี้แสดงเฉพาะสถานะ",
+ "claims": {
+  "new": {
+   "status": "verified",
+   "evidence": "api/surveys/complete.js:52"
+  },
+  "auto": {
+   "status": "verified",
+   "evidence": "api/surveys/_db.js:194"
+  },
+  "pend": {
+   "status": "verified",
+   "evidence": "api/surveys/_db.js:195"
+  },
+  "appr": {
+   "status": "verified",
+   "evidence": "api/surveys/_db.js:178"
+  },
+  "rej": {
+   "status": "verified",
+   "evidence": "api/surveys/_db.js:178"
+  },
+  "a1": {
+   "status": "verified",
+   "evidence": "api/surveys/complete.js:52"
+  },
+  "a2": {
+   "status": "verified",
+   "evidence": "api/surveys/complete.js:52"
+  },
+  "a3": {
+   "status": "verified",
+   "evidence": "api/surveys/_db.js:194"
+  },
+  "a4": {
+   "status": "verified",
+   "evidence": "api/surveys/_db.js:195"
+  },
+  "a5": {
+   "status": "verified",
+   "evidence": "api/surveys/_db.js:178"
+  },
+  "a6": {
+   "status": "verified",
+   "evidence": "api/surveys/_db.js:178"
+  }
+ }
+}

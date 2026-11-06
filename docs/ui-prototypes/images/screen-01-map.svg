@@ -1,0 +1,211 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 960" width="1200" height="960">
+  <defs>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@300;400;500;600;700;800&amp;display=swap');
+      * { font-family: 'Noto Sans Thai', 'Segoe UI', sans-serif; }
+      .bold { font-weight: 700; }
+      .semibold { font-weight: 600; }
+      .medium { font-weight: 500; }
+      .regular { font-weight: 400; }
+      .shadow { filter: drop-shadow(0px 4px 12px rgba(0,0,0,0.08)); }
+      .shadow-lg { filter: drop-shadow(0px 8px 24px rgba(0,0,0,0.14)); }
+      .btn-pulse { animation: pulse 2s infinite; }
+    </style>
+    <linearGradient id="grad-green" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#195640"/>
+      <stop offset="100%" stop-color="#113D2E"/>
+    </linearGradient>
+    <linearGradient id="grad-safe" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#E8F5E9"/>
+      <stop offset="100%" stop-color="#C8E6C9"/>
+    </linearGradient>
+    <linearGradient id="grad-danger" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#FFEBEE"/>
+      <stop offset="100%" stop-color="#FFCDD2"/>
+    </linearGradient>
+    <linearGradient id="river-grad" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#72B5CC"/>
+      <stop offset="50%" stop-color="#4A9BB8"/>
+      <stop offset="100%" stop-color="#3182A0"/>
+    </linearGradient>
+    <linearGradient id="flood-water" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#1976D2" stop-opacity="0.6"/>
+      <stop offset="100%" stop-color="#0D47A1" stop-opacity="0.8"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="960" fill="#F5F4ED"/>
+  
+    <!-- Outer Stage Background & Title for non-tech users -->
+    <rect x="0" y="0" width="1200" height="960" fill="#EBE9DF"/>
+    
+    <!-- Title Header on Canvas -->
+    <text x="60" y="56" fill="#195640" font-size="28" font-weight="800">🌊 น้ำกกใกล้บ้าน — หน้าหลักสำหรับชาวบ้านและเกษตรกร (บนมือถือ)</text>
+    <text x="60" y="90" fill="#556B60" font-size="16" font-weight="500">ดูสถานะน้ำวันนี้ได้ทันที ตัวหนังสือใหญ่ ปุ่มสัมผัส 68px แตะง่าย ไม่ต้องมีความรู้เรื่องคอมพิวเตอร์</text>
+
+    <!-- Phone Mockup Container (Width: 440, Height: 820, Centered at x=380, y=110) -->
+    <g transform="translate(380, 110)">
+      <!-- Phone Shadow & Shell -->
+      <rect x="-6" y="-6" width="452" height="832" rx="42" fill="#2D3732" opacity="0.15" class="shadow-lg"/>
+      <rect x="0" y="0" width="440" height="820" rx="36" fill="#FFFFFF" stroke="#D0D7D0" stroke-width="3"/>
+      
+      <!-- Top Speaker & Camera Notch -->
+      <rect x="150" y="10" width="140" height="22" rx="11" fill="#213E32"/>
+      <circle cx="270" cy="21" r="4.5" fill="#3A5C4D"/>
+
+      <!-- App Header: Green Banner -->
+      <rect x="0" y="38" width="440" height="74" fill="url(#grad-green)"/>
+      <text x="24" y="72" fill="#FFFFFF" font-size="22" font-weight="700">💧 น้ำกกใกล้บ้าน</text>
+      <text x="24" y="96" fill="#D2E7DC" font-size="14" font-weight="500">📍 บ้านท่าตอน หมู่ 3 (เชียงใหม่-เชียงราย)</text>
+      <!-- Help / Sound Icon Button -->
+      <rect x="360" y="54" width="56" height="42" rx="21" fill="rgba(255,255,255,0.2)"/>
+      <text x="375" y="81" font-size="20">🔊</text>
+
+      <!-- 1. BIG TODAY STATUS BANNER (The #1 thing villagers care about) -->
+      <g transform="translate(18, 126)">
+        <rect x="0" y="0" width="404" height="110" rx="16" fill="#E8F5E9" stroke="#A5D6A7" stroke-width="2" class="shadow"/>
+        <circle cx="48" cy="48" r="28" fill="#2E7D32"/>
+        <text x="33" y="58" fill="#FFFFFF" font-size="30">✓</text>
+        
+        <text x="90" y="42" fill="#1B5E20" font-size="20" font-weight="800">คุณภาพน้ำวันนี้: ปลอดภัย</text>
+        <text x="90" y="68" fill="#2E7D32" font-size="14" font-weight="600">ใช้อาบ ซักล้าง รดผัก เลี้ยงปลาได้ปกติ</text>
+        <text x="90" y="92" fill="#4B6B56" font-size="12" font-weight="400">💧 ถ้าจะดื่มกิน แนะนำให้ต้มหรือกรองก่อน • ตรวจล่าสุดเมื่อเช้า</text>
+      </g>
+
+      <!-- 2. REALISTIC RIVER MAP AREA (With local landmarks in plain Thai) -->
+      <g transform="translate(18, 248)">
+        <rect x="0" y="0" width="404" height="340" rx="16" fill="#F4F8F4" stroke="#D8DFD5" stroke-width="1.5"/>
+        
+        <!-- Mountain & Land Contours -->
+        <path d="M 0,40 Q 100,20 200,60 T 404,30 L 404,0 L 0,0 Z" fill="#E4EFE7" opacity="0.6"/>
+        <path d="M 0,340 Q 150,300 250,320 T 404,290 L 404,340 L 0,340 Z" fill="#E4EFE7" opacity="0.6"/>
+
+        <!-- River Kok Winding Path -->
+        <path d="M 20,290 C 80,260 140,240 180,180 C 220,120 280,90 390,70" fill="none" stroke="url(#river-grad)" stroke-width="36" stroke-linecap="round"/>
+        <path d="M 20,290 C 80,260 140,240 180,180 C 220,120 280,90 390,70" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-dasharray="8 8" opacity="0.7"/>
+        <text x="260" y="125" fill="#1A5B75" font-size="13" font-weight="700" transform="rotate(-15, 260, 125)">แม่น้ำกก (ไหลไปเชียงราย)</text>
+
+        <!-- Bridge Landmark -->
+        <rect x="180" y="150" width="16" height="50" rx="3" fill="#8D6E63" transform="rotate(35, 180, 150)"/>
+        <text x="135" y="145" fill="#5D4037" font-size="11" font-weight="700">สะพานท่าตอน</text>
+
+        <!-- Villager Landmark Pin 1: วัดท่าตอน -->
+        <g transform="translate(90, 80)">
+          <rect x="-10" y="-12" width="105" height="26" rx="13" fill="#FFFFFF" stroke="#DE9922" stroke-width="1.5" class="shadow"/>
+          <text x="0" y="6" font-size="14">🛕</text>
+          <text x="22" y="6" fill="#213E32" font-size="12" font-weight="700">วัดท่าตอน</text>
+        </g>
+
+        <!-- Villager Landmark Pin 2: ท่าเรือท่องเที่ยว -->
+        <g transform="translate(50, 210)">
+          <rect x="-10" y="-12" width="115" height="26" rx="13" fill="#FFFFFF" stroke="#3182A0" stroke-width="1.5" class="shadow"/>
+          <text x="0" y="6" font-size="14">🚤</text>
+          <text x="22" y="6" fill="#213E32" font-size="12" font-weight="700">ท่าเรือท่าตอน</text>
+        </g>
+
+        <!-- Water Testing Point Pin: ท่าน้ำหน้าวัด (SAFE GREEN) -->
+        <g transform="translate(195, 175)">
+          <circle cx="0" cy="0" r="18" fill="#2E7D32" stroke="#FFFFFF" stroke-width="3" class="shadow"/>
+          <text x="-9" y="7" fill="#FFFFFF" font-size="14" font-weight="800">✓</text>
+          <!-- Callout -->
+          <rect x="22" y="-16" width="150" height="34" rx="8" fill="#FFFFFF" stroke="#2E7D32" stroke-width="1.5" class="shadow"/>
+          <text x="32" y="0" fill="#1B5E20" font-size="12" font-weight="700">จุดตรวจหน้าวัด (หมู่ 3)</text>
+          <text x="32" y="14" fill="#556B60" font-size="10">ปลอดภัย • ใช้รดผักได้</text>
+        </g>
+
+        <!-- Villager Landmark Pin 3: โรงเรียนบ้านท่าตอน -->
+        <g transform="translate(280, 240)">
+          <rect x="-10" y="-12" width="115" height="26" rx="13" fill="#FFFFFF" stroke="#DE9922" stroke-width="1.5" class="shadow"/>
+          <text x="0" y="6" font-size="14">🏫</text>
+          <text x="22" y="6" fill="#213E32" font-size="12" font-weight="700">โรงเรียนท่าตอน</text>
+        </g>
+
+        <!-- Map Meaning Guide (No technical jargon!) -->
+        <g transform="translate(12, 296)">
+          <rect x="0" y="0" width="380" height="36" rx="8" fill="rgba(255,255,255,0.92)" stroke="#D8DFD5"/>
+          <circle cx="20" cy="18" r="8" fill="#2E7D32"/>
+          <text x="34" y="22" fill="#213E32" font-size="11" font-weight="600">เขียว = น้ำปกติ</text>
+          
+          <circle cx="140" cy="18" r="8" fill="#DE9922"/>
+          <text x="154" y="22" fill="#213E32" font-size="11" font-weight="600">ส้ม = ควรระวัง</text>
+
+          <circle cx="255" cy="18" r="8" fill="#A33228"/>
+          <text x="269" y="22" fill="#213E32" font-size="11" font-weight="600">แดง = ห้ามดื่ม!</text>
+        </g>
+      </g>
+
+      <!-- 3. BIG HERO ACTION BUTTON (68px high - impossible for farmer to miss!) -->
+      <g transform="translate(18, 604)">
+        <rect x="0" y="0" width="404" height="68" rx="20" fill="#DE9922" stroke="#B87B12" stroke-width="2" class="shadow"/>
+        <circle cx="44" cy="34" r="22" fill="#FFFFFF"/>
+        <text x="31" y="43" font-size="24">📸</text>
+        <text x="80" y="32" fill="#213E32" font-size="18" font-weight="800">ส่งผลตรวจน้ำของคุณ</text>
+        <text x="80" y="54" fill="#4B3A10" font-size="13" font-weight="600">กดตรงนี้เพื่อถ่ายรูปกระดาษตรวจน้ำ</text>
+        <text x="366" y="42" fill="#213E32" font-size="24" font-weight="700">➔</text>
+      </g>
+
+      <!-- 4. TWO QUICK HELPER CARDS (Emergency & Evacuation) -->
+      <g transform="translate(18, 686)">
+        <!-- Left: Flood Escape -->
+        <rect x="0" y="0" width="195" height="58" rx="14" fill="#E3F2FD" stroke="#90CAF9" stroke-width="1.5"/>
+        <text x="14" y="28" font-size="20">🏃</text>
+        <text x="44" y="26" fill="#0D47A1" font-size="14" font-weight="700">จุดหนีน้ำท่วม</text>
+        <text x="44" y="46" fill="#1565C0" font-size="11">ดูศาลาปลอดภัยใกล้บ้าน</text>
+
+        <!-- Right: Call Village Leader -->
+        <rect x="209" y="0" width="195" height="58" rx="14" fill="#FFF3E0" stroke="#FFE082" stroke-width="1.5"/>
+        <text x="223" y="28" font-size="20">📞</text>
+        <text x="253" y="26" fill="#E65100" font-size="14" font-weight="700">โทรหาผู้ใหญ่บ้าน</text>
+        <text x="253" y="46" fill="#BF360C" font-size="11">ขอแผ่นตรวจ / แจ้งเหตุด่วน</text>
+      </g>
+
+      <!-- 5. BOTTOM NAVIGATION BAR (Big clear touch buttons) -->
+      <g transform="translate(0, 756)">
+        <rect x="0" y="0" width="440" height="64" rx="0" fill="#FFFFFF" stroke="#E0E6E0" stroke-width="1"/>
+        
+        <!-- Tab 1: Home (Active) -->
+        <g transform="translate(30, 10)">
+          <text x="16" y="22" font-size="18">🏠</text>
+          <text x="6" y="42" fill="#195640" font-size="11" font-weight="700">หน้าหลัก</text>
+          <circle cx="26" cy="48" r="2.5" fill="#195640"/>
+        </g>
+
+        <!-- Tab 2: Map -->
+        <g transform="translate(140, 10)">
+          <text x="16" y="22" font-size="18">🗺️</text>
+          <text x="6" y="42" fill="#789084" font-size="11" font-weight="500">แผนที่น้ำ</text>
+        </g>
+
+        <!-- Tab 3: Evacuation -->
+        <g transform="translate(250, 10)">
+          <text x="16" y="22" font-size="18">⚠️</text>
+          <text x="3" y="42" fill="#789084" font-size="11" font-weight="500">เตือนภัยน้ำ</text>
+        </g>
+
+        <!-- Tab 4: Guide -->
+        <g transform="translate(355, 10)">
+          <text x="16" y="22" font-size="18">📖</text>
+          <text x="4" y="42" fill="#789084" font-size="11" font-weight="500">วิธีตรวจ</text>
+        </g>
+      </g>
+    </g>
+
+    <!-- Side Notes for Development Planning (Excalidraw Context) -->
+    <g transform="translate(860, 160)">
+      <rect x="0" y="0" width="280" height="340" rx="16" fill="#FFFFFF" stroke="#D8DFD5" class="shadow"/>
+      <rect x="0" y="0" width="280" height="44" rx="16" fill="#195640"/>
+      <text x="18" y="28" fill="#FFFFFF" font-size="15" font-weight="700">📌 จุดเด่นสำหรับชาวบ้าน (R01, R04)</text>
+      
+      <text x="18" y="75" fill="#213E32" font-size="13" font-weight="700">1. ไร้ศัพท์เทคนิค (No NTU/ppb):</text>
+      <text x="18" y="95" fill="#556B60" font-size="12">บอกผลตรงไปตรงมา "ปลอดภัย / ระวัง"</text>
+      
+      <text x="18" y="130" fill="#213E32" font-size="13" font-weight="700">2. อิงแลนด์มาร์กชุมชนจริง:</text>
+      <text x="18" y="150" fill="#556B60" font-size="12">วัดท่าตอน, ท่าเรือ, โรงเรียน, สะพาน</text>
+
+      <text x="18" y="185" fill="#213E32" font-size="13" font-weight="700">3. ปุ่มกดขนาด 68px:</text>
+      <text x="18" y="205" fill="#556B60" font-size="12">เกษตรกรมือเปื้อนหรือผู้สูงอายุแตะสะดวก</text>
+
+      <text x="18" y="240" fill="#213E32" font-size="13" font-weight="700">4. ฟังเสียงบรรยายได้:</text>
+      <text x="18" y="260" fill="#556B60" font-size="12">มีปุ่มลำโพงอ่านออกเสียงสำหรับคนไม่อ่านหนังสือ</text>
+    </g>
+    
+</svg>

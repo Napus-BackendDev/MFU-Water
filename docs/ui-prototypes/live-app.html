@@ -1,0 +1,853 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>น้ำกกใกล้บ้าน — MFU Kok Water Watch (Mobile First on OpenStreetMap)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <style>
+    :root {
+      --bg: #F5F4ED;
+      --primary: #195640;
+      --primary-dark: #113D2E;
+      --primary-light: #E8F5E9;
+      --text: #213E32;
+      --text-muted: #556B60;
+      --safe-green: #2E7D32;
+      --warning-amber: #DE9922;
+      --alert-red: #A33228;
+      --card-bg: rgba(255, 255, 255, 0.98);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    html, body {
+      height: 100%;
+      width: 100%;
+      font-family: 'Noto Sans Thai', sans-serif;
+      overflow: hidden;
+      background: #000;
+      color: var(--text);
+    }
+
+    #map {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 1;
+    }
+
+    /* TOP FLOATING NAVIGATION BAR (NATIVE MOBILE STYLE) */
+    .top-mobile-nav {
+      position: absolute;
+      top: env(safe-area-inset-top, 12px);
+      left: 12px;
+      right: 12px;
+      z-index: 1000;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      pointer-events: none;
+    }
+    .area-selector-pill {
+      pointer-events: auto;
+      background: #FFFFFF;
+      border: 1.5px solid rgba(0,0,0,0.1);
+      border-radius: 28px;
+      padding: 8px 16px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      max-width: 70%;
+      transition: all 0.2s;
+    }
+    .area-selector-pill:active { transform: scale(0.97); }
+    .area-pin-icon { font-size: 18px; }
+    .area-text-group { overflow: hidden; white-space: nowrap; }
+    .area-main-name { font-size: 14px; font-weight: 800; color: var(--primary); text-overflow: ellipsis; overflow: hidden; }
+    .area-sub-name { font-size: 10px; color: var(--text-muted); font-weight: 600; }
+    .area-arrow { font-size: 12px; color: #888; margin-left: 2px; }
+
+    .top-actions-right {
+      pointer-events: auto;
+      display: flex;
+      gap: 6px;
+    }
+    .btn-circle-tool {
+      width: 44px;
+      height: 44px;
+      border-radius: 22px;
+      background: #FFFFFF;
+      border: 1px solid rgba(0,0,0,0.1);
+      box-shadow: 0 4px 14px rgba(0,0,0,0.2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      cursor: pointer;
+      color: var(--text);
+    }
+    .btn-circle-tool:active { transform: scale(0.94); }
+
+    /* FLOATING ACTION BUTTON (FAB) FOR FARMER SURVEY */
+    .fab-survey-btn {
+      position: absolute;
+      bottom: calc(76px + env(safe-area-inset-bottom, 12px));
+      right: 14px;
+      z-index: 1000;
+      height: 60px;
+      padding: 0 20px;
+      border-radius: 30px;
+      background: var(--warning-amber);
+      color: #213E32;
+      border: 2px solid #FFFFFF;
+      box-shadow: 0 6px 24px rgba(222, 153, 34, 0.55);
+      font-family: inherit;
+      font-size: 15px;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .fab-survey-btn:active { transform: scale(0.96); }
+    .fab-icon-box {
+      width: 38px;
+      height: 38px;
+      border-radius: 19px;
+      background: #FFFFFF;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+    }
+
+    /* BOTTOM FLOATING SUMMARY CARD (EXPANDABLE) */
+    .bottom-summary-card {
+      position: absolute;
+      bottom: calc(76px + env(safe-area-inset-bottom, 12px));
+      left: 14px;
+      right: 210px;
+      z-index: 1000;
+      background: rgba(255, 255, 255, 0.96);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(0,0,0,0.1);
+      border-radius: 20px;
+      padding: 10px 14px;
+      box-shadow: 0 4px 18px rgba(0,0,0,0.18);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      cursor: pointer;
+    }
+    @media (max-width: 600px) {
+      .bottom-summary-card {
+        right: 175px;
+        padding: 8px 10px;
+      }
+    }
+    .summary-badge-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 6px;
+      background: #2E7D32;
+      flex-shrink: 0;
+      box-shadow: 0 0 8px #2E7D32;
+    }
+    .summary-text-box { overflow: hidden; white-space: nowrap; }
+    .summary-title { font-size: 13px; font-weight: 800; color: #1B5E20; text-overflow: ellipsis; overflow: hidden; }
+    .summary-sub { font-size: 10px; color: var(--text-muted); text-overflow: ellipsis; overflow: hidden; }
+
+    /* MOBILE BOTTOM NAVIGATION BAR (MATCHING NUXT PRODUCTION APP) */
+    .mobile-bottom-nav {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      z-index: 1000;
+      background: #FFFFFF;
+      border-top: 1px solid #E2E8F0;
+      padding: 6px 8px calc(6px + env(safe-area-inset-bottom, 8px)) 8px;
+      box-shadow: 0 -4px 20px rgba(0,0,0,0.12);
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px;
+    }
+    .nav-btn-tab {
+      border: none;
+      background: transparent;
+      padding: 6px 4px;
+      border-radius: 12px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 2px;
+      cursor: pointer;
+      font-family: inherit;
+      color: #64748B;
+      transition: all 0.15s;
+    }
+    .nav-btn-tab.active {
+      color: var(--primary);
+      background: #E8F5E9;
+      font-weight: 700;
+    }
+    .nav-btn-tab .tab-icon { font-size: 19px; }
+    .nav-btn-tab .tab-label { font-size: 11px; font-weight: 600; }
+
+    /* BOTTOM SHEETS / SLIDE-UP DRAWERS */
+    .sheet-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.6);
+      backdrop-filter: blur(4px);
+      z-index: 2000;
+      display: none;
+      align-items: flex-end;
+      justify-content: center;
+    }
+    .sheet-backdrop.open { display: flex; }
+    .bottom-sheet {
+      background: #FFFFFF;
+      width: 100%;
+      max-width: 600px;
+      max-height: 85vh;
+      border-radius: 28px 28px 0 0;
+      padding: 16px 20px calc(24px + env(safe-area-inset-bottom, 16px)) 20px;
+      box-shadow: 0 -10px 40px rgba(0,0,0,0.3);
+      overflow-y: auto;
+      animation: slideUp 0.25s ease-out;
+    }
+    @keyframes slideUp {
+      from { transform: translateY(100%); }
+      to { transform: translateY(0); }
+    }
+    .sheet-handle {
+      width: 44px;
+      height: 5px;
+      border-radius: 3px;
+      background: #CBD5E1;
+      margin: 0 auto 14px auto;
+    }
+    .sheet-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+      border-bottom: 1px solid #F1F5F9;
+      padding-bottom: 10px;
+    }
+    .sheet-title { font-size: 18px; font-weight: 800; color: var(--primary); }
+
+    /* COMMUNITY CARDS IN SHEET */
+    .community-card {
+      border: 1.5px solid #E2E8F0;
+      border-radius: 16px;
+      padding: 12px 14px;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .community-card.active {
+      border-color: var(--primary);
+      background: #F4FBF7;
+    }
+    .com-left { display: flex; align-items: center; gap: 12px; }
+    .com-badge {
+      width: 36px;
+      height: 36px;
+      border-radius: 18px;
+      background: #E8F5E9;
+      color: #1B5E20;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      font-weight: 800;
+    }
+    .com-name { font-size: 14px; font-weight: 700; color: var(--text); }
+    .com-sub { font-size: 11px; color: var(--text-muted); }
+    .com-zone-tag {
+      font-size: 10px;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 10px;
+      background: #EFF6FF;
+      color: #1D4ED8;
+    }
+
+    /* FLOOD SLIDER DRAWER */
+    .flood-slider-card {
+      background: #EFF6FF;
+      border: 1px solid #BFDBFE;
+      border-radius: 16px;
+      padding: 14px;
+      margin-bottom: 16px;
+    }
+
+    /* PINS */
+    .farmer-pin {
+      width: 22px;
+      height: 22px;
+      border-radius: 11px;
+      border: 2px solid #FFFFFF;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-size: 11px;
+      font-weight: 800;
+    }
+    .farmer-pin.safe { background: #2E7D32; }
+    .farmer-pin.caution { background: #DE9922; }
+    .farmer-pin.danger { background: #A33228; animation: pulse 1.5s infinite; }
+  </style>
+</head>
+<body>
+
+  <!-- FULLSCREEN LEAFLET GOOGLE MAP -->
+  <div id="map"></div>
+
+  <!-- TOP MOBILE APP BAR -->
+  <div class="top-mobile-nav">
+    <!-- Clickable Area Pill -> Opens Community Selector Sheet -->
+    <div class="area-selector-pill" onclick="openCommunitySheet()">
+      <div class="area-pin-icon">📍</div>
+      <div class="area-text-group">
+        <div class="area-main-name" id="currentAreaName">บ้านท่าตอน (เน้นหมู่ 3)</div>
+        <div class="area-sub-name" id="currentAreaSub">ต.ท่าตอน อ.แม่อาย • 129 จุดตรวจ</div>
+      </div>
+      <div class="area-arrow">▾</div>
+    </div>
+
+    <!-- Right Controls: Home Reset, GPS & Sound -->
+    <div class="top-actions-right">
+      <button class="btn-circle-tool" id="btnHome" onclick="resetToCenter()" title="กลับจุดศูนย์กลางหมู่บ้าน">
+        🏠
+      </button>
+      <button class="btn-circle-tool" onclick="locateUser()" title="ตำแหน่งของฉัน">
+        🎯
+      </button>
+      <button class="btn-circle-tool" onclick="openSoundSheet()" title="เสียงตามสาย">
+        📢
+      </button>
+    </div>
+  </div>
+
+  <!-- BOTTOM SUMMARY CARD (AT A GLANCE) -->
+  <div class="bottom-summary-card" onclick="openSummarySheet()">
+    <div class="summary-badge-dot" id="todayDot"></div>
+    <div class="summary-text-box">
+      <div class="summary-title" id="todayTitle">น้ำกกวันนี้: ปลอดภัย</div>
+      <div class="summary-sub" id="todaySub">ใช้อาบ ซักล้าง รดผักได้ตามปกติ (แตะดูเพิ่ม)</div>
+    </div>
+  </div>
+
+  <!-- GIANT 60PX FLOATING SURVEY BUTTON FOR FARMERS -->
+  <button class="fab-survey-btn" onclick="openSurveySheet()">
+    <div class="fab-icon-box">📸</div>
+    <span>ส่งผลตรวจน้ำ</span>
+  </button>
+
+  <!-- MOBILE BOTTOM NAVIGATION (3 ESSENTIAL BUTTONS FOR VILLAGERS) -->
+  <nav class="mobile-bottom-nav">
+    <button class="nav-btn-tab active" id="tab-water" onclick="switchTab('water')">
+      <span class="tab-icon">🗺️</span>
+      <span class="tab-label">คุณภาพน้ำ</span>
+    </button>
+    <button class="nav-btn-tab" id="tab-flood" onclick="switchTab('flood')">
+      <span class="tab-icon">🌊</span>
+      <span class="tab-label">น้ำท่วม</span>
+    </button>
+    <button class="nav-btn-tab" id="tab-evac" onclick="switchTab('evac')">
+      <span class="tab-icon">🏃</span>
+      <span class="tab-label">ทางหนีน้ำ</span>
+    </button>
+  </nav>
+
+  <!-- ========================================================================= -->
+  <!-- SHEET 1: COMMUNITY & TERRITORY SELECTOR SHEET -->
+  <!-- ========================================================================= -->
+  <div class="sheet-backdrop" id="sheetCommunity">
+    <div class="bottom-sheet">
+      <div class="sheet-handle"></div>
+      <div class="sheet-header">
+        <div>
+          <div class="sheet-title">📍 เลือกพื้นที่และอาณาเขตเป้าหมาย</div>
+          <div style="font-size:12px; color:#64748B;">4 พื้นที่โครงการลุ่มน้ำกกตามข้อกำหนด (R01, R02)</div>
+        </div>
+        <button style="border:none; background:none; font-size:18px; color:#999; cursor:pointer;" onclick="closeSheet('sheetCommunity')">✕</button>
+      </div>
+
+      <!-- Scope Toggle: Inner (Zoom 16) vs Outer (Zoom 13) -->
+      <div style="display:flex; background:#F1F5F9; border-radius:12px; padding:3px; margin-bottom:14px;">
+        <button id="btnScopeInner" style="flex:1; border:none; background:#fff; color:#195640; font-weight:700; border-radius:10px; padding:8px; font-family:inherit; font-size:12px; cursor:pointer;" onclick="setZoomScope('inner')">
+          🔍 ระดับชุมชน (Zoom 16x)
+        </button>
+        <button id="btnScopeOuter" style="flex:1; border:none; background:transparent; color:#64748B; font-weight:600; border-radius:10px; padding:8px; font-family:inherit; font-size:12px; cursor:pointer;" onclick="setZoomScope('outer')">
+          🌐 ระดับตำบล/อำเภอ (Zoom 13x)
+        </button>
+      </div>
+
+      <div id="communityListContainer">
+        <!-- Rendered via JS -->
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- SHEET 2: CITIZEN 3-STEP SURVEY SHEET (FOR FARMERS) -->
+  <!-- ========================================================================= -->
+  <div class="sheet-backdrop" id="sheetSurvey">
+    <div class="bottom-sheet">
+      <div class="sheet-handle"></div>
+      <div class="sheet-header">
+        <div>
+          <div class="sheet-title">📝 ส่งผลตรวจน้ำของคุณ</div>
+          <div style="font-size:12px; color:#64748B;" id="surveyAreaLabel">บ้านท่าตอน หมู่ 3 • อ.แม่อาย จ.เชียงใหม่</div>
+        </div>
+        <button style="border:none; background:none; font-size:18px; color:#999; cursor:pointer;" onclick="closeSheet('sheetSurvey')">✕</button>
+      </div>
+
+      <!-- Step 1: Color Strip Choice -->
+      <div style="background:#F8FAFC; border:1px solid #E2E8F0; border-radius:16px; padding:12px; margin-bottom:12px;">
+        <div style="font-size:13px; font-weight:700; color:#195640; margin-bottom:8px;">1. แผ่นตรวจของคุณเปลี่ยนเป็นสีอะไร? (แตะเลือก)</div>
+        <div style="display:grid; grid-template-columns:repeat(4, 1fr); gap:6px;">
+          <button type="button" class="swatch-btn selected" onclick="selectColor(this, 5)" style="border:2px solid #2E7D32; border-radius:10px; background:#fff; padding:8px 4px; text-align:center; font-family:inherit;">
+            <div style="height:24px; border-radius:6px; background:#DFF0D8; border:1px solid #468847; margin-bottom:4px;"></div>
+            <div style="font-size:11px; font-weight:700; color:#1B5E20;">เขียวอ่อน</div>
+            <div style="font-size:9px; color:#2E7D32;">ปลอดภัย</div>
+          </button>
+          <button type="button" class="swatch-btn" onclick="selectColor(this, 30)" style="border:1.5px solid #CBD5E1; border-radius:10px; background:#fff; padding:8px 4px; text-align:center; font-family:inherit;">
+            <div style="height:24px; border-radius:6px; background:#F8E5B8; border:1px solid #D19C24; margin-bottom:4px;"></div>
+            <div style="font-size:11px; font-weight:700; color:#213E32;">ส้มอ่อน</div>
+            <div style="font-size:9px; color:#DE9922;">เฝ้าระวัง</div>
+          </button>
+          <button type="button" class="swatch-btn" onclick="selectColor(this, 100)" style="border:1.5px solid #CBD5E1; border-radius:10px; background:#fff; padding:8px 4px; text-align:center; font-family:inherit;">
+            <div style="height:24px; border-radius:6px; background:#E89B58; border:1px solid #B85818; margin-bottom:4px;"></div>
+            <div style="font-size:11px; font-weight:700; color:#213E32;">ส้มเข้ม</div>
+            <div style="font-size:9px; color:#C45A10;">ห้ามดื่ม!</div>
+          </button>
+          <button type="button" class="swatch-btn" onclick="selectColor(this, 300)" style="border:1.5px solid #CBD5E1; border-radius:10px; background:#fff; padding:8px 4px; text-align:center; font-family:inherit;">
+            <div style="height:24px; border-radius:6px; background:#7A4328; border:1px solid #4A2010; margin-bottom:4px;"></div>
+            <div style="font-size:11px; font-weight:700; color:#213E32;">น้ำตาล-ดำ</div>
+            <div style="font-size:9px; color:#A33228;">อันตราย</div>
+          </button>
+        </div>
+      </div>
+
+      <!-- Step 2: Photo Evidence -->
+      <div style="background:#F8FAFC; border:1px solid #E2E8F0; border-radius:16px; padding:12px; margin-bottom:12px;">
+        <div style="font-size:13px; font-weight:700; color:#195640; margin-bottom:8px;">2. ถ่ายรูปยืนยันผลตรวจ (กดรูปกล้อง)</div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+          <div style="border:2px dashed #195640; background:#E8F5E9; border-radius:12px; padding:12px 6px; text-align:center; cursor:pointer;">
+            <div style="font-size:22px;">📷</div>
+            <div style="font-size:11px; font-weight:700; color:#195640;">แผ่นตรวจคู่แถบสี</div>
+            <div style="font-size:9px; color:#2E7D32;">✓ แนบแล้ว</div>
+          </div>
+          <div style="border:2px dashed #CBD5E1; background:#fff; border-radius:12px; padding:12px 6px; text-align:center; cursor:pointer;">
+            <div style="font-size:22px;">📷</div>
+            <div style="font-size:11px; font-weight:700; color:#475569;">จุดที่ตักน้ำจริง</div>
+            <div style="font-size:9px; color:#94A3B8;">แตะเพื่อถ่ายรูป</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 3: Name & Phone Number (Required for Internal Follow-up R05) -->
+      <div style="background:#F8FAFC; border:1px solid #E2E8F0; border-radius:16px; padding:12px; margin-bottom:14px;">
+        <div style="font-size:13px; font-weight:700; color:#195640; margin-bottom:8px;">3. ข้อมูลผู้ส่งตรวจ (สำหรับ อสม. ติดต่อกลับ)</div>
+        <div style="display:flex; flex-direction:column; gap:8px;">
+          <div>
+            <label style="display:block; font-size:11px; font-weight:700; color:#334155; margin-bottom:3px;">👤 ชื่อ-นามสกุลผู้แจ้ง <span style="color:#DC2626;">*</span></label>
+            <input type="text" id="surveyNameInput" placeholder="เช่น นายสมชาย ใจดี" value="สมชาย ใจดี" style="width:100%; height:42px; border-radius:10px; border:1.5px solid #CBD5E1; padding:0 12px; font-family:inherit; font-size:13px; background:#fff; color:#1E293B; outline:none; box-sizing:border-box;">
+          </div>
+          <div>
+            <label style="display:block; font-size:11px; font-weight:700; color:#334155; margin-bottom:3px;">📞 เบอร์โทรศัพท์มือถือ <span style="color:#DC2626;">*</span></label>
+            <input type="tel" id="surveyPhoneInput" placeholder="เช่น 081-234-5678" value="081-987-6543" style="width:100%; height:42px; border-radius:10px; border:1.5px solid #CBD5E1; padding:0 12px; font-family:inherit; font-size:13px; background:#fff; color:#1E293B; outline:none; box-sizing:border-box;">
+          </div>
+        </div>
+      </div>
+
+      <!-- Submit Button -->
+      <button style="width:100%; height:54px; border-radius:16px; background:#195640; color:#fff; border:none; font-family:inherit; font-size:16px; font-weight:800; cursor:pointer;" onclick="submitSurvey()">
+        ✓ ส่งผลตรวจน้ำทันที
+      </button>
+      <div style="text-align:center; font-size:11px; color:#64748B; margin-top:8px;">
+        🔒 ป้องกันข้อมูลส่วนบุคคลตาม PDPA ไม่แสดงชื่อและเบอร์สู่สาธารณะ
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- SHEET 3: POINT DETAIL SHEET ("น้ำนี้เอาไปทำอะไรได้บ้าง") -->
+  <!-- ========================================================================= -->
+  <div class="sheet-backdrop" id="sheetDetail">
+    <div class="bottom-sheet">
+      <div class="sheet-handle"></div>
+      <div class="sheet-header">
+        <div>
+          <div class="sheet-title" id="sheetPointCode">จุดตรวจ W-042</div>
+          <div style="font-size:12px; color:#64748B;" id="sheetPointName">ท่าน้ำวัดท่าตอน (หมู่ 3)</div>
+        </div>
+        <button style="border:none; background:none; font-size:18px; color:#999; cursor:pointer;" onclick="closeSheet('sheetDetail')">✕</button>
+      </div>
+
+      <!-- Status Banner -->
+      <div style="background:#E8F5E9; border:1px solid #81C784; border-radius:14px; padding:12px 14px; display:flex; align-items:center; gap:12px; margin-bottom:14px;">
+        <div style="width:36px; height:36px; border-radius:18px; background:#2E7D32; color:#fff; display:flex; align-items:center; justify-content:center; font-size:20px; font-weight:800;">✓</div>
+        <div>
+          <div style="font-size:15px; font-weight:800; color:#1B5E20;" id="sheetPointStatus">น้ำสะอาด ปลอดภัย</div>
+          <div style="font-size:11px; color:#2E7D32;" id="sheetPointDate">ตรวจล่าสุด: 15 ต.ค. 2569 (โดย อสม.)</div>
+        </div>
+      </div>
+
+      <div style="font-size:13px; font-weight:700; color:#195640; margin-bottom:8px;">💡 น้ำจากจุดนี้ ใช้ทำอะไรได้บ้าง?</div>
+      <div style="display:flex; flex-direction:column; gap:6px; margin-bottom:14px;">
+        <div style="background:#F8FAFC; border:1px solid #E2E8F0; border-radius:10px; padding:8px 12px; display:flex; justify-content:space-between; align-items:center;">
+          <div style="font-size:12px;"><b>☕ ดื่มกิน:</b> ดื่มได้ (แนะนำให้ต้มสุกก่อน)</div>
+          <span style="font-size:10px; font-weight:700; color:#2E7D32; background:#E8F5E9; padding:2px 8px; border-radius:10px;">ดื่มได้ (ต้ม)</span>
+        </div>
+        <div style="background:#F8FAFC; border:1px solid #E2E8F0; border-radius:10px; padding:8px 12px; display:flex; justify-content:space-between; align-items:center;">
+          <div style="font-size:12px;"><b>🚿 ซักล้าง/อาบน้ำ:</b> ใช้ได้ตามปกติ</div>
+          <span style="font-size:10px; font-weight:700; color:#2E7D32; background:#E8F5E9; padding:2px 8px; border-radius:10px;">ปกติ</span>
+        </div>
+        <div style="background:#F8FAFC; border:1px solid #E2E8F0; border-radius:10px; padding:8px 12px; display:flex; justify-content:space-between; align-items:center;">
+          <div style="font-size:12px;"><b>🥬 การเกษตร:</b> รดแปลงผัก เลี้ยงสัตว์น้ำปลอดภัย</div>
+          <span style="font-size:10px; font-weight:700; color:#2E7D32; background:#E8F5E9; padding:2px 8px; border-radius:10px;">ปลอดภัย 100%</span>
+        </div>
+      </div>
+
+      <!-- Trend -->
+      <div style="background:#F1F5F9; border-radius:12px; padding:10px 14px; margin-bottom:14px; font-size:11px; color:#334155;">
+        <b>📈 ประวัติ 4 เดือน:</b> น้ำพัฒนาจาก 'เฝ้าระวัง' ➔ 'ปกติ' ➔ 'สะอาดมาก' ต่อเนื่อง
+      </div>
+
+      <!-- Action buttons -->
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+        <button style="height:44px; border-radius:12px; border:1.5px solid #195640; background:#fff; color:#195640; font-family:inherit; font-size:12px; font-weight:700; cursor:pointer;" onclick="alert('ส่งคำขอตรวจซ้ำถึง อสม. แล้ว')">
+          🔄 ขอตรวจซ้ำ
+        </button>
+        <button style="height:44px; border-radius:12px; border:none; background:#195640; color:#fff; font-family:inherit; font-size:12px; font-weight:700; cursor:pointer;" onclick="alert('กำลังต่อสายโทรหา อสม. ท่าตอน...')">
+          📞 โทรหา อสม.
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- SHEET 4: VILLAGE HEADMAN SOUND NOTICE & LINE BROADCAST -->
+  <!-- ========================================================================= -->
+  <div class="sheet-backdrop" id="sheetSound">
+    <div class="bottom-sheet">
+      <div class="sheet-handle"></div>
+      <div class="sheet-header">
+        <div>
+          <div class="sheet-title">📢 ประกาศเสียงตามสาย & LINE ชุมชน</div>
+          <div style="font-size:12px; color:#64748B;">สำหรับผู้นำชุมชน / ผู้ใหญ่บ้าน • ภาษาพูดอ่านง่าย</div>
+        </div>
+        <button style="border:none; background:none; font-size:18px; color:#999; cursor:pointer;" onclick="closeSheet('sheetSound')">✕</button>
+      </div>
+
+      <div style="background:#FFFBEB; border:1px solid #FDE68A; border-radius:14px; padding:14px; font-size:13px; line-height:1.7; color:#78350F; margin-bottom:14px;">
+        <p><b>"สวัสดีครับ พ่อแม่พี่น้องทุกท่าน"</b></p>
+        <p style="margin-top:6px;">วันนี้ ทางผู้ใหญ่บ้านและ อสม. ร่วมกับ มหาวิทยาลัยแม่ฟ้าหลวง ได้ตรวจน้ำแม่น้ำกกแล้ว ผลตรวจวันนี้: <b>น้ำสะอาด ปลอดภัยครับ!</b> สามารถสูบน้ำเข้านาและรดพืชผักได้ตามปกติ ส่วนน้ำดื่มขอให้ต้มสุกก่อนดื่มนะครับ... ขอบคุณครับ</p>
+      </div>
+
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+        <button style="height:46px; border-radius:12px; border:none; background:#00B900; color:#fff; font-family:inherit; font-size:12px; font-weight:700; cursor:pointer;" onclick="alert('คัดลอกข้อความสำหรับส่งเข้ากลุ่ม LINE เรียบร้อยแล้ว!')">
+          💬 ส่งเข้า LINE ชุมชน
+        </button>
+        <button style="height:46px; border-radius:12px; border:1.5px solid #195640; background:#fff; color:#195640; font-family:inherit; font-size:12px; font-weight:700; cursor:pointer;" onclick="window.print()">
+          🖨️ พิมพ์กระดาษตัวโตๆ
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // 1. DATA DEFINITIONS
+    const communitiesData = [{"id":"thaton","name":"ท่าตอน","fullName":"บ้านท่าตอน (เน้นหมู่ 3)","subdistrict":"ต.ท่าตอน","district":"อ.แม่อาย","province":"จ.เชียงใหม่","riverZone":"ต้นน้ำกก (เชียงใหม่)","center":[20.058,99.361],"zoomInner":16,"zoomOuter":13,"records":129,"statusText":"น้ำปกติ ปลอดภัย","statusColor":"#2E7D32","desc":"พื้นที่ต้นแบบ มีชุดสำรวจ 129 ครัวเรือน และแผนเผชิญเหตุ 9 หย่อมบ้าน"},{"id":"ruammit","name":"รวมมิตร","fullName":"บ้านกะเหรี่ยงรวมมิตร","subdistrict":"ต.แม่ยาว","district":"อ.เมือง","province":"จ.เชียงราย","riverZone":"กลางน้ำกก (เชียงราย)","center":[19.9605,99.7082],"zoomInner":16,"zoomOuter":13,"records":24,"statusText":"น้ำปกติ ปลอดภัย","statusColor":"#2E7D32","desc":"ชุมชนท่องเที่ยวล่องแพแม่น้ำกก และจุดเฝ้าระวังตะกอนผิวดิน"},{"id":"pongkhong","name":"โป่งขาม / โป่งฮึ้ง","fullName":"บ้านโป่งขาม / โป่งฮึ้ง","subdistrict":"ต.ป่าตึง","district":"อ.แม่จัน","province":"จ.เชียงราย","riverZone":"ปลายน้ำกก (เชียงแสน)","center":[20.3076,100.2102],"zoomInner":16,"zoomOuter":13,"records":18,"statusText":"น้ำปกติ ปลอดภัย","statusColor":"#2E7D32","desc":"พื้นที่เกษตรกรรมชลประทานและจุดตรวจวัดทางน้ำก่อนลงแม่น้ำโขง"},{"id":"pakingtai","name":"ปากอิงใต้","fullName":"บ้านปากอิงใต้ (หมู่ 16)","subdistrict":"ต.ศรีดอนชัย","district":"อ.เชียงของ","province":"จ.เชียงราย","riverZone":"ปลายน้ำกก-อิง (เชียงของ)","center":[20.203878,100.449169],"zoomInner":16,"zoomOuter":13,"records":15,"statusText":"น้ำปกติ ปลอดภัย","statusColor":"#2E7D32","desc":"จุดสบแม่น้ำอิงกับแม่น้ำโขง จุดตรวจคุณภาพน้ำข้ามแดน"}];
+    const waypointsData = [{"id":"W-001","code":"W-001","name":"ท่าน้ำวัดท่าตอน (หมู่ 3)","ppb":5,"lat":20.06014,"lon":99.36041,"source":"น้ำถัง/ขวดบริโภค","date":"15 ต.ค. 2569 08:30 น.","safe":true,"caution":false,"danger":false},{"id":"W-002","code":"W-002","name":"สะพานข้ามแม่น้ำกก","ppb":5,"lat":20.05261,"lon":99.35229,"source":"น้ำถัง/ขวดบริโภค","date":"15 ต.ค. 2569 08:30 น.","safe":true,"caution":false,"danger":false},{"id":"W-003","code":"W-003","name":"ท่าเรือท่องเที่ยวท่าตอน","ppb":5,"lat":20.04912,"lon":99.35547,"source":"น้ำถัง/ขวดบริโภค","date":"15 ต.ค. 2569 08:30 น.","safe":true,"caution":false,"danger":false},{"id":"W-004","code":"W-004","name":"โรงเรียนบ้านท่าตอน","ppb":5,"lat":20.06026,"lon":99.36822,"source":"น้ำถัง/ขวดบริโภค","date":"15 ต.ค. 2569 08:30 น.","safe":true,"caution":false,"danger":false},{"id":"W-005","code":"W-005","name":"รพ.สต. ท่าตอน","ppb":5,"lat":20.06359,"lon":99.36479,"source":"น้ำถัง/ขวดบริโภค","date":"15 ต.ค. 2569 08:30 น.","safe":true,"caution":false,"danger":false},{"id":"W-006","code":"W-006","name":"ศาลาประชาคมหมู่ 3","ppb":5,"lat":20.0543,"lon":99.35849,"source":"น้ำถัง/ขวดบริโภค","date":"15 ต.ค. 2569 08:30 น.","safe":true,"caution":false,"danger":false},{"id":"W-007","code":"W-007","name":"อู่ต่อเรือหางยาว","ppb":5,"lat":20.04767,"lon":99.35147,"source":"น้ำถัง/ขวดบริโภค","date":"15 ต.ค. 2569 08:30 น.","safe":true,"caution":false,"danger":false},{"id":"W-008","code":"W-008","name":"ฝายน้ำล้นท่าตอน","ppb":30,"lat":20.05921,"lon":99.35695,"source":"น้ำถัง/ขวดบริโภค","date":"15 ต.ค. 2569 08:30 น.","safe":false,"caution":true,"danger":false},{"id":"W-009","code":"W-009","name":"ประปาหมู่บ้านคุ้มล่าง","ppb":5,"lat":20.05718,"lon":99.36983,"source":"น้ำถัง/ขวดบริโภค","date":"15 ต.ค. 2569 08:30 น.","safe":true,"caution":false,"danger":false},{"id":"W-010","code":"W-010","name":"บ่อน้ำบาดาลลุงสมชาย","ppb":5,"lat":20.04887,"lon":99.36417,"source":"น้ำถัง/ขวดบริโภค","date":"15 ต.ค. 2569 08:30 น.","safe":true,"caution":false,"danger":false},{"id":"W-011","code":"W-011","name":"บ่อน้ำบาดาลป้าจันทร์","ppb":5,"lat":20.05576,"lon":99.35654,"source":"น้ำถัง/ขวดบริโภค","date":"15 ต.ค. 2569 08:30 น.","safe":true,"caution":false,"danger":false},{"id":"W-012","code":"W-012","name":"น้ำถังครัวเรือน 042","ppb":100,"lat":20.065,"lon":99.35105,"source":"น้ำถัง/ขวดบริโภค","date":"15 ต.ค. 2569 08:30 น.","safe":false,"caution":false,"danger":true},{"id":"W-013","code":"W-013","name":"จุดสำรวจครัวเรือน W-013 (น้ำถัง/ขวดบริโภค)","ppb":10,"lat":20.05844,"lon":99.35867,"source":"น้ำถัง/ขวดบริโภค","date":"15 ต.ค. 2569 08:30 น.","safe":true,"caution":false,"danger":false},{"id":"W-014","code":"W-014","name":"จุดสำรวจครัวเรือน W-014 (น้ำถัง/ขวดบริโภค)","ppb":5,"lat":20.0452,"lon":99.37117,"source":"น้ำถัง/ขวดบริโภค","date":"15 ต.ค. 2569 08:30 น.","safe":true,"caution":false,"danger":false},{"id":"W-015","code":"W-015","name":"จุดสำรวจครัวเรือน W-015 (น้ำถัง/ขวดบริโภค)","ppb":5,"lat":20.05571,"lon":99.36316,"source":"น้ำถัง/ขวดบริโภค","date":"15 ต.ค. 2569 08:30 น.","safe":true,"caution":false,"danger":false},{"id":"W-016","code":"W-016","name":"จุดสำรวจครัวเรือน W-016 (น้ำถัง/ขวดบริโภค)","ppb":30,"lat":20.06055,"lon":99.35466,"source":"น้ำถัง/ขวดบริโภค","date":"15 ต.ค. 2569 08:30 น.","safe":false,"caution":true,"danger":false},{"id":"W-017","code":"W-017","name":"จุดสำรวจครัวเรือน W-017 (น้ำถัง/ขวดบริโภค)","ppb":5,"lat":20.0515,"lon":99.35105,"source":"น้ำถัง/ขวดบริโภค","date":"15 ต.ค. 2569 08:30 น.","safe":true,"caution":false,"danger":false},{"id":"W-018","code":"W-018","name":"จุดสำรวจครัวเรือน W-018 (น้ำถัง/ขวดบริโภค)","ppb":5,"lat":20.0517,"lon":99.36055,"source":"น้ำถัง/ขวดบริโภค","date":"15 ต.ค. 2569 08:30 น.","safe":true,"caution":false,"danger":false},{"id":"W-019","code":"W-019","name":"จุดสำรวจครัวเรือน W-019 (น้ำถัง/ขวดบริโภค)","ppb":5,"lat":20.06341,"lon":99.37217,"source":"น้ำถัง/ขวดบริโภค","date":"15 ต.ค. 2569 08:30 น.","safe":true,"caution":false,"danger":false},{"id":"W-020","code":"W-020","name":"จุดสำรวจครัวเรือน W-020 (น้ำถัง/ขวดบริโภค)","ppb":5,"lat":20.0629,"lon":99.36182,"source":"น้ำถัง/ขวดบริโภค","date":"15 ต.ค. 2569 08:30 น.","safe":true,"caution":false,"danger":false},{"id":"W-021","code":"W-021","name":"จุดสำรวจครัวเรือน W-021 (น้ำถัง/ขวดบริโภค)","ppb":5,"lat":20.04563,"lon":99.35294,"source":"น้ำถัง/ขวดบริโภค","date":"15 ต.ค. 2569 08:30 น.","safe":true,"caution":false,"danger":false},{"id":"W-022","code":"W-022","name":"จุดสำรวจครัวเรือน W-022 (น้ำถัง/ขวดบริโภค)","ppb":5,"lat":20.05114,"lon":99.35147,"source":"น้ำถัง/ขวดบริโภค","date":"15 ต.ค. 2569 08:30 น.","safe":true,"caution":false,"danger":false},{"id":"W-023","code":"W-023","name":"จุดสำรวจครัวเรือน W-023 (น้ำถัง/ขวดบริโภค)","ppb":5,"lat":20.0613,"lon":99.36249,"source":"น้ำถัง/ขวดบริโภค","date":"15 ต.ค. 2569 08:30 น.","safe":true,"caution":false,"danger":false},{"id":"W-024","code":"W-024","name":"จุดสำรวจครัวเรือน W-024 (น้ำถัง/ขวดบริโภค)","ppb":30,"lat":20.05588,"lon":99.37279,"source":"น้ำถัง/ขวดบริโภค","date":"15 ต.ค. 2569 08:30 น.","safe":false,"caution":true,"danger":false},{"id":"W-025","code":"W-025","name":"จุดสำรวจครัวเรือน W-025 (น้ำถัง/ขวดบริโภค)","ppb":5,"lat":20.04983,"lon":99.36021,"source":"น้ำถัง/ขวดบริโภค","date":"15 ต.ค. 2569 08:30 น.","safe":true,"caution":false,"danger":false},{"id":"W-026","code":"W-026","name":"จุดสำรวจครัวเรือน W-026 (น้ำถัง/ขวดบริโภค)","ppb":10,"lat":20.05951,"lon":99.35146,"source":"น้ำถัง/ขวดบริโภค","date":"15 ต.ค. 2569 08:30 น.","safe":true,"caution":false,"danger":false},{"id":"W-027","code":"W-027","name":"จุดสำรวจครัวเรือน W-027 (น้ำถัง/ขวดบริโภค)","ppb":5,"lat":20.06578,"lon":99.35229,"source":"น้ำถัง/ขวดบริโภค","date":"15 ต.ค. 2569 08:30 น.","safe":true,"caution":false,"danger":false},{"id":"W-028","code":"W-028","name":"จุดสำรวจครัวเรือน W-028 (น้ำถัง/ขวดบริโภค)","ppb":5,"lat":20.04879,"lon":99.36442,"source":"น้ำถัง/ขวดบริโภค","date":"15 ต.ค. 2569 08:30 น.","safe":true,"caution":false,"danger":false},{"id":"W-029","code":"W-029","name":"จุดสำรวจครัวเรือน W-029 (น้ำถัง/ขวดบริโภค)","ppb":5,"lat":20.04744,"lon":99.373,"source":"น้ำถัง/ขวดบริโภค","date":"15 ต.ค. 2569 08:30 น.","safe":true,"caution":false,"danger":false},{"id":"W-030","code":"W-030","name":"จุดสำรวจครัวเรือน W-030 (น้ำถัง/ขวดบริโภค)","ppb":5,"lat":20.05909,"lon":99.3584,"source":"น้ำถัง/ขวดบริโภค","date":"15 ต.ค. 2569 08:30 น.","safe":true,"caution":false,"danger":false},{"id":"W-031","code":"W-031","name":"จุดสำรวจครัวเรือน W-031 (น้ำถัง/ขวดบริโภค)","ppb":5,"lat":20.06015,"lon":99.35028,"source":"น้ำถัง/ขวดบริโภค","date":"15 ต.ค. 2569 08:30 น.","safe":true,"caution":false,"danger":false},{"id":"W-032","code":"W-032","name":"จุดสำรวจครัวเรือน W-032 (น้ำถัง/ขวดบริโภค)","ppb":30,"lat":20.05094,"lon":99.35347,"source":"น้ำถัง/ขวดบริโภค","date":"15 ต.ค. 2569 08:30 น.","safe":false,"caution":true,"danger":false},{"id":"W-033","code":"W-033","name":"จุดสำรวจครัวเรือน W-033 (น้ำถัง/ขวดบริโภค)","ppb":5,"lat":20.05496,"lon":99.36622,"source":"น้ำถัง/ขวดบริโภค","date":"15 ต.ค. 2569 08:30 น.","safe":true,"caution":false,"danger":false},{"id":"W-034","code":"W-034","name":"จุดสำรวจครัวเรือน W-034 (น้ำถัง/ขวดบริโภค)","ppb":5,"lat":20.06585,"lon":99.37279,"source":"น้ำถัง/ขวดบริโภค","date":"15 ต.ค. 2569 08:30 น.","safe":true,"caution":false,"danger":false},{"id":"W-035","code":"W-035","name":"จุดสำรวจครัวเรือน W-035 (น้ำถัง/ขวดบริโภค)","ppb":5,"lat":20.05332,"lon":99.35648,"source":"น้ำถัง/ขวดบริโภค","date":"15 ต.ค. 2569 08:30 น.","safe":true,"caution":false,"danger":false},{"id":"W-036","code":"W-036","name":"จุดสำรวจครัวเรือน W-036 (น้ำถัง/ขวดบริโภค)","ppb":5,"lat":20.04621,"lon":99.34947,"source":"น้ำถัง/ขวดบริโภค","date":"15 ต.ค. 2569 08:30 น.","safe":true,"caution":false,"danger":false},{"id":"W-037","code":"W-037","name":"จุดสำรวจครัวเรือน W-037 (น้ำถัง/ขวดบริโภค)","ppb":5,"lat":20.05488,"lon":99.35496,"source":"น้ำถัง/ขวดบริโภค","date":"15 ต.ค. 2569 08:30 น.","safe":true,"caution":false,"danger":false},{"id":"W-038","code":"W-038","name":"จุดสำรวจครัวเรือน W-038 (น้ำถัง/ขวดบริโภค)","ppb":5,"lat":20.06246,"lon":99.36783,"source":"น้ำถัง/ขวดบริโภค","date":"15 ต.ค. 2569 08:30 น.","safe":true,"caution":false,"danger":false},{"id":"W-039","code":"W-039","name":"จุดสำรวจครัวเรือน W-039 (น้ำถัง/ขวดบริโภค)","ppb":10,"lat":20.05455,"lon":99.37216,"source":"น้ำถัง/ขวดบริโภค","date":"15 ต.ค. 2569 08:30 น.","safe":true,"caution":false,"danger":false},{"id":"W-040","code":"W-040","name":"จุดสำรวจครัวเรือน W-040 (น้ำถัง/ขวดบริโภค)","ppb":30,"lat":20.05171,"lon":99.35453,"source":"น้ำถัง/ขวดบริโภค","date":"15 ต.ค. 2569 08:30 น.","safe":false,"caution":true,"danger":false},{"id":"W-041","code":"W-041","name":"จุดสำรวจครัวเรือน W-041 (น้ำถัง/ขวดบริโภค)","ppb":5,"lat":20.06307,"lon":99.34905,"source":"น้ำถัง/ขวดบริโภค","date":"15 ต.ค. 2569 08:30 น.","safe":true,"caution":false,"danger":false},{"id":"W-042","code":"W-042","name":"จุดสำรวจครัวเรือน W-042 (น้ำถัง/ขวดบริโภค)","ppb":5,"lat":20.05729,"lon":99.35668,"source":"น้ำถัง/ขวดบริโภค","date":"15 ต.ค. 2569 08:30 น.","safe":true,"caution":false,"danger":false},{"id":"W-043","code":"W-043","name":"จุดสำรวจครัวเรือน W-043 (น้ำถัง/ขวดบริโภค)","ppb":5,"lat":20.04797,"lon":99.36917,"source":"น้ำถัง/ขวดบริโภค","date":"15 ต.ค. 2569 08:30 น.","safe":true,"caution":false,"danger":false},{"id":"W-044","code":"W-044","name":"จุดสำรวจครัวเรือน W-044 (น้ำถัง/ขวดบริโภค)","ppb":5,"lat":20.05046,"lon":99.37116,"source":"น้ำถัง/ขวดบริโภค","date":"15 ต.ค. 2569 08:30 น.","safe":true,"caution":false,"danger":false},{"id":"W-045","code":"W-045","name":"จุดสำรวจครัวเรือน W-045 (น้ำถัง/ขวดบริโภค)","ppb":5,"lat":20.06184,"lon":99.35266,"source":"น้ำถัง/ขวดบริโภค","date":"15 ต.ค. 2569 08:30 น.","safe":true,"caution":false,"danger":false},{"id":"W-046","code":"W-046","name":"จุดสำรวจครัวเรือน W-046 (น้ำถัง/ขวดบริโภค)","ppb":5,"lat":20.05913,"lon":99.34905,"source":"น้ำถัง/ขวดบริโภค","date":"15 ต.ค. 2569 08:30 น.","safe":true,"caution":false,"danger":false},{"id":"W-047","code":"W-047","name":"จุดสำรวจครัวเรือน W-047 (น้ำถัง/ขวดบริโภค)","ppb":5,"lat":20.05115,"lon":99.35856,"source":"น้ำถัง/ขวดบริโภค","date":"15 ต.ค. 2569 08:30 น.","safe":true,"caution":false,"danger":false},{"id":"W-048","code":"W-048","name":"จุดสำรวจครัวเรือน W-048 (น้ำถัง/ขวดบริโภค)","ppb":100,"lat":20.05863,"lon":99.37017,"source":"น้ำถัง/ขวดบริโภค","date":"15 ต.ค. 2569 08:30 น.","safe":false,"caution":false,"danger":true},{"id":"W-049","code":"W-049","name":"จุดสำรวจครัวเรือน W-049 (น้ำถัง/ขวดบริโภค)","ppb":5,"lat":20.05899,"lon":99.36982,"source":"น้ำถัง/ขวดบริโภค","date":"15 ต.ค. 2569 08:30 น.","safe":true,"caution":false,"danger":false},{"id":"W-050","code":"W-050","name":"จุดสำรวจครัวเรือน W-050 (น้ำถัง/ขวดบริโภค)","ppb":5,"lat":20.05197,"lon":99.35094,"source":"น้ำถัง/ขวดบริโภค","date":"15 ต.ค. 2569 08:30 น.","safe":true,"caution":false,"danger":false},{"id":"W-051","code":"W-051","name":"จุดสำรวจครัวเรือน W-051 (น้ำถัง/ขวดบริโภค)","ppb":5,"lat":20.04773,"lon":99.34948,"source":"น้ำถัง/ขวดบริโภค","date":"15 ต.ค. 2569 08:30 น.","safe":true,"caution":false,"danger":false},{"id":"W-052","code":"W-052","name":"จุดสำรวจครัวเรือน W-052 (น้ำถัง/ขวดบริโภค)","ppb":10,"lat":20.05855,"lon":99.3605,"source":"น้ำถัง/ขวดบริโภค","date":"15 ต.ค. 2569 08:30 น.","safe":true,"caution":false,"danger":false},{"id":"W-053","code":"W-053","name":"จุดสำรวจครัวเรือน W-053 (น้ำถัง/ขวดบริโภค)","ppb":5,"lat":20.06271,"lon":99.37079,"source":"น้ำถัง/ขวดบริโภค","date":"15 ต.ค. 2569 08:30 น.","safe":true,"caution":false,"danger":false},{"id":"W-054","code":"W-054","name":"จุดสำรวจครัวเรือน W-054 (น้ำถัง/ขวดบริโภค)","ppb":5,"lat":20.05352,"lon":99.3682,"source":"น้ำถัง/ขวดบริโภค","date":"15 ต.ค. 2569 08:30 น.","safe":true,"caution":false,"danger":false},{"id":"W-055","code":"W-055","name":"จุดสำรวจครัวเรือน W-055 (น้ำถัง/ขวดบริโภค)","ppb":5,"lat":20.05444,"lon":99.34946,"source":"น้ำถัง/ขวดบริโภค","date":"15 ต.ค. 2569 08:30 น.","safe":true,"caution":false,"danger":false},{"id":"W-056","code":"W-056","name":"จุดสำรวจครัวเรือน W-056 (น้ำถัง/ขวดบริโภค)","ppb":30,"lat":20.0577,"lon":99.3503,"source":"น้ำถัง/ขวดบริโภค","date":"15 ต.ค. 2569 08:30 น.","safe":false,"caution":true,"danger":false},{"id":"W-057","code":"W-057","name":"จุดสำรวจครัวเรือน W-057 (น้ำถัง/ขวดบริโภค)","ppb":5,"lat":20.05649,"lon":99.36242,"source":"น้ำถัง/ขวดบริโภค","date":"15 ต.ค. 2569 08:30 น.","safe":true,"caution":false,"danger":false},{"id":"W-058","code":"W-058","name":"จุดสำรวจครัวเรือน W-058 (น้ำถัง/ขวดบริโภค)","ppb":5,"lat":20.04785,"lon":99.371,"source":"น้ำถัง/ขวดบริโภค","date":"15 ต.ค. 2569 08:30 น.","safe":true,"caution":false,"danger":false},{"id":"W-059","code":"W-059","name":"จุดสำรวจครัวเรือน W-059 (น้ำถัง/ขวดบริโภค)","ppb":5,"lat":20.054,"lon":99.36639,"source":"น้ำถัง/ขวดบริโภค","date":"15 ต.ค. 2569 08:30 น.","safe":true,"caution":false,"danger":false},{"id":"W-060","code":"W-060","name":"จุดสำรวจครัวเรือน W-060 (น้ำถัง/ขวดบริโภค)","ppb":5,"lat":20.06376,"lon":99.34828,"source":"น้ำถัง/ขวดบริโภค","date":"15 ต.ค. 2569 08:30 น.","safe":true,"caution":false,"danger":false},{"id":"W-061","code":"W-061","name":"จุดสำรวจครัวเรือน W-061 (น้ำถัง/ขวดบริโภค)","ppb":5,"lat":20.05781,"lon":99.35148,"source":"น้ำถัง/ขวดบริโภค","date":"15 ต.ค. 2569 08:30 น.","safe":true,"caution":false,"danger":false},{"id":"W-062","code":"W-062","name":"จุดสำรวจครัวเรือน W-062 (น้ำถัง/ขวดบริโภค)","ppb":5,"lat":20.05229,"lon":99.36423,"source":"น้ำถัง/ขวดบริโภค","date":"15 ต.ค. 2569 08:30 น.","safe":true,"caution":false,"danger":false},{"id":"W-063","code":"W-063","name":"จุดสำรวจครัวเรือน W-063 (น้ำถัง/ขวดบริโภค)","ppb":5,"lat":20.05397,"lon":99.37079,"source":"น้ำถัง/ขวดบริโภค","date":"15 ต.ค. 2569 08:30 น.","safe":true,"caution":false,"danger":false},{"id":"W-064","code":"W-064","name":"จุดสำรวจครัวเรือน W-064 (น้ำถัง/ขวดบริโภค)","ppb":30,"lat":20.05961,"lon":99.36447,"source":"น้ำถัง/ขวดบริโภค","date":"15 ต.ค. 2569 08:30 น.","safe":false,"caution":true,"danger":false},{"id":"W-065","code":"W-065","name":"จุดสำรวจครัวเรือน W-065 (น้ำถัง/ขวดบริโภค)","ppb":10,"lat":20.05078,"lon":99.34747,"source":"น้ำถัง/ขวดบริโภค","date":"15 ต.ค. 2569 08:30 น.","safe":true,"caution":false,"danger":false},{"id":"W-066","code":"W-066","name":"จุดสำรวจครัวเรือน W-066 (น้ำถัง/ขวดบริโภค)","ppb":5,"lat":20.05013,"lon":99.35296,"source":"น้ำถัง/ขวดบริโภค","date":"15 ต.ค. 2569 08:30 น.","safe":true,"caution":false,"danger":false},{"id":"W-067","code":"W-067","name":"จุดสำรวจครัวเรือน W-067 (น้ำถัง/ขวดบริโภค)","ppb":5,"lat":20.06183,"lon":99.36584,"source":"น้ำถัง/ขวดบริโภค","date":"15 ต.ค. 2569 08:30 น.","safe":true,"caution":false,"danger":false},{"id":"W-068","code":"W-068","name":"จุดสำรวจครัวเรือน W-068 (น้ำถัง/ขวดบริโภค)","ppb":5,"lat":20.06217,"lon":99.37016,"source":"น้ำถัง/ขวดบริโภค","date":"15 ต.ค. 2569 08:30 น.","safe":true,"caution":false,"danger":false},{"id":"W-069","code":"W-069","name":"จุดสำรวจครัวเรือน W-069 (น้ำถัง/ขวดบริโภค)","ppb":5,"lat":20.05309,"lon":99.36253,"source":"น้ำถัง/ขวดบริโภค","date":"15 ต.ค. 2569 08:30 น.","safe":true,"caution":false,"danger":false},{"id":"W-070","code":"W-070","name":"จุดสำรวจครัวเรือน W-070 (น้ำถัง/ขวดบริโภค)","ppb":5,"lat":20.0494,"lon":99.34705,"source":"น้ำถัง/ขวดบริโภค","date":"15 ต.ค. 2569 08:30 น.","safe":true,"caution":false,"danger":false},{"id":"W-071","code":"W-071","name":"จุดสำรวจครัวเรือน W-071 (น้ำถัง/ขวดบริโภค)","ppb":5,"lat":20.05998,"lon":99.35469,"source":"น้ำถัง/ขวดบริโภค","date":"15 ต.ค. 2569 08:30 น.","safe":true,"caution":false,"danger":false},{"id":"W-072","code":"W-072","name":"จุดสำรวจครัวเรือน W-072 (น้ำถัง/ขวดบริโภค)","ppb":30,"lat":20.05525,"lon":99.36718,"source":"น้ำถัง/ขวดบริโภค","date":"15 ต.ค. 2569 08:30 น.","safe":false,"caution":true,"danger":false},{"id":"W-073","code":"W-073","name":"จุดสำรวจครัวเรือน W-073 (น้ำถัง/ขวดบริโภค)","ppb":5,"lat":20.0486,"lon":99.36915,"source":"น้ำถัง/ขวดบริโภค","date":"15 ต.ค. 2569 08:30 น.","safe":true,"caution":false,"danger":false},{"id":"W-074","code":"W-074","name":"จุดสำรวจครัวเรือน W-074 (น้ำถัง/ขวดบริโภค)","ppb":5,"lat":20.05775,"lon":99.36065,"source":"น้ำถัง/ขวดบริโภค","date":"15 ต.ค. 2569 08:30 น.","safe":true,"caution":false,"danger":false},{"id":"W-075","code":"W-075","name":"จุดสำรวจครัวเรือน W-075 (น้ำถัง/ขวดบริโภค)","ppb":5,"lat":20.06475,"lon":99.34706,"source":"น้ำถัง/ขวดบริโภค","date":"15 ต.ค. 2569 08:30 น.","safe":true,"caution":false,"danger":false},{"id":"W-076","code":"W-076","name":"จุดสำรวจครัวเรือน W-076 (น้ำถัง/ขวดบริโภค)","ppb":5,"lat":20.05651,"lon":99.35656,"source":"น้ำถัง/ขวดบริโภค","date":"15 ต.ค. 2569 08:30 น.","safe":true,"caution":false,"danger":false},{"id":"W-077","code":"W-077","name":"จุดสำรวจครัวเรือน W-077 (น้ำถัง/ขวดบริโภค)","ppb":5,"lat":20.04594,"lon":99.36818,"source":"น้ำถัง/ขวดบริโภค","date":"15 ต.ค. 2569 08:30 น.","safe":true,"caution":false,"danger":false},{"id":"W-078","code":"W-078","name":"จุดสำรวจครัวเรือน W-078 (น้ำถัง/ขวดบริโภค)","ppb":10,"lat":20.05745,"lon":99.36781,"source":"น้ำถัง/ขวดบริโภค","date":"15 ต.ค. 2569 08:30 น.","safe":true,"caution":false,"danger":false},{"id":"W-079","code":"W-079","name":"จุดสำรวจครัวเรือน W-079 (น้ำถัง/ขวดบริโภค)","ppb":5,"lat":20.05936,"lon":99.35893,"source":"น้ำถัง/ขวดบริโภค","date":"15 ต.ค. 2569 08:30 น.","safe":true,"caution":false,"danger":false},{"id":"W-080","code":"W-080","name":"จุดสำรวจครัวเรือน W-080 (น้ำถัง/ขวดบริโภค)","ppb":30,"lat":20.05007,"lon":99.34748,"source":"น้ำถัง/ขวดบริโภค","date":"15 ต.ค. 2569 08:30 น.","safe":false,"caution":true,"danger":false},{"id":"W-081","code":"W-081","name":"จุดสำรวจครัวเรือน W-081 (น้ำถัง/ขวดบริโภค)","ppb":5,"lat":20.05326,"lon":99.35851,"source":"น้ำถัง/ขวดบริโภค","date":"15 ต.ค. 2569 08:30 น.","safe":true,"caution":false,"danger":false},{"id":"W-082","code":"W-082","name":"จุดสำรวจครัวเรือน W-082 (น้ำถัง/ขวดบริโภค)","ppb":5,"lat":20.06445,"lon":99.36879,"source":"น้ำถัง/ขวดบริโภค","date":"15 ต.ค. 2569 08:30 น.","safe":true,"caution":false,"danger":false},{"id":"W-083","code":"W-083","name":"จุดสำรวจครัวเรือน W-083 (น้ำถัง/ขวดบริโภค)","ppb":5,"lat":20.06108,"lon":99.3662,"source":"น้ำถัง/ขวดบริโภค","date":"15 ต.ค. 2569 08:30 น.","safe":true,"caution":false,"danger":false},{"id":"W-084","code":"W-084","name":"จุดสำรวจครัวเรือน W-084 (น้ำถัง/ขวดบริโภค)","ppb":5,"lat":20.04507,"lon":99.35745,"source":"น้ำถัง/ขวดบริโภค","date":"15 ต.ค. 2569 08:30 น.","safe":true,"caution":false,"danger":false},{"id":"W-085","code":"W-085","name":"จุดสำรวจครัวเรือน W-085 (น้ำถัง/ขวดบริโภค)","ppb":5,"lat":20.05311,"lon":99.3483,"source":"น้ำถัง/ขวดบริโภค","date":"15 ต.ค. 2569 08:30 น.","safe":true,"caution":false,"danger":false},{"id":"W-086","code":"W-086","name":"จุดสำรวจครัวเรือน W-086 (น้ำถัง/ขวดบริโภค)","ppb":5,"lat":20.06135,"lon":99.36043,"source":"น้ำถัง/ขวดบริโภค","date":"15 ต.ค. 2569 08:30 น.","safe":true,"caution":false,"danger":false},{"id":"W-087","code":"W-087","name":"จุดสำรวจครัวเรือน W-087 (น้ำถัง/ขวดบริโภค)","ppb":5,"lat":20.0539,"lon":99.369,"source":"น้ำถัง/ขวดบริโภค","date":"15 ต.ค. 2569 08:30 น.","safe":true,"caution":false,"danger":false},{"id":"W-088","code":"W-088","name":"จุดสำรวจครัวเรือน W-088 (น้ำถัง/ขวดบริโภค)","ppb":30,"lat":20.05028,"lon":99.36438,"source":"น้ำถัง/ขวดบริโภค","date":"15 ต.ค. 2569 08:30 น.","safe":false,"caution":true,"danger":false},{"id":"W-089","code":"W-089","name":"จุดสำรวจครัวเรือน W-089 (น้ำถัง/ขวดบริโภค)","ppb":100,"lat":20.06138,"lon":99.35628,"source":"น้ำถัง/ขวดบริโภค","date":"15 ต.ค. 2569 08:30 น.","safe":false,"caution":false,"danger":true},{"id":"W-090","code":"W-090","name":"จุดสำรวจครัวเรือน W-090 (น้ำถัง/ขวดบริโภค)","ppb":5,"lat":20.06484,"lon":99.34948,"source":"น้ำถัง/ขวดบริโภค","date":"15 ต.ค. 2569 08:30 น.","safe":true,"caution":false,"danger":false},{"id":"W-091","code":"W-091","name":"จุดสำรวจครัวเรือน W-091 (น้ำถัง/ขวดบริโภค)","ppb":10,"lat":20.04717,"lon":99.36224,"source":"น้ำถัง/ขวดบริโภค","date":"15 ต.ค. 2569 08:30 น.","safe":true,"caution":false,"danger":false},{"id":"W-092","code":"W-092","name":"จุดสำรวจครัวเรือน W-092 (บ่อบาดาล)","ppb":5,"lat":20.0488,"lon":99.36878,"source":"บ่อบาดาล","date":"15 ต.ค. 2569 08:30 น.","safe":true,"caution":false,"danger":false},{"id":"W-093","code":"W-093","name":"จุดสำรวจครัวเรือน W-093 (ประปาหมู่บ้าน)","ppb":5,"lat":20.06037,"lon":99.36246,"source":"ประปาหมู่บ้าน","date":"15 ต.ค. 2569 08:30 น.","safe":true,"caution":false,"danger":false},{"id":"W-094","code":"W-094","name":"จุดสำรวจครัวเรือน W-094 (บ่อบาดาล)","ppb":5,"lat":20.05846,"lon":99.35546,"source":"บ่อบาดาล","date":"15 ต.ค. 2569 08:30 น.","safe":true,"caution":false,"danger":false},{"id":"W-095","code":"W-095","name":"จุดสำรวจครัวเรือน W-095 (แม่น้ำกก)","ppb":5,"lat":20.0501,"lon":99.35097,"source":"แม่น้ำกก","date":"15 ต.ค. 2569 08:30 น.","safe":true,"caution":false,"danger":false},{"id":"W-096","code":"W-096","name":"จุดสำรวจครัวเรือน W-096 (ประปาหมู่บ้าน)","ppb":30,"lat":20.05687,"lon":99.36385,"source":"ประปาหมู่บ้าน","date":"15 ต.ค. 2569 08:30 น.","safe":false,"caution":true,"danger":false},{"id":"W-097","code":"W-097","name":"จุดสำรวจครัวเรือน W-097 (แม่น้ำกก)","ppb":5,"lat":20.0662,"lon":99.36816,"source":"แม่น้ำกก","date":"15 ต.ค. 2569 08:30 น.","safe":true,"caution":false,"danger":false},{"id":"W-098","code":"W-098","name":"จุดสำรวจครัวเรือน W-098 (บ่อบาดาล)","ppb":5,"lat":20.05133,"lon":99.36052,"source":"บ่อบาดาล","date":"15 ต.ค. 2569 08:30 น.","safe":true,"caution":false,"danger":false},{"id":"W-099","code":"W-099","name":"จุดสำรวจครัวเรือน W-099 (ประปาหมู่บ้าน)","ppb":5,"lat":20.04638,"lon":99.35505,"source":"ประปาหมู่บ้าน","date":"15 ต.ค. 2569 08:30 น.","safe":true,"caution":false,"danger":false},{"id":"W-100","code":"W-100","name":"จุดสำรวจครัวเรือน W-100 (บ่อบาดาล)","ppb":5,"lat":20.05683,"lon":99.35269,"source":"บ่อบาดาล","date":"15 ต.ค. 2569 08:30 น.","safe":true,"caution":false,"danger":false},{"id":"W-101","code":"W-101","name":"จุดสำรวจครัวเรือน W-101 (แม่น้ำกก)","ppb":5,"lat":20.0618,"lon":99.36518,"source":"แม่น้ำกก","date":"15 ต.ค. 2569 08:30 น.","safe":true,"caution":false,"danger":false},{"id":"W-102","code":"W-102","name":"จุดสำรวจครัวเรือน W-102 (ประปาหมู่บ้าน)","ppb":5,"lat":20.05278,"lon":99.36715,"source":"ประปาหมู่บ้าน","date":"15 ต.ค. 2569 08:30 น.","safe":true,"caution":false,"danger":false},{"id":"W-103","code":"W-103","name":"จุดสำรวจครัวเรือน W-103 (แม่น้ำกก)","ppb":5,"lat":20.05284,"lon":99.35864,"source":"แม่น้ำกก","date":"15 ต.ค. 2569 08:30 น.","safe":true,"caution":false,"danger":false},{"id":"W-104","code":"W-104","name":"จุดสำรวจครัวเรือน W-104 (บ่อบาดาล)","ppb":30,"lat":20.06455,"lon":99.35506,"source":"บ่อบาดาล","date":"15 ต.ค. 2569 08:30 น.","safe":false,"caution":true,"danger":false},{"id":"W-105","code":"W-105","name":"จุดสำรวจครัวเรือน W-105 (ประปาหมู่บ้าน)","ppb":5,"lat":20.05578,"lon":99.35457,"source":"ประปาหมู่บ้าน","date":"15 ต.ค. 2569 08:30 น.","safe":true,"caution":false,"danger":false},{"id":"W-106","code":"W-106","name":"จุดสำรวจครัวเรือน W-106 (บ่อบาดาล)","ppb":5,"lat":20.04687,"lon":99.36618,"source":"บ่อบาดาล","date":"15 ต.ค. 2569 08:30 น.","safe":true,"caution":false,"danger":false},{"id":"W-107","code":"W-107","name":"จุดสำรวจครัวเรือน W-107 (แม่น้ำกก)","ppb":5,"lat":20.05225,"lon":99.3658,"source":"แม่น้ำกก","date":"15 ต.ค. 2569 08:30 น.","safe":true,"caution":false,"danger":false},{"id":"W-108","code":"W-108","name":"จุดสำรวจครัวเรือน W-108 (ประปาหมู่บ้าน)","ppb":5,"lat":20.06248,"lon":99.35692,"source":"ประปาหมู่บ้าน","date":"15 ต.ค. 2569 08:30 น.","safe":true,"caution":false,"danger":false},{"id":"W-109","code":"W-109","name":"จุดสำรวจครัวเรือน W-109 (แม่น้ำกก)","ppb":5,"lat":20.05718,"lon":99.35548,"source":"แม่น้ำกก","date":"15 ต.ค. 2569 08:30 น.","safe":true,"caution":false,"danger":false},{"id":"W-110","code":"W-110","name":"จุดสำรวจครัวเรือน W-110 (บ่อบาดาล)","ppb":5,"lat":20.05102,"lon":99.35652,"source":"บ่อบาดาล","date":"15 ต.ค. 2569 08:30 น.","safe":true,"caution":false,"danger":false},{"id":"W-111","code":"W-111","name":"จุดสำรวจครัวเรือน W-111 (ประปาหมู่บ้าน)","ppb":5,"lat":20.06062,"lon":99.3668,"source":"ประปาหมู่บ้าน","date":"15 ต.ค. 2569 08:30 น.","safe":true,"caution":false,"danger":false},{"id":"W-112","code":"W-112","name":"จุดสำรวจครัวเรือน W-112 (บ่อบาดาล)","ppb":30,"lat":20.05861,"lon":99.36419,"source":"บ่อบาดาล","date":"15 ต.ค. 2569 08:30 น.","safe":false,"caution":true,"danger":false},{"id":"W-113","code":"W-113","name":"จุดสำรวจครัวเรือน W-113 (แม่น้ำกก)","ppb":5,"lat":20.05007,"lon":99.35544,"source":"แม่น้ำกก","date":"15 ต.ค. 2569 08:30 น.","safe":true,"caution":false,"danger":false},{"id":"W-114","code":"W-114","name":"จุดสำรวจครัวเรือน W-114 (ประปาหมู่บ้าน)","ppb":5,"lat":20.04859,"lon":99.3563,"source":"ประปาหมู่บ้าน","date":"15 ต.ค. 2569 08:30 น.","safe":true,"caution":false,"danger":false},{"id":"W-115","code":"W-115","name":"จุดสำรวจครัวเรือน W-115 (แม่น้ำกก)","ppb":5,"lat":20.06022,"lon":99.35844,"source":"แม่น้ำกก","date":"15 ต.ค. 2569 08:30 น.","safe":true,"caution":false,"danger":false},{"id":"W-116","code":"W-116","name":"จุดสำรวจครัวเรือน W-116 (บ่อบาดาล)","ppb":5,"lat":20.06142,"lon":99.367,"source":"บ่อบาดาล","date":"15 ต.ค. 2569 08:30 น.","safe":true,"caution":false,"danger":false},{"id":"W-117","code":"W-117","name":"จุดสำรวจครัวเรือน W-117 (ประปาหมู่บ้าน)","ppb":10,"lat":20.05219,"lon":99.36238,"source":"ประปาหมู่บ้าน","date":"15 ต.ค. 2569 08:30 น.","safe":true,"caution":false,"danger":false},{"id":"W-118","code":"W-118","name":"จุดสำรวจครัวเรือน W-118 (บ่อบาดาล)","ppb":5,"lat":20.05608,"lon":99.35427,"source":"บ่อบาดาล","date":"15 ต.ค. 2569 08:30 น.","safe":true,"caution":false,"danger":false},{"id":"W-119","code":"W-119","name":"จุดสำรวจครัวเรือน W-119 (แม่น้ำกก)","ppb":5,"lat":20.05862,"lon":99.35749,"source":"แม่น้ำกก","date":"15 ต.ค. 2569 08:30 น.","safe":true,"caution":false,"danger":false},{"id":"W-120","code":"W-120","name":"จุดสำรวจครัวเรือน W-120 (ประปาหมู่บ้าน)","ppb":30,"lat":20.05461,"lon":99.36024,"source":"ประปาหมู่บ้าน","date":"15 ต.ค. 2569 08:30 น.","safe":false,"caution":true,"danger":false},{"id":"W-121","code":"W-121","name":"จุดสำรวจครัวเรือน W-121 (แม่น้ำกก)","ppb":5,"lat":20.04742,"lon":99.36678,"source":"แม่น้ำกก","date":"15 ต.ค. 2569 08:30 น.","safe":true,"caution":false,"danger":false},{"id":"W-122","code":"W-122","name":"จุดสำรวจครัวเรือน W-122 (บ่อบาดาล)","ppb":5,"lat":20.05598,"lon":99.36045,"source":"บ่อบาดาล","date":"15 ต.ค. 2569 08:30 น.","safe":true,"caution":false,"danger":false},{"id":"W-123","code":"W-123","name":"จุดสำรวจครัวเรือน W-123 (ประปาหมู่บ้าน)","ppb":5,"lat":20.06368,"lon":99.35346,"source":"ประปาหมู่บ้าน","date":"15 ต.ค. 2569 08:30 น.","safe":true,"caution":false,"danger":false},{"id":"W-124","code":"W-124","name":"จุดสำรวจครัวเรือน W-124 (บ่อบาดาล)","ppb":5,"lat":20.05584,"lon":99.35898,"source":"บ่อบาดาล","date":"15 ต.ค. 2569 08:30 น.","safe":true,"caution":false,"danger":false},{"id":"W-125","code":"W-125","name":"จุดสำรวจครัวเรือน W-125 (แม่น้ำกก)","ppb":5,"lat":20.05287,"lon":99.36185,"source":"แม่น้ำกก","date":"15 ต.ค. 2569 08:30 น.","safe":true,"caution":false,"danger":false},{"id":"W-126","code":"W-126","name":"จุดสำรวจครัวเรือน W-126 (ประปาหมู่บ้าน)","ppb":5,"lat":20.05579,"lon":99.36615,"source":"ประปาหมู่บ้าน","date":"15 ต.ค. 2569 08:30 น.","safe":true,"caution":false,"danger":false},{"id":"W-127","code":"W-127","name":"จุดสำรวจครัวเรือน W-127 (แม่น้ำกก)","ppb":5,"lat":20.05855,"lon":99.35851,"source":"แม่น้ำกก","date":"15 ต.ค. 2569 08:30 น.","safe":true,"caution":false,"danger":false},{"id":"W-128","code":"W-128","name":"จุดสำรวจครัวเรือน W-128 (บ่อบาดาล)","ppb":30,"lat":20.04923,"lon":99.35305,"source":"บ่อบาดาล","date":"15 ต.ค. 2569 08:30 น.","safe":false,"caution":true,"danger":false},{"id":"W-129","code":"W-129","name":"จุดสำรวจครัวเรือน W-129 (ประปาหมู่บ้าน)","ppb":5,"lat":20.05158,"lon":99.3607,"source":"ประปาหมู่บ้าน","date":"15 ต.ค. 2569 08:30 น.","safe":true,"caution":false,"danger":false}];
+    const evacuationData = {"visibility":"public","source":"SWG5_ThaTon_Vulnerable_Populations_Evacuation_Map.pdf","verificationStatus":"approximate_not_field_verified","routeAlignment":"offline_osm_road_alignment","points":[{"id":"TH-R-1","kind":"children_elderly","latitude":20.05924,"longitude":99.36405},{"id":"TH-R-2","kind":"children_elderly","latitude":20.0588,"longitude":99.36462},{"id":"TH-R-3","kind":"children_elderly","latitude":20.05868,"longitude":99.36426},{"id":"TH-R-4","kind":"children_elderly","latitude":20.05861,"longitude":99.36458},{"id":"TH-R-5","kind":"children_elderly","latitude":20.05859,"longitude":99.36512},{"id":"TH-R-6","kind":"children_elderly","latitude":20.05835,"longitude":99.36413},{"id":"TH-R-7","kind":"children_elderly","latitude":20.05817,"longitude":99.36443},{"id":"TH-R-8","kind":"children_elderly","latitude":20.05797,"longitude":99.36586},{"id":"TH-R-9","kind":"elderly","latitude":20.05789,"longitude":99.36379},{"id":"TH-R-10","kind":"children_elderly","latitude":20.05787,"longitude":99.36449},{"id":"TH-R-11","kind":"children","latitude":20.05776,"longitude":99.36615},{"id":"TH-R-12","kind":"children_elderly","latitude":20.05772,"longitude":99.36553},{"id":"TH-R-13","kind":"elderly","latitude":20.05768,"longitude":99.36373},{"id":"TH-R-14","kind":"children","latitude":20.05761,"longitude":99.36513},{"id":"TH-R-15","kind":"disability","latitude":20.05759,"longitude":99.36418},{"id":"TH-R-16","kind":"children_elderly","latitude":20.05754,"longitude":99.36596},{"id":"TH-R-17","kind":"elderly","latitude":20.05737,"longitude":99.36391},{"id":"TH-R-18","kind":"elderly","latitude":20.05737,"longitude":99.36504},{"id":"TH-R-19","kind":"elderly","latitude":20.05727,"longitude":99.3648},{"id":"TH-R-20","kind":"children","latitude":20.05726,"longitude":99.36642},{"id":"TH-R-21","kind":"elderly","latitude":20.05724,"longitude":99.36524},{"id":"TH-R-22","kind":"children","latitude":20.0572,"longitude":99.36687},{"id":"TH-R-23","kind":"children","latitude":20.05713,"longitude":99.36607},{"id":"TH-R-24","kind":"disability","latitude":20.05711,"longitude":99.36431},{"id":"TH-R-25","kind":"children","latitude":20.05708,"longitude":99.36332},{"id":"TH-R-26","kind":"elderly","latitude":20.05698,"longitude":99.36507},{"id":"TH-R-27","kind":"disability","latitude":20.05695,"longitude":99.36474},{"id":"TH-R-28","kind":"children","latitude":20.05689,"longitude":99.36311},{"id":"TH-R-29","kind":"disability","latitude":20.05686,"longitude":99.36333},{"id":"TH-R-30","kind":"elderly","latitude":20.05675,"longitude":99.36543},{"id":"TH-R-31","kind":"children_elderly","latitude":20.05653,"longitude":99.36476},{"id":"TH-R-32","kind":"children","latitude":20.05581,"longitude":99.36692},{"id":"TH-R-33","kind":"children_elderly","latitude":20.05545,"longitude":99.36611},{"id":"TH-R-34","kind":"elderly","latitude":20.05534,"longitude":99.36506},{"id":"TH-R-35","kind":"elderly","latitude":20.0547,"longitude":99.36627},{"id":"TH-R-36","kind":"children","latitude":20.05469,"longitude":99.36663},{"id":"TH-R-37","kind":"elderly","latitude":20.05456,"longitude":99.36591},{"id":"TH-R-38","kind":"children","latitude":20.05432,"longitude":99.36664},{"id":"TH-R-39","kind":"children","latitude":20.05387,"longitude":99.36902},{"id":"TH-R-40","kind":"children_elderly","latitude":20.0535,"longitude":99.36923},{"id":"TH-R-41","kind":"children_elderly","latitude":20.05346,"longitude":99.3689},{"id":"TH-R-42","kind":"children_elderly","latitude":20.0531,"longitude":99.36915},{"id":"TH-R-43","kind":"children_elderly","latitude":20.05307,"longitude":99.3673},{"id":"TH-R-44","kind":"elderly","latitude":20.05295,"longitude":99.36887},{"id":"TH-R-45","kind":"elderly","latitude":20.05264,"longitude":99.36885},{"id":"TH-R-46","kind":"children","latitude":20.05243,"longitude":99.36695},{"id":"TH-R-47","kind":"disability","latitude":20.05242,"longitude":99.36731},{"id":"TH-R-48","kind":"children","latitude":20.05224,"longitude":99.37219},{"id":"TH-R-49","kind":"children","latitude":20.05174,"longitude":99.37174},{"id":"TH-R-50","kind":"elderly","latitude":20.05159,"longitude":99.37015},{"id":"TH-R-51","kind":"children","latitude":20.05152,"longitude":99.37114},{"id":"TH-R-52","kind":"children","latitude":20.05147,"longitude":99.36668},{"id":"TH-R-53","kind":"children_elderly","latitude":20.05142,"longitude":99.3691},{"id":"TH-R-54","kind":"children","latitude":20.0514,"longitude":99.37012},{"id":"TH-R-55","kind":"children_elderly","latitude":20.05131,"longitude":99.36875},{"id":"TH-R-56","kind":"children","latitude":20.05132,"longitude":99.37233},{"id":"TH-R-57","kind":"children","latitude":20.05125,"longitude":99.36686},{"id":"TH-R-58","kind":"children_elderly","latitude":20.05123,"longitude":99.3698},{"id":"TH-R-59","kind":"children_elderly","latitude":20.05121,"longitude":99.36664},{"id":"TH-R-60","kind":"children_elderly","latitude":20.05113,"longitude":99.37139},{"id":"TH-R-61","kind":"disability","latitude":20.05101,"longitude":99.36976},{"id":"TH-R-62","kind":"children_elderly","latitude":20.05081,"longitude":99.3697},{"id":"TH-R-63","kind":"children","latitude":20.05079,"longitude":99.37229},{"id":"TH-R-64","kind":"children_elderly","latitude":20.05059,"longitude":99.36991},{"id":"TH-R-65","kind":"children","latitude":20.05049,"longitude":99.37281},{"id":"TH-R-66","kind":"children_elderly","latitude":20.05049,"longitude":99.372},{"id":"TH-R-67","kind":"elderly","latitude":20.04977,"longitude":99.36685}],"routes":[[[20.05788704,99.35843605],[20.0576431,99.3588321],[20.0576229,99.3588674],[20.0573744,99.3593025],[20.0573202,99.3594501],[20.0572124,99.3597434],[20.05712,99.3601361],[20.05727616,99.36018197],[20.057743,99.3603191],[20.0583294,99.3604914],[20.0587526,99.3606915],[20.05886026,99.36074341],[20.0591541,99.3608851],[20.059568,99.3611021],[20.0600105,99.3613336],[20.0603323,99.3615294],[20.06043269,99.36159044],[20.0605502,99.3616619],[20.0605055,99.3617649],[20.06036089,99.36209839],[20.0602971,99.3622455],[20.0601639,99.3625527],[20.0601018,99.3626958],[20.0595816,99.3624624],[20.0594514,99.3627564],[20.0594499,99.36275963],[20.0593276,99.3630235],[20.0590368,99.3636804],[20.05902955,99.36369493],[20.0589681,99.3638181],[20.05849296,99.36360996],[20.0581333,99.3634524],[20.0580643,99.3635034],[20.05797341,99.3636806],[20.0579116,99.3638011],[20.0577252,99.3639137],[20.0575318,99.3640229],[20.0573926,99.3641015],[20.057161,99.3643483],[20.0570212,99.3646406],[20.05719382,99.3647244],[20.0570212,99.3646406],[20.0569847,99.364815],[20.0569796,99.3655284],[20.0569494,99.3661883],[20.05694473,99.36621423],[20.05684556,99.36676501],[20.0567881,99.3670841],[20.05675857,99.36727803],[20.0567881,99.3670841],[20.05651434,99.36706717],[20.0563548,99.3670573],[20.0559959,99.367037],[20.0555194,99.3670647],[20.05513332,99.36711422],[20.0547826,99.3671592],[20.0536376,99.367367],[20.0534522,99.3674006],[20.05315154,99.36747248],[20.0528118,99.3675537],[20.052229,99.367693],[20.0519691,99.36773869],[20.0507877,99.3679464],[20.0506101,99.3677493],[20.0504078,99.3676532],[20.0500835,99.3675562],[20.0500833,99.3677276],[20.0500581,99.3678591],[20.05002195,99.36797931]]]};
+    const floodData = [{"type":"Feature","properties":{"sensitivity":1,"minDepth":1.27,"maxDepth":1.27,"cellCount":1},"geometry":{"type":"Polygon","coordinates":[[[99.3498749182,20.0797222222],[99.3498846813,20.079698652],[99.3499764298,20.0796069036],[99.35,20.0795971405],[99.3500235702,20.0796069036],[99.3501153187,20.079698652],[99.3501250818,20.0797222222],[99.3501153187,20.0797457924],[99.3500235702,20.0798375409],[99.35,20.079847304],[99.3499764298,20.0798375409],[99.3498846813,20.0797457924],[99.3498749182,20.0797222222]]]}},{"type":"Feature","properties":{"sensitivity":1,"minDepth":0.05,"maxDepth":0.05,"cellCount":1},"geometry":{"type":"Polygon","coordinates":[[[99.3512638071,20.0797222222],[99.3512735702,20.079698652],[99.3513653187,20.0796069036],[99.3513888889,20.0795971405],[99.3514124591,20.0796069036],[99.3515042076,20.079698652],[99.3515139707,20.0797222222],[99.3515042076,20.0797457924],[99.3514124591,20.0798375409],[99.3513888889,20.079847304],[99.3513653187,20.0798375409],[99.3512735702,20.0797457924],[99.3512638071,20.0797222222]]]}},{"type":"Feature","properties":{"sensitivity":1,"minDepth":2.51,"maxDepth":2.51,"cellCount":1},"geometry":{"type":"Polygon","coordinates":[[[99.3518193627,20.0791666667],[99.3518291258,20.0791430964],[99.3519208742,20.079051348],[99.3519444444,20.0790415849],[99.3519680147,20.079051348],[99.3520597631,20.0791430964],[99.3520695262,20.0791666667],[99.3520597631,20.0791902369],[99.3519680147,20.0792819853],[99.3519444444,20.0792917484],[99.3519208742,20.0792819853],[99.3518291258,20.0791902369],[99.3518193627,20.0791666667]]]}},{"type":"Feature","properties":{"sensitivity":1,"minDepth":0.5,"maxDepth":0.5,"cellCount":1},"geometry":{"type":"Polygon","coordinates":[[[99.3515415849,20.0786111111],[99.351551348,20.0785875409],[99.3516430964,20.0784957924],[99.3516666667,20.0784860293],[99.3516902369,20.0784957924],[99.3517819853,20.0785875409],[99.3517917484,20.0786111111],[99.3517819853,20.0786346813],[99.3516902369,20.0787264298],[99.3516666667,20.0787361929],[99.3516430964,20.0787264298],[99.351551348,20.0786346813],[99.3515415849,20.0786111111]]]}},{"type":"Feature","properties":{"sensitivity":1,"minDepth":0.06,"maxDepth":0.06,"cellCount":1},"geometry":{"type":"Polygon","coordinates":[[[99.3518193627,20.0780555556],[99.3518291258,20.0780319853],[99.3519208742,20.0779402369],[99.3519444444,20.0779304738],[99.3519680147,20.0779402369],[99.3520597631,20.0780319853],[99.3520695262,20.0780555556],[99.3520597631,20.0780791258],[99.3519680147,20.0781708742],[99.3519444444,20.0781806373],[99.3519208742,20.0781708742],[99.3518291258,20.0780791258],[99.3518193627,20.0780555556]]]}},{"type":"Feature","properties":{"sensitivity":1,"minDepth":0.64,"maxDepth":2.28,"cellCount":2},"geometry":{"type":"Polygon","coordinates":[[[99.3526388889,20.076097304],[99.3526388889,20.0758471405],[99.352648652,20.0758235702],[99.3527542076,20.0757180147],[99.3527777778,20.0757082516],[99.352801348,20.0757180147],[99.3529069036,20.0758235702],[99.3529166667,20.0758471405],[99.3529166667,20.076097304],[99.3529069036,20.0761208742],[99.352801348,20.0762264298],[99.3527777778,20.0762361929],[99.3527542076,20.0762264298],[99.352648652,20.0761208742],[99.3526388889,20.076097304]]]}},{"type":"Feature","properties":{"sensitivity":1,"minDepth":4.91,"maxDepth":4.91,"cellCount":1},"geometry":{"type":"Polygon","coordinates":[[[99.3534860293,20.0747222222],[99.3534957924,20.074698652],[99.3535875409,20.0746069036],[99.3536111111,20.0745971405],[99.3536346813,20.0746069036],[99.3537264298,20.074698652],[99.3537361929,20.0747222222],[99.3537264298,20.0747457924],[99.3536346813,20.0748375409],[99.3536111111,20.074847304],[99.3535875409,20.0748375409],[99.3534957924,20.0747457924],[99.3534860293,20.0747222222]]]}},{"type":"Feature","properties":{"sensitivity":1,"minDepth":3.52,"maxDepth":3.52,"cellCount":1},"geometry":{"type":"Polygon","coordinates":[[[99.3540415849,20.0741666667],[99.354051348,20.0741430964],[99.3541430964,20.074051348],[99.3541666667,20.0740415849],[99.3541902369,20.074051348],[99.3542819853,20.0741430964],[99.3542917484,20.0741666667],[99.3542819853,20.0741902369],[99.3541902369,20.0742819853],[99.3541666667,20.0742917484],[99.3541430964,20.0742819853],[99.354051348,20.0741902369],[99.3540415849,20.0741666667]]]}},{"type":"Feature","properties":{"sensitivity":1,"minDepth":2.36,"maxDepth":2.36,"cellCount":1},"geometry":{"type":"Polygon","coordinates":[[[99.355152696,20.0741666667],[99.3551624591,20.0741430964],[99.3552542076,20.074051348],[99.3552777778,20.0740415849],[99.355301348,20.074051348],[99.3553930964,20.0741430964],[99.3554028595,20.0741666667],[99.3553930964,20.0741902369],[99.355301348,20.0742819853],[99.3552777778,20.0742917484],[99.3552542076,20.0742819853],[99.3551624591,20.0741902369],[99.355152696,20.0741666667]]]}},{"type":"Feature","properties":{"sensitivity":1,"minDepth":3.49,"maxDepth":3.49,"cellCount":1},"geometry":{"type":"Polygon","coordinates":[[[99.3545971405,20.0738888889],[99.3546069036,20.0738653187],[99.354698652,20.0737735702],[99.3547222222,20.0737638071],[99.3547457924,20.0737735702],[99.3548375409,20.0738653187],[99.354847304,20.0738888889],[99.3548375409,20.0739124591],[99.3547457924,20.0740042076],[99.3547222222,20.0740139707],[99.354698652,20.0740042076],[99.3546069036,20.0739124591],[99.3545971405,20.0738888889]]]}},{"type":"Feature","properties":{"sensitivity":1,"minDepth":0.21,"maxDepth":0.21,"cellCount":1},"geometry":{"type":"Polygon","coordinates":[[[99.3548749182,20.0736111111],[99.3548846813,20.0735875409],[99.3549764298,20.0734957924],[99.355,20.0734860293],[99.3550235702,20.0734957924],[99.3551153187,20.0735875409],[99.3551250818,20.0736111111],[99.3551153187,20.0736346813],[99.3550235702,20.0737264298],[99.355,20.0737361929],[99.3549764298,20.0737264298],[99.3548846813,20.0736346813],[99.3548749182,20.0736111111]]]}},{"type":"Feature","properties":{"sensitivity":1,"minDepth":1.7,"maxDepth":3.44,"cellCount":3},"geometry":{"type":"Polygon","coordinates":[[[99.3565415849,20.0736111111],[99.356551348,20.0735875409],[99.3566569036,20.0734819853],[99.3566804738,20.0734722222],[99.3572084151,20.0734722222],[99.3572319853,20.0734819853],[99.3573375409,20.0735875409],[99.357347304,20.0736111111],[99.3573375409,20.0736346813],[99.3572319853,20.0737402369],[99.3572084151,20.07375],[99.3566804738,20.07375],[99.3566569036,20.0737402369],[99.356551348,20.0736346813],[99.3565415849,20.0736111111]]]}},{"type":"Feature","properties":{"sensitivity":1,"minDepth":0.46,"maxDepth":5.33,"cellCount":2},"geometry":{"type":"Polygon","coordinates":[[[99.357652696,20.0736111111],[99.3576624591,20.0735875409],[99.3577680147,20.0734819853],[99.3577915849,20.0734722222],[99.3580417484,20.0734722222],[99.3580653187,20.0734819853],[99.3581708742,20.0735875409],[99.3581806373,20.0736111111],[99.3581708742,20.0736346813],[99.3580653187,20.0737402369],[99.3580417484,20.07375],[99.3577915849,20.07375],[99.3577680147,20.0737402369],[99.3576624591,20.0736346813],[99.357652696,20.0736111111]]]}},{"type":"Feature","properties":{"sensitivity":1,"minDepth":1.13,"maxDepth":1.13,"cellCount":1},"geometry":{"type":"Polygon","coordinates":[[[99.3557082516,20.0733333333],[99.3557180147,20.0733097631],[99.3558097631,20.0732180147],[99.3558333333,20.0732082516],[99.3558569036,20.0732180147],[99.355948652,20.0733097631],[99.3559584151,20.0733333333],[99.355948652,20.0733569036],[99.3558569036,20.073448652],[99.3558333333,20.0734584151],[99.3558097631,20.073448652],[99.3557180147,20.0733569036],[99.3557082516,20.0733333333]]]}},{"type":"Feature","properties":{"sensitivity":1,"minDepth":1.6,"maxDepth":1.6,"cellCount":1},"geometry":{"type":"Polygon","coordinates":[[[99.3584860293,20.0727777778],[99.3584957924,20.0727542076],[99.3585875409,20.0726624591],[99.3586111111,20.072652696],[99.3586346813,20.0726624591],[99.3587264298,20.0727542076],[99.3587361929,20.0727777778],[99.3587264298,20.072801348],[99.3586346813,20.0728930964],[99.3586111111,20.0729028595],[99.3585875409,20.0728930964],[99.3584957924,20.072801348],[99.3584860293,20.0727777778]]]}},{"type":"Feature","properties":{"sensitivity":1,"minDepth":1.71,"maxDepth":1.71,"cellCount":1},"geometry":{"type":"Polygon","coordinates":[[[99.357652696,20.0725],[99.3576624591,20.0724764298],[99.3577542076,20.0723846813],[99.3577777778,20.0723749182],[99.357801348,20.0723846813],[99.3578930964,20.0724764298],[99.3579028595,20.0725],[99.3578930964,20.0725235702],[99.357801348,20.0726153187],[99.3577777778,20.0726250818],[99.3577542076,20.0726153187],[99.3576624591,20.0725235702],[99.357652696,20.0725]]]}},{"type":"Feature","properties":{"sensitivity":1,"minDepth":1.67,"maxDepth":1.67,"cellCount":1},"geometry":{"type":"Polygon","coordinates":[[[99.3584860293,20.0722222222],[99.3584957924,20.072198652],[99.3585875409,20.0721069036],[99.3586111111,20.0720971405],[99.3586346813,20.0721069036],[99.3587264298,20.072198652],[99.3587361929,20.0722222222],[99.3587264298,20.0722457924],[99.3586346813,20.0723375409],[99.3586111111,20.072347304],[99.3585875409,20.0723375409],[99.3584957924,20.0722457924],[99.3584860293,20.0722222222]]]}},{"type":"Feature","properties":{"sensitivity":1,"minDepth":1.87,"maxDepth":1.87,"cellCount":1},"geometry":{"type":"Polygon","coordinates":[[[99.3579304738,20.0719444444],[99.3579402369,20.0719208742],[99.3580319853,20.0718291258],[99.3580555556,20.0718193627],[99.3580791258,20.0718291258],[99.3581708742,20.0719208742],[99.3581806373,20.0719444444],[99.3581708742,20.0719680147],[99.3580791258,20.0720597631],[99.3580555556,20.0720695262],[99.3580319853,20.0720597631],[99.3579402369,20.0719680147],[99.3579304738,20.0719444444]]]}},{"type":"Feature","properties":{"sensitivity":1,"minDepth":1.07,"maxDepth":1.74,"cellCount":3},"geometry":{"type":"Polygon","coordinates":[[[99.35875,20.0713750818],[99.35875,20.0708471405],[99.3587597631,20.0708235702],[99.3588653187,20.0707180147],[99.3588888889,20.0707082516],[99.3589124591,20.0707180147],[99.3590180147,20.0708235702],[99.3590277778,20.0708471405],[99.3590277778,20.0713750818],[99.3590180147,20.071398652],[99.3589124591,20.0715042076],[99.3588888889,20.0715139707],[99.3588653187,20.0715042076],[99.3587597631,20.071398652],[99.35875,20.0713750818]]]}},{"type":"Feature","properties":{"sensitivity":1,"minDepth":1.83,"maxDepth":1.95,"cellCount":2},"geometry":{"type":"Polygon","coordinates":[[[99.3579166667,20.0702639707],[99.3579166667,20.0700138071],[99.3579264298,20.0699902369],[99.3580319853,20.0698846813],[99.3580555556,20.0698749182],[99.3580791258,20.0698846813],[99.3581846813,20.0699902369],[99.3581944444,20.0700138071],[99.3581944444,20.0702639707],[99.3581846813,20.0702875409],[99.3580791258,20.0703930964],[99.3580555556,20.0704028595],[99.3580319853,20.0703930964],[99.3579264298,20.0702875409],[99.3579166667,20.0702639707]]]}},{"type":"Feature","properties":{"sensitivity":1,"minDepth":0.64,"maxDepth":0.64,"cellCount":1},"geometry":{"type":"Polygon","coordinates":[[[99.3587638071,20.0702777778],[99.3587735702,20.0702542076],[99.3588653187,20.0701624591],[99.3588888889,20.070152696],[99.3589124591,20.0701624591],[99.3590042076,20.0702542076],[99.3590139707,20.0702777778],[99.3590042076,20.070301348],[99.3589124591,20.0703930964],[99.3588888889,20.0704028595],[99.3588653187,20.0703930964],[99.3587735702,20.070301348],[99.3587638071,20.0702777778]]]}},{"type":"Feature","properties":{"sensitivity":1,"minDepth":3.97,"maxDepth":3.97,"cellCount":1},"geometry":{"type":"Polygon","coordinates":[[[99.3582082516,20.0694444444],[99.3582180147,20.0694208742],[99.3583097631,20.0693291258],[99.3583333333,20.0693193627],[99.3583569036,20.0693291258],[99.358448652,20.0694208742],[99.3584584151,20.0694444444],[99.358448652,20.0694680147],[99.3583569036,20.0695597631],[99.3583333333,20.0695695262],[99.3583097631,20.0695597631],[99.3582180147,20.0694680147],[99.3582082516,20.0694444444]]]}},{"type":"Feature","properties":{"sensitivity":1,"minDepth":0.04,"maxDepth":3.65,"cellCount":20},"geometry":{"type":"Polygon","coordinates":[[[99.3590277778,20.0694306373],[99.3590277778,20.068902696],[99.3590375409,20.0688791258],[99.3593008671,20.0686157995],[99.3593055556,20.0686111111],[99.3593055556,20.0686044807],[99.3593055556,20.0683471405],[99.3593153187,20.0683235702],[99.3594346813,20.0682042076],[99.3594582516,20.0681944444],[99.3597155918,20.0681944444],[99.3597222222,20.0681944444],[99.3597269106,20.068189756],[99.3598564227,20.068060244],[99.3598611111,20.0680555556],[99.3598611111,20.0680489251],[99.3598611111,20.0677915849],[99.3598708742,20.0677680147],[99.3601342005,20.0675046884],[99.3601388889,20.0675],[99.3601388889,20.0674933696],[99.3601388889,20.0669510749],[99.3601388889,20.0669444444],[99.3601342005,20.066939756],[99.3598846813,20.0666902369],[99.3598749182,20.0666666667],[99.3598846813,20.0666430964],[99.3599902369,20.0665375409],[99.3600138071,20.0665277778],[99.3602639707,20.0665277778],[99.3602875409,20.0665375409],[99.3604069036,20.0666569036],[99.3604166667,20.0666804738],[99.3604166667,20.0680417484],[99.3604069036,20.0680653187],[99.3595880217,20.0688842005],[99.3595833333,20.0688888889],[99.3595833333,20.0688955193],[99.3595833333,20.0694306373],[99.3595735702,20.0694542076],[99.3594542076,20.0695735702],[99.3594306373,20.0695833333],[99.3591804738,20.0695833333],[99.3591569036,20.0695735702],[99.3590375409,20.0694542076],[99.3590277778,20.0694306373]]]}},{"type":"Feature","properties":{"sensitivity":1,"minDepth":0.93,"maxDepth":0.93,"cellCount":1},"geometry":{"type":"Polygon","coordinates":[[[99.3584860293,20.0680555556],[99.3584957924,20.0680319853],[99.3585875409,20.0679402369],[99.3586111111,20.0679304738],[99.3586346813,20.0679402369],[99.3587264298,20.0680319853],[99.3587361929,20.0680555556],[99.3587264298,20.0680791258],[99.3586346813,20.0681708742],[99.3586111111,20.0681806373],[99.3585875409,20.0681708742],[99.3584957924,20.0680791258],[99.3584860293,20.0680555556]]]}},{"type":"Feature","properties":{"sensitivity":1,"minDepth":0.71,"maxDepth":0.99,"cellCount":3},"geometry":{"type":"Polygon","coordinates":[[[99.35875,20.066097304],[99.35875,20.0655693627],[99.3587597631,20.0655457924],[99.3588653187,20.0654402369],[99.3588888889,20.0654304738],[99.3589124591,20.0654402369],[99.3590180147,20.0655457924],[99.3590277778,20.0655693627],[99.3590277778,20.066097304],[99.3590180147,20.0661208742],[99.3589124591,20.0662264298],[99.3588888889,20.0662361929],[99.3588653187,20.0662264298],[99.3587597631,20.0661208742],[99.35875,20.066097304]]]}},{"type":"Feature","properties":{"sensitivity":1,"minDepth":0.29,"maxDepth":3.71,"cellCount":12},"geometry":{"type":"Polygon","coordinates":[[[99.3581944444,20.0652639707],[99.3581944444,20.0650066304],[99.3581944444,20.065],[99.358189756,20.0649953116],[99.358060244,20.0648657995],[99.3580555556,20.0648611111],[99.3580508671,20.0648657995],[99.357801348,20.0651153187],[99.3577777778,20.0651250818],[99.3577542076,20.0651153187],[99.3573846813,20.0647457924],[99.3573749182,20.0647222222],[99.3573846813,20.064698652],[99.3580319853,20.064051348],[99.3580555556,20.0640415849],[99.3580791258,20.064051348],[99.3581846813,20.0641569036],[99.3581944444,20.0641804738],[99.3581944444,20.064437814],[99.3581944444,20.0644444444],[99.3581991329,20.0644491329],[99.3587402369,20.0649902369],[99.35875,20.0650138071],[99.35875,20.0652639707],[99.3587402369,20.0652875409],[99.3586208742,20.0654069036],[99.358597304,20.0654166667],[99.3583471405,20.0654166667],[99.3583235702,20.0654069036],[99.3582042076,20.0652875409],[99.3581944444,20.0652639707]]]}},{"type":"Feature","properties":{"sensitivity":1,"minDepth":0.09,"maxDepth":3.82,"cellCount":52},"geometry":{"type":"Polygon","coordinates":[[[99.3598611111,20.0647084151],[99.3598611111,20.0641732971],[99.3598611111,20.0641666667],[99.3598564227,20.0641619783],[99.3597269106,20.0640324662],[99.3597222222,20.0640277778],[99.3597175338,20.0640324662],[99.3594680147,20.0642819853],[99.3594444444,20.0642917484],[99.3594208742,20.0642819853],[99.3590375409,20.063898652],[99.3590277778,20.0638750818],[99.3590277778,20.0627915849],[99.3590375409,20.0627680147],[99.3591569036,20.062648652],[99.3591804738,20.0626388889],[99.3597155918,20.0626388889],[99.3597222222,20.0626388889],[99.3597269106,20.0626342005],[99.3602542076,20.0621069036],[99.3602777778,20.0620971405],[99.360301348,20.0621069036],[99.3604069036,20.0622124591],[99.3604166667,20.0622360293],[99.3604166667,20.0624933696],[99.3604166667,20.0625],[99.3604213551,20.0625046884],[99.3605508671,20.0626342005],[99.3605555556,20.0626388889],[99.360560244,20.0626342005],[99.3609675338,20.0622269106],[99.3609722222,20.0622222222],[99.3609722222,20.0622155918],[99.3609722222,20.0619582516],[99.3609819853,20.0619346813],[99.3610875409,20.0618291258],[99.3611111111,20.0618193627],[99.3611346813,20.0618291258],[99.3612402369,20.0619346813],[99.36125,20.0619582516],[99.36125,20.0622155918],[99.36125,20.0622222222],[99.3612546884,20.0622269106],[99.3615180147,20.0624902369],[99.3615277778,20.0625138071],[99.3615277778,20.0627639707],[99.3615180147,20.0627875409],[99.3611208742,20.0631846813],[99.361097304,20.0631944444],[99.360562186,20.0631944444],[99.3605555556,20.0631944444],[99.3605508671,20.0631991329],[99.3604213551,20.0633286449],[99.3604166667,20.0633333333],[99.3604213551,20.0633380217],[99.3605508671,20.0634675338],[99.3605555556,20.0634722222],[99.360562186,20.0634722222],[99.3608195262,20.0634722222],[99.3608430964,20.0634819853],[99.3609624591,20.063601348],[99.3609722222,20.0636249182],[99.3609722222,20.0638750818],[99.3609624591,20.063898652],[99.3604213551,20.064439756],[99.3604166667,20.0644444444],[99.3604166667,20.0644510749],[99.3604166667,20.0647084151],[99.3604069036,20.0647319853],[99.3602875409,20.064851348],[99.3602639707,20.0648611111],[99.3600138071,20.0648611111],[99.3599902369,20.064851348],[99.3598708742,20.0647319853],[99.3598611111,20.0647084151]]]}},{"type":"Feature","properties":{"sensitivity":1,"minDepth":2.35,"maxDepth":2.35,"cellCount":1},"geometry":{"type":"Polygon","coordinates":[[[99.3579304738,20.0633333333],[99.3579402369,20.0633097631],[99.3580319853,20.0632180147],[99.3580555556,20.0632082516],[99.3580791258,20.0632180147],[99.3581708742,20.0633097631],[99.3581806373,20.0633333333],[99.3581708742,20.0633569036],[99.3580791258,20.063448652],[99.3580555556,20.0634584151],[99.3580319853,20.063448652],[99.3579402369,20.0633569036],[99.3579304738,20.0633333333]]]}},{"type":"Feature","properties":{"sensitivity":1,"minDepth":3.63,"maxDepth":3.63,"cellCount":1},"geometry":{"type":"Polygon","coordinates":[[[99.3582082516,20.0627777778],[99.3582180147,20.0627542076],[99.3583097631,20.0626624591],[99.3583333333,20.062652696],[99.3583569036,20.0626624591],[99.358448652,20.0627542076],[99.3584584151,20.0627777778],[99.358448652,20.062801348],[99.3583569036,20.0628930964],[99.3583333333,20.0629028595],[99.3583097631,20.0628930964],[99.3582180147,20.062801348],[99.3582082516,20.0627777778]]]}},{"type":"Feature","properties":{"sensitivity":1,"minDepth":0.72,"maxDepth":0.72,"cellCount":1},"geometry":{"type":"Polygon","coordinates":[[[99.3593193627,20.0619444444],[99.3593291258,20.0619208742],[99.3594208742,20.0618291258],[99.3594444444,20.0618193627],[99.3594680147,20.0618291258],[99.3595597631,20.0619208742],[99.3595695262,20.0619444444],[99.3595597631,20.0619680147],[99.3594680147,20.0620597631],[99.3594444444,20.0620695262],[99.3594208742,20.0620597631],[99.3593291258,20.0619680147],[99.3593193627,20.0619444444]]]}},{"type":"Feature","properties":{"sensitivity":1,"minDepth":0.19,"maxDepth":0.84,"cellCount":7},"geometry":{"type":"Polygon","coordinates":[[[99.3631944444,20.0619306373],[99.3631944444,20.0616732971],[99.3631944444,20.0616666667],[99.363189756,20.0616619783],[99.363060244,20.0615324662],[99.3630555556,20.0615277778],[99.3630489251,20.0615277778],[99.3625138071,20.0615277778],[99.3624902369,20.0615180147],[99.3623846813,20.0614124591],[99.3623749182,20.0613888889],[99.3623846813,20.0613653187],[99.3624902369,20.0612597631],[99.3625138071,20.06125],[99.3633195262,20.06125],[99.3633430964,20.0612597631],[99.3637264298,20.0616430964],[99.3637361929,20.0616666667],[99.3637264298,20.0616902369],[99.3633569036,20.0620597631],[99.3633333333,20.0620695262],[99.3633097631,20.0620597631],[99.3632042076,20.0619542076],[99.3631944444,20.0619306373]]]}},{"type":"Feature","properties":{"sensitivity":1,"minDepth":2.03,"maxDepth":2.03,"cellCount":1},"geometry":{"type":"Polygon","coordinates":[[[99.3598749182,20.0616666667],[99.3598846813,20.0616430964],[99.3599764298,20.061551348],[99.36,20.0615415849],[99.3600235702,20.061551348],[99.3601153187,20.0616430964],[99.3601250818,20.0616666667],[99.3601153187,20.0616902369],[99.3600235702,20.0617819853],[99.36,20.0617917484],[99.3599764298,20.0617819853],[99.3598846813,20.0616902369],[99.3598749182,20.0616666667]]]}},{"type":"Feature","properties":{"sensitivity":1,"minDepth":0.13,"maxDepth":0.13,"cellCount":1},"geometry":{"type":"Polygon","coordinates":[[[99.3615415849,20.0616666667],[99.361551348,20.0616430964],[99.3616430964,20.061551348],[99.3616666667,20.0615415849],[99.3616902369,20.061551348],[99.3617819853,20.0616430964],[99.3617917484,20.0616666667],[99.3617819853,20.0616902369],[99.3616902369,20.0617819853],[99.3616666667,20.0617917484],[99.3616430964,20.0617819853],[99.361551348,20.0616902369],[99.3615415849,20.0616666667]]]}},{"type":"Feature","properties":{"sensitivity":1,"minDepth":0.06,"maxDepth":2.02,"cellCount":11},"geometry":{"type":"Polygon","coordinates":[[[99.363902696,20.0615277778],[99.3638791258,20.0615180147],[99.3637735702,20.0614124591],[99.3637638071,20.0613888889],[99.3637735702,20.0613653187],[99.3638791258,20.0612597631],[99.363902696,20.06125],[99.3652639707,20.06125],[99.3652875409,20.0612597631],[99.3656708742,20.0616430964],[99.3656806373,20.0616666667],[99.3656708742,20.0616902369],[99.3655653187,20.0617957924],[99.3655417484,20.0618055556],[99.3644582516,20.0618055556],[99.3644346813,20.0617957924],[99.3641713551,20.0615324662],[99.3641666667,20.0615277778],[99.3641600363,20.0615277778],[99.363902696,20.0615277778]]]}},{"type":"Feature","properties":{"sensitivity":1,"minDepth":0.09,"maxDepth":2.84,"cellCount":20},"geometry":{"type":"Polygon","coordinates":[[[99.3768193627,20.0613888889],[99.3768291258,20.0613653187],[99.3769346813,20.0612597631],[99.3769582516,20.06125],[99.3777711474,20.06125],[99.3777777778,20.06125],[99.3777824662,20.0612453116],[99.3779119783,20.0611157995],[99.3779166667,20.0611111111],[99.3779166667,20.0611044807],[99.3779166667,20.0608471405],[99.3779264298,20.0608235702],[99.3788791258,20.0598708742],[99.378902696,20.0598611111],[99.3794306373,20.0598611111],[99.3794542076,20.0598708742],[99.3795597631,20.0599764298],[99.3795695262,20.06],[99.3795597631,20.0600235702],[99.3794542076,20.0601291258],[99.3794306373,20.0601388889],[99.3791732971,20.0601388889],[99.3791666667,20.0601388889],[99.3791619783,20.0601435773],[99.3784769106,20.0608286449],[99.3784722222,20.0608333333],[99.3784769106,20.0608380217],[99.3787264298,20.0610875409],[99.3787361929,20.0611111111],[99.3787264298,20.0611346813],[99.3786208742,20.0612402369],[99.378597304,20.06125],[99.3783399637,20.06125],[99.3783333333,20.06125],[99.3783286449,20.0612546884],[99.3777875409,20.0617957924],[99.3777639707,20.0618055556],[99.3772360293,20.0618055556],[99.3772124591,20.0617957924],[99.3768291258,20.0614124591],[99.3768193627,20.0613888889]]]}}];
+
+    let activeCommunity = communitiesData[0]; // default 'thaton'
+    let currentTab = 'water'; // 'water', 'flood', 'evac'
+    let zoomScope = 'inner';
+
+    // 2. INITIALIZE LEAFLET WITH OPENSTREETMAP (OSM STANDARD TILES)
+    const map = L.map('map', {
+      center: activeCommunity.center,
+      zoom: activeCommunity.zoomInner,
+      zoomControl: false,
+      attributionControl: false
+    });
+
+    // Pure OpenStreetMap (OSM) Standard Tiles (identical to production app)
+    const osmStandard = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      maxNativeZoom: 19,
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a> contributors'
+    }).addTo(map);
+
+    L.control.attribution({ position: 'bottomleft', prefix: false }).addTo(map);
+
+    function resetToCenter() {
+      const targetZoom = zoomScope === 'inner' ? activeCommunity.zoomInner : activeCommunity.zoomOuter;
+      map.flyTo(activeCommunity.center, targetZoom, { duration: 0.8 });
+    }
+
+    function toggleMapType() {
+      // Compatibility stub
+      resetToCenter();
+    }
+
+    // 3. LAYER GROUPS
+    const waterLayer = L.layerGroup().addTo(map);
+    const floodLayer = L.layerGroup();
+    const evacLayer = L.layerGroup();
+
+    // 4. RENDER WATER WAYPOINTS (129 PINS)
+    waypointsData.forEach(wp => {
+      let pinClass = 'safe';
+      let iconSymbol = '✓';
+      if (wp.danger) { pinClass = 'danger'; iconSymbol = '!'; }
+      else if (wp.caution) { pinClass = 'caution'; iconSymbol = '~'; }
+
+      const icon = L.divIcon({
+        className: 'custom-pin',
+        html: `<div class="farmer-pin ${pinClass}">${iconSymbol}</div>`,
+        iconSize: [22, 22],
+        iconAnchor: [11, 11]
+      });
+
+      const marker = L.marker([wp.lat, wp.lon], { icon }).addTo(waterLayer);
+      marker.on('click', () => {
+        openPointDetail(wp);
+      });
+    });
+
+    // 5. RENDER FLOOD SIMULATION LAYER
+    floodData.forEach(feat => {
+      if (feat.geometry && feat.geometry.coordinates) {
+        const latlngs = feat.geometry.coordinates.map(ring => ring.map(pt => [pt[1], pt[0]]));
+        L.polygon(latlngs, {
+          color: '#1976D2',
+          weight: 1.5,
+          fillColor: '#0D47A1',
+          fillOpacity: 0.65
+        }).bindPopup(`<b>🌊 ระดับน้ำล้นตลิ่ง</b><br/>ความลึกประมาณ ${feat.properties.maxDepth || 1.2} ม.`).addTo(floodLayer);
+      }
+    });
+
+    // 6. RENDER EVACUATION & SAFE HAVEN LAYER
+    if (evacuationData.routes && evacuationData.routes.length) {
+      evacuationData.routes.forEach(routeCoords => {
+        L.polyline(routeCoords, { color: '#2E7D32', weight: 6, opacity: 0.9 }).addTo(evacLayer);
+        L.polyline(routeCoords, { color: '#FFFFFF', weight: 2, dashArray: '6, 6' }).addTo(evacLayer);
+      });
+    }
+
+    if (evacuationData.points && evacuationData.points.length) {
+      evacuationData.points.forEach(pt => {
+        let color = '#DC2626';
+        let label = 'ผู้สูงอายุ';
+        if (pt.kind === 'disability') { color = '#C2410C'; label = 'คนพิการ'; }
+        else if (pt.kind === 'children') { color = '#A16207'; label = 'เด็กเล็ก'; }
+
+        const icon = L.divIcon({
+          className: 'evac-pin',
+          html: `<div style="width:18px;height:18px;border-radius:9px;background:${color};border:2px solid #fff;display:flex;align-items:center;justify-content:center;color:#fff;font-size:9px;font-weight:700;">🏠</div>`,
+          iconSize: [18, 18],
+          iconAnchor: [9, 9]
+        });
+
+        L.marker([pt.latitude, pt.longitude], { icon })
+          .bindPopup(`<b>บ้านกลุ่มเปราะบาง (${label})</b><br/>รหัส: ${pt.id}<br/><button onclick="alert('แจ้งเรือกู้ภัยแล้ว')" style="background:#E65100;color:#fff;border:none;padding:3px 8px;border-radius:6px;cursor:pointer;margin-top:4px;">🚨 ขอเรือมารับ</button>`)
+          .addTo(evacLayer);
+      });
+    }
+
+    // Wat Tha Ton Safe Haven Pin
+    const watPin = L.divIcon({
+      className: 'wat-pin',
+      html: `<div style="background:#2E7D32;color:#fff;padding:6px 12px;border-radius:20px;border:2px solid #fff;font-weight:800;font-size:12px;box-shadow:0 4px 12px rgba(0,0,0,0.4);white-space:nowrap;">🛕 ศูนย์พักพิง: ศาลาวัดท่าตอน</div>`,
+      iconAnchor: [80, 20]
+    });
+    L.marker([20.0583, 99.3665], { icon: watPin }).addTo(evacLayer);
+
+    // 7. TAB SWITCHER (3 ESSENTIAL BUTTONS)
+    function switchTab(tab) {
+      currentTab = tab;
+      document.querySelectorAll('.nav-btn-tab').forEach(b => b.classList.remove('active'));
+      document.getElementById('tab-' + tab).classList.add('active');
+
+      // Clear layers
+      map.removeLayer(waterLayer);
+      map.removeLayer(floodLayer);
+      map.removeLayer(evacLayer);
+
+      if (tab === 'water') {
+        waterLayer.addTo(map);
+      } else if (tab === 'flood') {
+        floodLayer.addTo(map);
+      } else if (tab === 'evac') {
+        evacLayer.addTo(map);
+      }
+    }
+
+    // 9. COMMUNITY SELECTION FUNCTIONS
+    function renderCommunityCards() {
+      const container = document.getElementById('communityListContainer');
+      container.innerHTML = communitiesData.map(c => `
+        <div class="community-card ${c.id === activeCommunity.id ? 'active' : ''}" onclick="selectCommunity('${c.id}')">
+          <div class="com-left">
+            <div class="com-badge">📍</div>
+            <div>
+              <div class="com-name">${c.fullName}</div>
+              <div class="com-sub">${c.district} ${c.province} • ${c.records} จุดตรวจ</div>
+            </div>
+          </div>
+          <div style="text-align:right;">
+            <span class="com-zone-tag">${c.riverZone}</span>
+            <div style="font-size:10px; color:${c.statusColor}; font-weight:700; margin-top:4px;">${c.statusText}</div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function selectCommunity(id) {
+      const found = communitiesData.find(c => c.id === id);
+      if (!found) return;
+      activeCommunity = found;
+      
+      document.getElementById('currentAreaName').textContent = found.name;
+      document.getElementById('currentAreaSub').textContent = `${found.district} ${found.province} • ${found.records} จุดตรวจ`;
+      document.getElementById('surveyAreaLabel').textContent = `${found.fullName} • ${found.province}`;
+      document.getElementById('todayTitle').textContent = `น้ำ${found.name}วันนี้: ${found.statusText}`;
+
+      renderCommunityCards();
+      closeSheet('sheetCommunity');
+
+      // Smooth FlyTo
+      const targetZoom = zoomScope === 'inner' ? found.zoomInner : found.zoomOuter;
+      map.flyTo(found.center, targetZoom, { duration: 1.2 });
+    }
+
+    function setZoomScope(scope) {
+      zoomScope = scope;
+      if (scope === 'inner') {
+        document.getElementById('btnScopeInner').style.background = '#fff';
+        document.getElementById('btnScopeInner').style.color = '#195640';
+        document.getElementById('btnScopeOuter').style.background = 'transparent';
+        document.getElementById('btnScopeOuter').style.color = '#64748B';
+        map.setZoom(activeCommunity.zoomInner);
+      } else {
+        document.getElementById('btnScopeOuter').style.background = '#fff';
+        document.getElementById('btnScopeOuter').style.color = '#195640';
+        document.getElementById('btnScopeInner').style.background = 'transparent';
+        document.getElementById('btnScopeInner').style.color = '#64748B';
+        map.setZoom(activeCommunity.zoomOuter);
+      }
+    }
+
+    function locateUser() {
+      map.flyTo([20.0585, 99.3620], 17, { duration: 1 });
+    }
+
+    // 10. MODAL SHEETS CONTROLS
+    function openCommunitySheet() {
+      renderCommunityCards();
+      document.getElementById('sheetCommunity').classList.add('open');
+    }
+    function openSurveySheet() {
+      document.getElementById('sheetSurvey').classList.add('open');
+    }
+    function openSoundSheet() {
+      document.getElementById('sheetSound').classList.add('open');
+    }
+    function openSummarySheet() {
+      openPointDetail(waypointsData[0]);
+    }
+    function closeSheet(id) {
+      document.getElementById(id).classList.remove('open');
+    }
+
+    function openPointDetail(wp) {
+      document.getElementById('sheetPointCode').textContent = `จุดตรวจ ${wp.code}`;
+      document.getElementById('sheetPointName').textContent = wp.name;
+      document.getElementById('sheetPointDate').textContent = `ตรวจเมื่อ: ${wp.date} (${wp.source})`;
+      
+      const statusEl = document.getElementById('sheetPointStatus');
+      if (wp.danger) {
+        statusEl.textContent = 'อันตราย ห้ามดื่มเด็ดขาด!';
+        statusEl.style.color = '#A33228';
+      } else if (wp.caution) {
+        statusEl.textContent = 'เฝ้าระวัง (ใช้รดผักได้ ห้ามดื่ม)';
+        statusEl.style.color = '#DE9922';
+      } else {
+        statusEl.textContent = 'น้ำสะอาด อยู่ในเกณฑ์ปกติ';
+        statusEl.style.color = '#1B5E20';
+      }
+      document.getElementById('sheetDetail').classList.add('open');
+    }
+
+    function selectColor(btn, ppb) {
+      document.querySelectorAll('.swatch-btn').forEach(b => {
+        b.style.borderColor = '#CBD5E1';
+        b.classList.remove('selected');
+      });
+      btn.style.borderColor = '#195640';
+      btn.classList.add('selected');
+    }
+
+    function selectSource(btn) {
+      // deprecated
+    }
+
+    function submitSurvey() {
+      const name = document.getElementById('surveyNameInput')?.value || 'ชาวบ้าน';
+      const phone = document.getElementById('surveyPhoneInput')?.value || '';
+      closeSheet('sheetSurvey');
+      const newLat = activeCommunity.center[0] + (Math.random() - 0.5) * 0.003;
+      const newLon = activeCommunity.center[1] + (Math.random() - 0.5) * 0.003;
+
+      const newIcon = L.divIcon({
+        className: 'new-pin',
+        html: `<div class="farmer-pin safe" style="transform:scale(1.3);box-shadow:0 0 15px #2E7D32;">★</div>`,
+        iconSize: [26, 26],
+        iconAnchor: [13, 13]
+      });
+
+      L.marker([newLat, newLon], { icon: newIcon }).addTo(waterLayer);
+      map.setView([newLat, newLon], 17);
+
+      alert(`✅ ส่งผลตรวจสำเร็จ! ได้รับรหัส: KOK-20261025-0130 ขอบคุณ ${name} อสม. ได้รับข้อมูลเรียบร้อยแล้ว`);
+    }
+
+    // Expose for Playwright simulation
+    window.selectCommunity = selectCommunity;
+    window.switchTab = switchTab;
+    window.openCommunitySheet = openCommunitySheet;
+    window.openSurveySheet = openSurveySheet;
+    window.openPointDetail = openPointDetail;
+    window.closeSheet = closeSheet;
+    window.setZoomScope = setZoomScope;
+    window.resetToCenter = resetToCenter;
+    window.toggleMapType = toggleMapType;
+    window.waypointsData = waypointsData;
+  </script>
+</body>
+</html>

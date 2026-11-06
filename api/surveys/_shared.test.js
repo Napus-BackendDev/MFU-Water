@@ -23,6 +23,9 @@ describe('survey server security', () => {
   it('validates values, required internal contact fields (R05), and explicit consent before reserving a survey', () => {
     expect(validateSurvey(body)).toBe(true)
     expect(validateSurvey({ ...body, waterSourceType: 'แม่น้ำ', rainContext: 'ไม่ทราบ', sampleCollectedAt: '2026-10-16T09:00' })).toBe(true)
+    const future = new Date(Date.now() + 3600_000).toISOString()
+    expect(validateSurvey({ ...body, sampleCollectedAt: '2026-10-16T09:00:00.000Z', testKit: 'ADPC' })).toBe(true)
+    for (const invalid of [{ sampleCollectedAt: future }, { sampleCollectedAt: 'ไม่ใช่วันที่' }, { testKit: '   ' }, { testKit: 'x'.repeat(81) }, { testKit: 5 }]) expect(validateSurvey({ ...body, ...invalid })).toBe(false)
     for (const invalid of [{ publicConsent: false }, { fullName: null }, { fullName: '   ' }, { phoneNumber: null }, { phoneNumber: '' }, { arsenicLevelPpb: 6 }, { coordinates: { latitude: NaN, longitude: 99 } }, { gpsAccuracyMeters: -1 }, { fullName: 'x'.repeat(201) }, { waterSourceType: 'ทะเล' }, { rainContext: 'พายุ' }]) expect(validateSurvey({ ...body, ...invalid })).toBe(false)
   })
   it('hashes the persisted payload consistently across prepare and complete', () => {

@@ -13,6 +13,78 @@
       "destination": "/api/admin/samples?sampleCode=:sampleCode"
     },
     {
+      "source": "/api/admin/evacuation/start",
+      "destination": "/api/admin/review?route=evacuation-start"
+    },
+    {
+      "source": "/api/admin/evacuation/cases/:householdId",
+      "destination": "/api/admin/review?route=evacuation-case&householdId=:householdId"
+    },
+    {
+      "source": "/api/admin/evacuation/order",
+      "destination": "/api/admin/review?route=evacuation-order"
+    },
+    {
+      "source": "/api/admin/evacuation/close",
+      "destination": "/api/admin/review?route=evacuation-close"
+    },
+    {
+      "source": "/api/admin/evacuation",
+      "destination": "/api/admin/review?route=evacuation"
+    },
+    {
+      "source": "/api/admin/map-data/:kind/:id/:action",
+      "destination": "/api/admin/review?route=mapdata&kind=:kind&id=:id&action=:action"
+    },
+    {
+      "source": "/api/admin/map-data/:kind/:id",
+      "destination": "/api/admin/review?route=mapdata&kind=:kind&id=:id"
+    },
+    {
+      "source": "/api/admin/map-data/:kind",
+      "destination": "/api/admin/review?route=mapdata&kind=:kind"
+    },
+    {
+      "source": "/api/admin/map-data",
+      "destination": "/api/admin/review?route=mapdata"
+    },
+    {
+      "source": "/api/admin/reporters/:id",
+      "destination": "/api/admin/review?route=reporters&id=:id"
+    },
+    {
+      "source": "/api/admin/reporters",
+      "destination": "/api/admin/review?route=reporters"
+    },
+    {
+      "source": "/api/admin/reports/analytics",
+      "destination": "/api/admin/review?route=reports"
+    },
+    {
+      "source": "/api/admin/research/:id/download",
+      "destination": "/api/admin/review?route=research&action=download&id=:id"
+    },
+    {
+      "source": "/api/admin/research/:id",
+      "destination": "/api/admin/review?route=research&id=:id"
+    },
+    {
+      "source": "/api/admin/research",
+      "destination": "/api/admin/review?route=research"
+    },
+    {
+      "source": "/api/admin/settings/:sub",
+      "destination": "/api/admin/review?route=settings&sub=:sub"
+    },
+    {
+      "source": "/api/admin/settings",
+      "destination": "/api/admin/review?route=settings"
+    },
+    {
+      "source": "/api/map-data/:target",
+      "destination": "/api/surveys/waypoints?route=mapdata&target=:target"
+    },
+    {
       "source": "/api/news/photo/:filename",
       "destination": "/api/news?route=photo&filename=:filename"
     },

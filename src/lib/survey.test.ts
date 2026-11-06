@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { arsenicLevels, fetchSurveyWaypoints, prepareSurveyPhoto, submitWaterSurvey, validateSurveyPhoto, type WaterSurveyInput } from './survey'
+import { arsenicLevels, fetchSurveyWaypoints, formatPpb, prepareSurveyPhoto, submitWaterSurvey, validateSurveyPhoto, type WaterSurveyInput } from './survey'
 
 const coordinates = { latitude: 20.0451, longitude: 99.8912 }
 const waypoint = {
@@ -24,6 +24,31 @@ function jsonResponse(payload: unknown, ok = true, status = ok ? 200 : 400): Res
 }
 
 afterEach(() => vi.unstubAllGlobals())
+
+describe('survey details', () => {
+  it('never shows level 0 as a measured 0 ppb', () => {
+    expect(formatPpb(0)).toBe('< 5 ppb')
+    expect(formatPpb(0, true)).toBe('น้อยกว่า 5 ppb')
+    expect([5, 10, 500].map((level) => formatPpb(level))).toEqual(['5 ppb', '10 ppb', '500 ppb'])
+  })
+
+  it('sends the collection time and the test kit in both requests', async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(jsonResponse({ ticket: 'signed-ticket', uploads: [] }))
+      .mockResolvedValueOnce(jsonResponse(waypoint, true, 201))
+    vi.stubGlobal('fetch', fetchMock)
+    await submitWaterSurvey(input({ sampleCollectedAt: '2026-11-02T01:30:00.000Z', testKit: ' ADPC ' }))
+    for (const call of fetchMock.mock.calls) expect(JSON.parse(call[1].body)).toMatchObject({ sampleCollectedAt: '2026-11-02T01:30:00.000Z', testKit: 'ADPC' })
+  })
+
+  it('refuses a blank or over-long test kit before any network call', async () => {
+    const fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+    await expect(submitWaterSurvey(input({ testKit: '   ' }))).rejects.toThrow('กรุณาระบุชุดตรวจที่ใช้')
+    await expect(submitWaterSurvey(input({ testKit: 'x'.repeat(81) }))).rejects.toThrow('กรุณาระบุชุดตรวจที่ใช้')
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+})
 
 describe('water survey submission', () => {
   it.each(arsenicLevels)('sends approved arsenic level %i ppb through protected server API', async (level) => {

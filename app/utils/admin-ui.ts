@@ -1,7 +1,7 @@
 // Shared admin control styles, taken from the S5 / S5.1 / S5.2 mockups.
 const focusRing = 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0284C7]'
 
-const pillBase = 'inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border px-3.5 py-1.5 text-xs font-semibold transition'
+const pillBase = 'inline-flex min-h-9 items-center gap-1.5 whitespace-nowrap rounded-full border px-3.5 py-1.5 text-xs font-semibold transition sm:min-h-0'
 const pillIdle = 'border-slate-200 bg-white text-slate-600 dark:border-[#2C2C2E] dark:bg-[#1E1E1E] dark:text-slate-300'
 
 export const pillClass = (active: boolean) => [

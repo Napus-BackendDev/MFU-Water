@@ -1,0 +1,1388 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MFU Kok Water Watch - สไลด์นำเสนอระบบฉบับปรับปรุง (พร้อมช่องใส่ภาพ)</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --river-blue: #0284C7;
+            --river-blue-dark: #0369A1;
+            --sky-light: #E0F2FE;
+            --forest-green: #195640;
+            --forest-green-light: #237859;
+            --slate-dark: #0F172A;
+            --slate-muted: #64748B;
+            --card-bg: #FFFFFF;
+            --page-bg: #0B1120;
+            --surface-bg: #F8FAFC;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Noto Sans Thai', 'Plus Jakarta Sans', sans-serif;
+            background-color: var(--page-bg);
+            color: var(--slate-dark);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            user-select: none;
+        }
+
+        .top-navbar {
+            background: rgba(15, 23, 42, 0.95);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 10px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            color: #fff;
+            z-index: 100;
+        }
+
+        .brand-title {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-weight: 700;
+            font-size: 16px;
+        }
+
+        .brand-badge {
+            background: var(--river-blue);
+            color: #fff;
+            padding: 4px 10px;
+            border-radius: 999px;
+            font-size: 11px;
+            font-weight: 700;
+        }
+
+        .nav-controls {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .slide-counter {
+            font-size: 14px;
+            color: #94A3B8;
+            font-weight: 600;
+        }
+
+        .btn-nav {
+            background: rgba(255, 255, 255, 0.12);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #fff;
+            padding: 6px 14px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+
+        .btn-nav:hover {
+            background: var(--river-blue);
+            border-color: var(--river-blue);
+        }
+
+        .btn-notes {
+            background: rgba(25, 86, 64, 0.85);
+            border: 1px solid rgba(25, 86, 64, 1);
+        }
+
+        .stage-container {
+            flex: 1;
+            display: flex;
+            position: relative;
+            overflow: hidden;
+            background: #020617;
+        }
+
+        .slide-deck {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            position: relative;
+        }
+
+        .slide-view {
+            display: none;
+            width: 100%;
+            max-width: 1360px;
+            aspect-ratio: 16 / 9;
+            background: var(--surface-bg);
+            border-radius: 20px;
+            box-shadow: 0 25px 60px rgba(0, 0, 0, 0.6);
+            overflow: hidden;
+            flex-direction: column;
+            position: relative;
+        }
+
+        .slide-view.active {
+            display: flex;
+            animation: fadeIn 0.3s ease-in-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.98); }
+            to { opacity: 1; transform: scale(1); }
+        }
+
+        /* Slide Layout */
+        .content-header {
+            background: #FFFFFF;
+            padding: 14px 28px;
+            border-bottom: 1px solid #E2E8F0;
+        }
+
+        .header-badge {
+            font-size: 11px;
+            font-weight: 700;
+            padding: 3px 10px;
+            border-radius: 6px;
+            background: var(--sky-light);
+            color: var(--river-blue);
+            display: inline-block;
+            margin-bottom: 4px;
+        }
+
+        .header-title-group h2 {
+            font-size: 20px;
+            font-weight: 800;
+            color: var(--slate-dark);
+        }
+
+        .header-subtitle {
+            font-size: 12.5px;
+            color: var(--forest-green);
+            font-weight: 600;
+            margin-top: 2px;
+        }
+
+        .content-body {
+            flex: 1;
+            display: grid;
+            grid-template-columns: 460px 1fr;
+            gap: 20px;
+            padding: 20px 28px;
+            overflow: hidden;
+            background: #F8FAFC;
+        }
+
+        .left-info-panel {
+            background: #FFFFFF;
+            border-radius: 14px;
+            padding: 18px;
+            border: 1px solid #E2E8F0;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            overflow-y: auto;
+        }
+
+        .section-box h3 {
+            font-size: 12.5px;
+            font-weight: 700;
+            color: var(--river-blue-dark);
+            margin-bottom: 6px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .section-box.mech h3 { color: var(--forest-green); }
+        .section-box.impact h3 { color: var(--forest-green-light); }
+
+        .section-desc {
+            font-size: 11.5px;
+            line-height: 1.5;
+            color: var(--slate-muted);
+        }
+
+        .bullet-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .bullet-list li {
+            font-size: 11px;
+            line-height: 1.45;
+            color: #334155;
+            display: flex;
+            align-items: flex-start;
+            gap: 6px;
+        }
+
+        .bullet-list li::before {
+            content: "•";
+            color: var(--river-blue);
+            font-weight: bold;
+            font-size: 13px;
+        }
+
+        .bullet-list.impact li::before {
+            content: "✓";
+            color: var(--forest-green);
+        }
+
+        /* Right Column: Image Placeholder Slot */
+        .right-placeholder-panel {
+            background: #F1F5F9;
+            border: 2px dashed #94A3B8;
+            border-radius: 14px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 30px;
+            position: relative;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+
+        .right-placeholder-panel:hover {
+            border-color: var(--river-blue);
+            background: #EBF5FB;
+        }
+
+        .placeholder-icon {
+            font-size: 42px;
+            margin-bottom: 12px;
+        }
+
+        .placeholder-title {
+            font-size: 17px;
+            font-weight: 800;
+            color: var(--river-blue);
+            margin-bottom: 8px;
+        }
+
+        .placeholder-rec {
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--slate-dark);
+            margin-bottom: 6px;
+        }
+
+        .placeholder-focus {
+            font-size: 12px;
+            color: var(--slate-muted);
+            max-width: 480px;
+            line-height: 1.5;
+            margin-bottom: 8px;
+        }
+
+        .placeholder-aspect {
+            font-size: 11px;
+            color: #64748B;
+            margin-bottom: 16px;
+        }
+
+        .placeholder-btn {
+            background: var(--forest-green);
+            color: #fff;
+            padding: 8px 18px;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 700;
+            border: none;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .placeholder-btn:hover {
+            background: var(--forest-green-light);
+        }
+
+        .preview-img-container {
+            display: none;
+            position: absolute;
+            inset: 0;
+            background: #fff;
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .preview-img-container.active {
+            display: block;
+        }
+
+        .preview-img-container img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        .notes-drawer {
+            width: 360px;
+            background: #0F172A;
+            border-left: 1px solid rgba(255, 255, 255, 0.1);
+            color: #E2E8F0;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            overflow-y: auto;
+            transition: all 0.3s;
+        }
+
+        .notes-drawer.collapsed {
+            margin-right: -360px;
+        }
+
+        .notes-title {
+            font-size: 13px;
+            font-weight: 700;
+            color: #38BDF8;
+            text-transform: uppercase;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            padding-bottom: 8px;
+        }
+
+        .notes-text {
+            font-size: 13px;
+            line-height: 1.7;
+            color: #CBD5E1;
+            white-space: pre-wrap;
+        }
+
+        input[type="file"] { display: none; }
+    </style>
+</head>
+<body>
+
+    <header class="top-navbar">
+        <div class="brand-title">
+            <span>MFU Kok Water Watch</span>
+            <span class="brand-badge">22 Slides • พร้อมช่องใส่ภาพ</span>
+            <span style="font-size: 13px; color: #94A3B8; font-weight: normal;">เนื้อหาใหม่เจาะลึกระบบ</span>
+        </div>
+        <div class="nav-controls">
+            <span class="slide-counter" id="slideCounter">1 / 22</span>
+            <button class="btn-nav" onclick="changeSlide(-1)">◀ ก่อนหน้า</button>
+            <button class="btn-nav" onclick="changeSlide(1)">ถัดไป ▶</button>
+            <button class="btn-nav btn-notes" onclick="toggleNotes()">🎙️ คำพูดผู้บรรยาย</button>
+        </div>
+    </header>
+
+    <main class="stage-container">
+        <div class="slide-deck" id="slideDeck">
+            
+        <div class="slide-view active" data-notes="สวัสดีครับทุกท่าน... วันนี้ขอแนะนำระบบ MFU Kok Water Watch แพลตฟอร์มนวัตกรรมเพื่อการเฝ้าระวังคุณภาพน้ำและเตือนภัยลุ่มน้ำกก ที่พัฒนาขึ้นโดยมหาวิทยาลัยแม่ฟ้าหลวง ร่วมกับภาคีสนับสนุนระดับสากล ระบบนี้ถูกสร้างขึ้นมาเพื่อแก้ปัญหาคอขวดของชุมชนริมน้ำกก ที่ต้องเผชิญกับความเสี่ยงเรื่องสารเคมีปนเปื้อนในแม่น้ำและภัยพิบัติน้ำหลาก โดยเชื่อมต่อข้อมูลจากระดับแปลงเกษตรกรรมขึ้นสู่ระบบสารสนเทศทางภูมิศาสตร์และการวิจัยระดับสูงแบบครบวงจรครับ">
+            <div class="content-header">
+                <span class="header-badge">ระบบเฝ้าระวังคุณภาพน้ำและเตือนภัยลุ่มน้ำกก • มหาวิทยาลัยแม่ฟ้าหลวง</span>
+                <div class="header-title-group">
+                    <h2>MFU Kok Water Watch</h2>
+                    <div class="header-subtitle">แพลตฟอร์มบูรณาการข้อมูลคุณภาพน้ำ การจัดการภัยพิบัติ และการมีส่วนร่วมของชุมชน</div>
+                </div>
+            </div>
+            <div class="content-body">
+                <div class="left-info-panel">
+                    <div class="section-box mech">
+                        <h3>💡 สถาปัตยกรรมและกลไกระบบ</h3>
+                        <p class="section-desc">ระบบดิจิทัลเชื่อมโยงชาวบ้าน เกษตรกร อาสาสมัคร และทีมนักวิจัย 4 ชุมชนนำร่องลุ่มน้ำกก (ท่าตอน, รวมมิตร, ปงของ, ปากอิงใต้) เพื่อการตัดสินใจสูบน้ำเข้านาและการอพยพหนีภัยอย่างแม่นยำ ปลอดภัย และยั่งยืน</p>
+                    </div>
+                    <div class="section-box">
+                        <h3>⚙️ ทูลและฟังก์ชันเด่นบนหน้านี้</h3>
+                        <ul class="bullet-list">
+                            
+                        </ul>
+                    </div>
+                    <div class="section-box impact">
+                        <h3>🌾 ประโยชน์ต่อการใช้งานจริง</h3>
+                        <ul class="bullet-list impact">
+                            
+                        </ul>
+                    </div>
+                </div>
+                <div class="right-placeholder-panel" onclick="triggerUpload(this)">
+                    <div class="placeholder-icon">📷</div>
+                    <div class="placeholder-title">📷 ภาพหน้าปก / แผนที่ภาพรวมลุ่มน้ำกก</div>
+                    <div class="placeholder-rec">ภาพที่แนะนำ: hero-cover.png หรือ ภาพรวมแม่น้ำกกและชุมชน</div>
+                    <div class="placeholder-focus">จุดสังเกตสำคัญ: ภาพมุมกว้างของแม่น้ำกก ชุมชนเกษตรกรรม และโลโก้โครงการ มฟล.</div>
+                    <div class="placeholder-aspect">ขนาด: 16:9 แนวนอน</div>
+                    <button type="button" class="placeholder-btn">📁 คลิกเพื่อเลือกรูปภาพจากเครื่องมาใส่ช่องนี้</button>
+                    <div class="preview-img-container">
+                        <img src="" alt="User uploaded preview">
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+
+        <div class="slide-view " data-notes="สถาปัตยกรรมของ MFU Kok Water Watch ถูกแบ่งออกเป็น 2 เสาหลักครับ เสาแรกคือ 'หน้าบ้าน' สำหรับเกษตรกรและประชาชนทั่วไป ออกแบบให้เปิดใช้งานได้สะดวกรวดเร็วบนสมาร์ทโฟน ไม่ต้องลงทะเบียนหรือล็อกอินให้ยุ่งยาก ส่วนเสาที่สองคือ 'หลังบ้าน' สำหรับทีมนักวิจัย มฟล. ฝ่ายปกครอง และ อบต. ซึ่งเป็นศูนย์บัญชาการข้อมูล มีระบบคัดกรองผลตรวจ เครื่องมือวาดเส้นทางอพยพ และการออกรายงานเชิงลึก ครอบคลุมพื้นที่ 4 ชุมชนตั้งแต่ต้นน้ำจรดปลายน้ำครับ">
+            <div class="content-header">
+                <span class="header-badge">ARCHITECTURE • สถาปัตยกรรมระบบ</span>
+                <div class="header-title-group">
+                    <h2>โครงสร้างและสถาปัตยกรรมระบบ MFU Kok Water Watch</h2>
+                    <div class="header-subtitle">บูรณาการ 2 ฝั่งผู้ใช้งาน: 'หน้าบ้าน (User)' และ 'หลังบ้าน (Admin)' ใน 4 ชุมชนเป้าหมาย</div>
+                </div>
+            </div>
+            <div class="content-body">
+                <div class="left-info-panel">
+                    <div class="section-box mech">
+                        <h3>💡 สถาปัตยกรรมและกลไกระบบ</h3>
+                        <p class="section-desc">โครงสร้างระบบถูกออกแบบเป็น Single Page Application (SPA) บน Nuxt/Vue ร่วมกับ Leaflet GIS และ REST API เซิร์ฟเวอร์เลส รองรับการทำงานแบบออฟไลน์ชั่วขณะในพื้นที่หุบเขา</p>
+                    </div>
+                    <div class="section-box">
+                        <h3>⚙️ ทูลและฟังก์ชันเด่นบนหน้านี้</h3>
+                        <ul class="bullet-list">
+                            <li>ฝั่งหน้าบ้าน (Citizen & Farmer View): เข้าถึงง่าย ไม่ต้องล็อกอิน ดูแผนที่สารเคมี สถิติ ข่าวเตือนภัย และส่งแบบสำรวจได้ทันที</li><li>ฝั่งหลังบ้าน (Admin Command Center): ระบบคัดกรองผลตรวจน้ำ, เครื่องมือวาดเส้นทางอพยพ, จัดทำแผนที่พิมพ์ A0/A3, และ Live Analytics</li><li>4 ชุมชนนำร่องต้นน้ำ-ปลายน้ำ: บ้านท่าตอน (เชียงใหม่), บ้านรวมมิตร, บ้านปงของ, และบ้านปากอิงใต้ (เชียงราย)</li>
+                        </ul>
+                    </div>
+                    <div class="section-box impact">
+                        <h3>🌾 ประโยชน์ต่อการใช้งานจริง</h3>
+                        <ul class="bullet-list impact">
+                            <li>สร้างความปลอดภัยให้แก่ชาวนาและประชาชนริมน้ำกว่าหลายพันครัวเรือน</li><li>ลดระยะเวลาการเตือนภัยจากหลักวันเหลือเพียงไม่กี่นาทีผ่านระบบดิจิทัล</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="right-placeholder-panel" onclick="triggerUpload(this)">
+                    <div class="placeholder-icon">📷</div>
+                    <div class="placeholder-title">📷 ไดอะแกรมสถาปัตยกรรมระบบ (System Architecture Diagram)</div>
+                    <div class="placeholder-rec">ภาพที่แนะนำ: system-architecture.png หรือ ภาพผังสถาปัตยกรรม MFU Kok Water Watch</div>
+                    <div class="placeholder-focus">จุดสังเกตสำคัญ: ผังเชื่อมต่อระหว่าง User View, Admin View, Database, และ 4 ชุมชนเป้าหมาย</div>
+                    <div class="placeholder-aspect">ขนาด: 16:9 แนวนอน (1440x900 px)</div>
+                    <button type="button" class="placeholder-btn">📁 คลิกเพื่อเลือกรูปภาพจากเครื่องมาใส่ช่องนี้</button>
+                    <div class="preview-img-container">
+                        <img src="" alt="User uploaded preview">
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+
+        <div class="slide-view " data-notes="หน้าจอโหลดดิ้งไม่ใช่แค่ภาพคั่นเวลาครับ... แต่เป็นส่วนสำคัญในการรองรับความไม่แน่นอนของสัญญาณอินเทอร์เน็ตในพื้นที่หุบเขาภาคเหนือ ระบบจะเฝ้าดูความเร็วในการเชื่อมต่อ หากพบว่าเน็ตช้าผิดปกติ จะแสดงทางเลือกให้ชาวบ้านกดข้ามไปยังหน้าเลือกชุมชนได้ทันทีโดยไม่ต้องทนรอ ทำให้ผู้ใช้งานไม่รู้สึกหงุดหงิด และเข้าถึงข้อมูลเตือนภัยได้แม้ในสภาวะคับขันครับ">
+            <div class="content-header">
+                <span class="header-badge">SYSTEM S0 • หน้าจอโหลดระบบ</span>
+                <div class="header-title-group">
+                    <h2>ระบบโหลดอัจฉริยะและการเชื่อมต่อข้อมูลสด (Loading Screen)</h2>
+                    <div class="header-subtitle">ก้าวแรกสู่การดึงพิกัดดาวเทียมและผลตรวจจากห้องแล็บเข้าสู่มือถือชาวบ้าน</div>
+                </div>
+            </div>
+            <div class="content-body">
+                <div class="left-info-panel">
+                    <div class="section-box mech">
+                        <h3>💡 สถาปัตยกรรมและกลไกระบบ</h3>
+                        <p class="section-desc">คอมโพเนนต์ KokLoadingScreen.vue มีระบบตรวจสอบสถานะเน็ต (Network Health Check) หากเชื่อมต่อช้ากว่าเกณฑ์ จะสลับเข้าสู่โหมด Fallback เพื่อไม่ให้ค้างหน้าจอ</p>
+                    </div>
+                    <div class="section-box">
+                        <h3>⚙️ ทูลและฟังก์ชันเด่นบนหน้านี้</h3>
+                        <ul class="bullet-list">
+                            <li>มาสคอต มฟล. นำทาง: มาสคอตเคลื่อนไหวนุ่มนวล (Bobbing) สร้างความเป็นมิตร</li><li>Live Data Bar: แสดงสถานะการซิงค์ข้อมูลจุดตรวจสารเคมีและพิกัดแผนที่</li><li>Slow Network Fallback: ปุ่ม 'ลองใหม่' และ 'ข้ามไปเลือกพื้นที่ก่อน' เมื่อเน็ตสัญญาณต่ำ</li><li>ตราสัญลักษณ์ผู้สนับสนุน: Australian Aid, SDC, Oxfam, และมหาวิทยาลัยแม่ฟ้าหลวง</li>
+                        </ul>
+                    </div>
+                    <div class="section-box impact">
+                        <h3>🌾 ประโยชน์ต่อการใช้งานจริง</h3>
+                        <ul class="bullet-list impact">
+                            <li>เข้าถึงได้รวดเร็วแม้เปิดใช้งานกลางทุ่งนาที่มีสัญญาณโทรศัพท์จำกัด</li><li>สร้างความโปร่งใสและน่าเชื่อถือด้วยมาตรฐานภาคีวิจัยระดับสากล</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="right-placeholder-panel" onclick="triggerUpload(this)">
+                    <div class="placeholder-icon">📷</div>
+                    <div class="placeholder-title">[ ช่องสำหรับใส่ภาพหน้าจอระบบ ]</div>
+                    <div class="placeholder-rec">ภาพที่แนะนำ: </div>
+                    <div class="placeholder-focus">จุดสังเกตสำคัญ: </div>
+                    <div class="placeholder-aspect">ขนาด: 16:9 แนวนอน</div>
+                    <button type="button" class="placeholder-btn">📁 คลิกเพื่อเลือกรูปภาพจากเครื่องมาใส่ช่องนี้</button>
+                    <div class="preview-img-container">
+                        <img src="" alt="User uploaded preview">
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+
+        <div class="slide-view " data-notes="นี่คือหน้าจอที่มีผู้เข้าใช้งานมากที่สุดครับ... 'แผนที่สารเคมีปนเปื้อน' ตอบโจทย์คำถามสำคัญของชาวนาในทุกเช้าว่า 'น้ำกกหน้าแปลงวันนี้ ปลอดภัยพอจะสูบเข้านาหรือยัง?' ด้วยการแสดงหมุดสี 9 ระดับที่อ่านง่าย สีเขียวคือสูบได้ทันที สีส้มหรือสีแดงคือควรชะลอไว้ก่อน พร้อมตัวกรองเวลาที่เลือกดูย้อนหลังได้ถึง 30 วัน ช่วยให้เกษตรกรบริหารจัดการน้ำต้นทุนได้อย่างมั่นใจครับ">
+            <div class="content-header">
+                <span class="header-badge">USER 01 • หน้าผู้ใช้งาน</span>
+                <div class="header-title-group">
+                    <h2>แผนที่สารเคมีปนเปื้อน (Chemical Contamination Map)</h2>
+                    <div class="header-subtitle">รู้ทันคุณภาพน้ำหน้าบ้าน • ตัดสินใจสูบน้ำเข้านาได้ทันที</div>
+                </div>
+            </div>
+            <div class="content-body">
+                <div class="left-info-panel">
+                    <div class="section-box mech">
+                        <h3>💡 สถาปัตยกรรมและกลไกระบบ</h3>
+                        <p class="section-desc">แผนที่แบบโต้ตอบ (Interactive Leaflet Map) คำนวณคลัสเตอร์จุดตรวจด้วย Haversine Formula รัศมี 250 เมตร เพื่อความลื่นไหลและไม่บดบังมุมมองแปลงเกษตร</p>
+                    </div>
+                    <div class="section-box">
+                        <h3>⚙️ ทูลและฟังก์ชันเด่นบนหน้านี้</h3>
+                        <ul class="bullet-list">
+                            <li>ตัวเลือก 4 ชุมชนนำร่อง: สลับดูบ้านท่าตอน, บ้านรวมมิตร, บ้านปงของ, บ้านปากอิงใต้</li><li>แถบกรองเวลา (Time Range): เลือกดูผลตรวจ 24 ชั่วโมง, 7 วัน, 30 วัน หรือทั้งหมด</li><li>หมุดสี 9 ระดับ: เขียวชอุ่ม (<5 ppb ปลอดภัย), เหลือง-ส้ม (เฝ้าระวัง), แดง (>50 ppb วิกฤต)</li><li>การ์ดคำแนะนำเกษตรกร: ป้ายแจ้งชัดเจนว่าสูบน้ำเข้านาได้ทันที หรือควรชะลอการใช้น้ำ</li>
+                        </ul>
+                    </div>
+                    <div class="section-box impact">
+                        <h3>🌾 ประโยชน์ต่อการใช้งานจริง</h3>
+                        <ul class="bullet-list impact">
+                            <li>ชาวนาไม่ต้องเสี่ยงสูบน้ำปนเปื้อนสารหนูเข้านาข้าว ช่วยปกป้องดินและผลผลิต</li><li>กรองดูสถานการณ์สดๆ ย้อนหลัง 7 วันเพื่อวางแผนรอบการเพาะปลูกได้แม่นยำ</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="right-placeholder-panel" onclick="triggerUpload(this)">
+                    <div class="placeholder-icon">📷</div>
+                    <div class="placeholder-title">[ ช่องสำหรับใส่ภาพหน้าจอระบบ ]</div>
+                    <div class="placeholder-rec">ภาพที่แนะนำ: </div>
+                    <div class="placeholder-focus">จุดสังเกตสำคัญ: </div>
+                    <div class="placeholder-aspect">ขนาด: 16:9 แนวนอน</div>
+                    <button type="button" class="placeholder-btn">📁 คลิกเพื่อเลือกรูปภาพจากเครื่องมาใส่ช่องนี้</button>
+                    <div class="preview-img-container">
+                        <img src="" alt="User uploaded preview">
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+
+        <div class="slide-view " data-notes="เมื่อคลิกที่หมุดใดหมุดหนึ่งบนแผนที่ หน้าต่างเจาะลึกสถานีตรวจจะปรากฏขึ้นมาครับ... ความโปร่งใสคือหัวใจของระบบนี้ ชาวบ้านไม่ได้เห็นแค่ตัวเลขสรุป แต่เห็นประวัติย้อนหลังหลายสัปดาห์ และที่สำคัญที่สุดคือเห็นภาพถ่ายชุดตรวจจริงที่อาสาสมัครถ่ายมาจากริมตลิ่ง ยืนยันความน่าเชื่อถือว่าข้อมูลนี้มาจากหยาดเหงื่อและการลงพื้นที่ตรวจจริง ไม่ใช่การนั่งเทียนเขียนขึ้นมาครับ">
+            <div class="content-header">
+                <span class="header-badge">USER 02 • หน้าผู้ใช้งาน</span>
+                <div class="header-title-group">
+                    <h2>เจาะลึกสถานีตรวจและประวัติย้อนหลัง (Water Station Detail)</h2>
+                    <div class="header-subtitle">โปร่งใส ตรวจสอบย้อนหลังได้ทุกหยด พร้อมภาพถ่ายชุดตรวจจริงริมตลิ่ง</div>
+                </div>
+            </div>
+            <div class="content-body">
+                <div class="left-info-panel">
+                    <div class="section-box mech">
+                        <h3>💡 สถาปัตยกรรมและกลไกระบบ</h3>
+                        <p class="section-desc">ดึงประวัติการตรวจในคลัสเตอร์พิกัดเดียวกันมาสร้างกราฟแนวโน้มสารหนู พร้อมแสดงรูปถ่ายแผ่นเทียบสีที่อาสาสมัครส่งมาจากริมน้ำกกโดยตรง</p>
+                    </div>
+                    <div class="section-box">
+                        <h3>⚙️ ทูลและฟังก์ชันเด่นบนหน้านี้</h3>
+                        <ul class="bullet-list">
+                            <li>ป้ายมาตรฐานกรมควบคุมมลพิษ (คพ.): เทียบเกณฑ์ปลอดภัย (<5 ppb) หรือเกินเกณฑ์ (>10 ppb)</li><li>พิกัดและชื่อท่าน้ำ: ระบุชื่อท่าน้ำ ท่าสูบน้ำ หรือจุดวัดระดับน้ำอย่างชัดเจน</li><li>ประวัติผลตรวจย้อนหลัง: กราฟแท่งและตารางความเข้มข้นสารหนู 5-10 ครั้งล่าสุด</li><li>ภาพถ่ายชุดตรวจภาคสนาม (Field Test Strip): ตรวจสอบรูปถ่ายแถบเทียบสีจริงเพื่อความโปร่งใส</li>
+                        </ul>
+                    </div>
+                    <div class="section-box impact">
+                        <h3>🌾 ประโยชน์ต่อการใช้งานจริง</h3>
+                        <ul class="bullet-list impact">
+                            <li>เกษตรกรเห็นความเปลี่ยนแปลงของสารเคมีในจุดเดิม ช่วยให้เข้าใจพฤติกรรมสายน้ำ</li><li>ผู้นำชุมชนสามารถนำข้อมูลนี้ไปฉายแสดงในที่ประชุมศาลาหมู่บ้านเพื่อยืนยันข้อเท็จจริง</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="right-placeholder-panel" onclick="triggerUpload(this)">
+                    <div class="placeholder-icon">📷</div>
+                    <div class="placeholder-title">[ ช่องสำหรับใส่ภาพหน้าจอระบบ ]</div>
+                    <div class="placeholder-rec">ภาพที่แนะนำ: </div>
+                    <div class="placeholder-focus">จุดสังเกตสำคัญ: </div>
+                    <div class="placeholder-aspect">ขนาด: 16:9 แนวนอน</div>
+                    <button type="button" class="placeholder-btn">📁 คลิกเพื่อเลือกรูปภาพจากเครื่องมาใส่ช่องนี้</button>
+                    <div class="preview-img-container">
+                        <img src="" alt="User uploaded preview">
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+
+        <div class="slide-view " data-notes="เครื่องมือนี้เปลี่ยนบทบาทของชาวบ้านจาก 'ผู้รับผลกระทบ' มาเป็น 'ผู้ตรวจการสายน้ำ' ด้วยตนเองครับ เพียงนำชุดทดสอบไปจุ่มน้ำกกหน้าบ้าน กดปุ่มจับพิกัดดาวเทียม เลือกเฉดสีที่ตรงกับแถบทดสอบ ถ่ายรูปแนบ แล้วกดส่ง ข้อมูลจะวิ่งเข้าสู่ฐานข้อมูลกลางของมหาวิทยาลัยทันที และหากพบค่าสูงผิดปกติ ระบบจะกักไว้ให้นักวิจัยตรวจทานซ้ำก่อน ป้องกันการตื่นตระหนกโดยไม่จำเป็นครับ">
+            <div class="content-header">
+                <span class="header-badge">USER 03 • หน้าผู้ใช้งาน</span>
+                <div class="header-title-group">
+                    <h2>ระบบรับรายงานผลตรวจน้ำภาคสนาม (Citizen Science Survey)</h2>
+                    <div class="header-subtitle">พลังวิทยาศาสตร์พลเมือง • ทุกคนร่วมเป็นผู้พิทักษ์สายน้ำกก</div>
+                </div>
+            </div>
+            <div class="content-body">
+                <div class="left-info-panel">
+                    <div class="section-box mech">
+                        <h3>💡 สถาปัตยกรรมและกลไกระบบ</h3>
+                        <p class="section-desc">ฟอร์มรับข้อมูลที่เชื่อมต่อกับ GPS ของอุปกรณ์เคลื่อนที่ พร้อมกลไกความปลอดภัย Safety Gate กักตรวจผลที่มีค่าสารหนูสูงกว่า 50 ppb ก่อนเผยแพร่</p>
+                    </div>
+                    <div class="section-box">
+                        <h3>⚙️ ทูลและฟังก์ชันเด่นบนหน้านี้</h3>
+                        <ul class="bullet-list">
+                            <li>ปุ่มระบุพิกัดดาวเทียมอัตโนมัติ (Auto-GPS): ดึงค่าละติจูด-ลองจิจูดริมน้ำกกในคลิกเดียว</li><li>ตัวเลือกค่ามาตรฐานสารหนู: เทียบแถบสี 0, 5, 10, 25, 50, 100, 200, 500 ppb</li><li>ช่องแนบรูปถ่ายหลักฐาน: บังคับถ่ายภาพแผ่นเทียบสีเพื่อให้นักวิจัย มฟล. ตรวจทาน</li><li>ด่านตรวจค่าวิกฤต (>50 ppb): สกัดผลตรวจค่าสูงผิดปกติเข้าคิวตรวจสอบของแอดมินทันที</li>
+                        </ul>
+                    </div>
+                    <div class="section-box impact">
+                        <h3>🌾 ประโยชน์ต่อการใช้งานจริง</h3>
+                        <ul class="bullet-list impact">
+                            <li>อาสาสมัครและชาวบ้านส่งผลตรวจน้ำได้ภายในเวลาไม่ถึง 1 นาที</li><li>ขยายพื้นที่เฝ้าระวังคุณภาพน้ำครอบคลุมตลอดลำน้ำในต้นทุนที่ต่ำและรวดเร็ว</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="right-placeholder-panel" onclick="triggerUpload(this)">
+                    <div class="placeholder-icon">📷</div>
+                    <div class="placeholder-title">[ ช่องสำหรับใส่ภาพหน้าจอระบบ ]</div>
+                    <div class="placeholder-rec">ภาพที่แนะนำ: </div>
+                    <div class="placeholder-focus">จุดสังเกตสำคัญ: </div>
+                    <div class="placeholder-aspect">ขนาด: 16:9 แนวนอน</div>
+                    <button type="button" class="placeholder-btn">📁 คลิกเพื่อเลือกรูปภาพจากเครื่องมาใส่ช่องนี้</button>
+                    <div class="preview-img-container">
+                        <img src="" alt="User uploaded preview">
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+
+        <div class="slide-view " data-notes="หน้านี้ออกแบบมาเพื่อผู้นำชุมชน กำนัน ผู้ใหญ่บ้าน และเจ้าหน้าที่ อบต. ที่ต้องการมองภาพรวมทั้งหมดของลุ่มน้ำครับ กราฟและสถิติจะฉายให้เห็นชัดเจนว่าในรอบสัปดาห์ที่ผ่านมา มีสัดส่วนน้ำปลอดภัยกี่เปอร์เซ็นต์ และมีสัญญาณเตือนว่าสารเคมีจากต้นน้ำกำลังไหลหลากลงมาหรือไม่ ทำให้สามารถวางแผนการบริหารจัดการน้ำระดับตำบลได้อย่างมีประสิทธิภาพครับ">
+            <div class="content-header">
+                <span class="header-badge">USER 04 • หน้าผู้ใช้งาน</span>
+                <div class="header-title-group">
+                    <h2>สรุปภาพรวมและสถิติคุณภาพน้ำ (Analytics Summary)</h2>
+                    <div class="header-subtitle">เข้าใจภาพรวมสุขภาพลุ่มน้ำ • วางแผนรับมือน้ำหลากล่วงหน้า</div>
+                </div>
+            </div>
+            <div class="content-body">
+                <div class="left-info-panel">
+                    <div class="section-box mech">
+                        <h3>💡 สถาปัตยกรรมและกลไกระบบ</h3>
+                        <p class="section-desc">ประมวลผลสถิติแบบ Aggregation จากฐานข้อมูลสด จำแนกตามมาตรฐาน คพ. และคำนวณแนวโน้มเปรียบเทียบตามช่วงเวลา</p>
+                    </div>
+                    <div class="section-box">
+                        <h3>⚙️ ทูลและฟังก์ชันเด่นบนหน้านี้</h3>
+                        <ul class="bullet-list">
+                            <li>การ์ดสรุป 3 ระดับความปลอดภัย: ปลอดภัย (<5 ppb), เฝ้าระวัง (5-10 ppb), เกินเกณฑ์ คพ. (>10 ppb)</li><li>กราฟการกระจายตัวของสารเคมี: แสดงสัดส่วนน้ำในแต่ละตำบลและแหล่งน้ำต้นทุน</li><li>ดัชนีแนวโน้ม (Trend Indicator): เปรียบเทียบสัปดาห์ปัจจุบันกับช่วงฝนตกชุก</li><li>สวิตช์เปรียบเทียบพื้นที่: วิเคราะห์ความแตกต่างระหว่างพื้นที่ต้นน้ำและปลายน้ำ</li>
+                        </ul>
+                    </div>
+                    <div class="section-box impact">
+                        <h3>🌾 ประโยชน์ต่อการใช้งานจริง</h3>
+                        <ul class="bullet-list impact">
+                            <li>ผู้นำชุมชนและ อบต. ได้ข้อมูลเชิงสถิติที่ชัดเจนเพื่อใช้ในการออกนโยบายช่วยเหลือ</li><li>แจ้งเตือนเสียงตามสายในหมู่บ้านได้อย่างทันท่วงทีก่อนที่มวลน้ำหลากจะมาถึง</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="right-placeholder-panel" onclick="triggerUpload(this)">
+                    <div class="placeholder-icon">📷</div>
+                    <div class="placeholder-title">[ ช่องสำหรับใส่ภาพหน้าจอระบบ ]</div>
+                    <div class="placeholder-rec">ภาพที่แนะนำ: </div>
+                    <div class="placeholder-focus">จุดสังเกตสำคัญ: </div>
+                    <div class="placeholder-aspect">ขนาด: 16:9 แนวนอน</div>
+                    <button type="button" class="placeholder-btn">📁 คลิกเพื่อเลือกรูปภาพจากเครื่องมาใส่ช่องนี้</button>
+                    <div class="preview-img-container">
+                        <img src="" alt="User uploaded preview">
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+
+        <div class="slide-view " data-notes="เทคโนโลยีจะไร้ความหมายหากชาวบ้านไม่เข้าใจวิธีปฏิบัติตัวครับ... หน้าห้องเรียนดิจิทัลนี้จึงทำหน้าที่เหมือน 'หมอสายน้ำประจำหมู่บ้าน' เรามีคลิปวิดีโอสั้นๆ สอนวิธีสังเกตน้ำ วิธีล้างผักที่ปลูกริมน้ำกก และแนะนำให้ทำบ่อพักน้ำตกตะกอนก่อนสูบเข้านา เพื่อให้วิทยาศาสตร์กลายเป็นเกราะคุ้มกันสุขภาพของคนในชุมชนอย่างแท้จริงครับ">
+            <div class="content-header">
+                <span class="header-badge">USER 05 • หน้าผู้ใช้งาน</span>
+                <div class="header-title-group">
+                    <h2>ห้องเรียนดิจิทัลและคู่มือเกษตรกร (Guide & Tutorial)</h2>
+                    <div class="header-subtitle">เสริมภูมิคุ้มกันความรู้ • ใช้น้ำอย่างมั่นใจและถูกสุขอนามัย</div>
+                </div>
+            </div>
+            <div class="content-body">
+                <div class="left-info-panel">
+                    <div class="section-box mech">
+                        <h3>💡 สถาปัตยกรรมและกลไกระบบ</h3>
+                        <p class="section-desc">คลังมัลติมีเดียที่บรรจุวิดีโอคลิปสั้น การ์ดอินโฟกราฟิก และคำถามพบบ่อย (FAQ) ถอดบทเรียนจากงานวิจัย มฟล. สู่ภาษาชาวบ้านที่เข้าใจง่าย</p>
+                    </div>
+                    <div class="section-box">
+                        <h3>⚙️ ทูลและฟังก์ชันเด่นบนหน้านี้</h3>
+                        <ul class="bullet-list">
+                            <li>วิดีโอสอนการใช้งาน 3 นาที: ภาษาชาวบ้าน เข้าใจง่าย ไม่ใช้นิยามเคมีซับซ้อน</li><li>การ์ดถอดรหัสสารหนู (Arsenic Decoded): บอกที่มา ผลกระทบต่อสุขภาพ และวิธีเลี่ยง</li><li>คำแนะนำวิธีจัดการน้ำ: การทำบ่อพักน้ำตกตะกอนก่อนสูบเข้านา และวิธีล้างผักสด</li><li>ช่องทางปรึกษาด่วนทีมวิจัย มฟล.: ส่งคำถามตรงถึงทีมนักวิทยาศาสตร์ของมหาวิทยาลัย</li>
+                        </ul>
+                    </div>
+                    <div class="section-box impact">
+                        <h3>🌾 ประโยชน์ต่อการใช้งานจริง</h3>
+                        <ul class="bullet-list impact">
+                            <li>ลดช่องว่างทางดิจิทัล ผู้สูงอายุและเกษตรกรสามารถเรียนรู้วิธีป้องกันตัวได้เอง</li><li>ยกระดับความปลอดภัยทางสุขอนามัยและลดการสะสมของโลหะหนักในร่างกาย</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="right-placeholder-panel" onclick="triggerUpload(this)">
+                    <div class="placeholder-icon">📷</div>
+                    <div class="placeholder-title">[ ช่องสำหรับใส่ภาพหน้าจอระบบ ]</div>
+                    <div class="placeholder-rec">ภาพที่แนะนำ: </div>
+                    <div class="placeholder-focus">จุดสังเกตสำคัญ: </div>
+                    <div class="placeholder-aspect">ขนาด: 16:9 แนวนอน</div>
+                    <button type="button" class="placeholder-btn">📁 คลิกเพื่อเลือกรูปภาพจากเครื่องมาใส่ช่องนี้</button>
+                    <div class="preview-img-container">
+                        <img src="" alt="User uploaded preview">
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+
+        <div class="slide-view " data-notes="เมื่อเกิดเหตุน้ำหลากฉับพลันในลุ่มน้ำกก ความสูญเสียมักเกิดจากความไม่รู้ว่าจะต้องหนีไปทางไหน... แผนที่อพยพนี้จึงถูกออกแบบมาเพื่อชี้ทางรอดให้แก่ทุกคนครับ เราแสดงจุดรวมพล ศูนย์พักพิงที่เปิดรับได้ และเส้นทางที่ไม่ถูกน้ำตัดขาด พร้อมทั้งบอกว่าบ้านไหนมีผู้ป่วยติดเตียงที่ต้องส่งเรือไปช่วยก่อน ทำให้การอพยพเป็นไปอย่างมีระเบียบและปลอดภัยครับ">
+            <div class="content-header">
+                <span class="header-badge">USER 06 • หน้าผู้ใช้งาน</span>
+                <div class="header-title-group">
+                    <h2>แผนที่ความเสี่ยงและเส้นทางอพยพ (Evacuation & Safe Route)</h2>
+                    <div class="header-subtitle">เกราะคุ้มกันชีวิตเมื่อภัยมา • ไม่มีใครถูกทิ้งไว้ข้างหลัง</div>
+                </div>
+            </div>
+            <div class="content-body">
+                <div class="left-info-panel">
+                    <div class="section-box mech">
+                        <h3>💡 สถาปัตยกรรมและกลไกระบบ</h3>
+                        <p class="section-desc">แผนที่แสดงชั้นข้อมูลเส้นทางปลอดภัย จุดรวมพล และศูนย์พักพิง พร้อมเชื่อมโยงกับฐานข้อมูลกลุ่มเปราะบางเพื่อการกู้ภัยฉุกเฉิน</p>
+                    </div>
+                    <div class="section-box">
+                        <h3>⚙️ ทูลและฟังก์ชันเด่นบนหน้านี้</h3>
+                        <ul class="bullet-list">
+                            <li>สัญลักษณ์ศูนย์พักพิงและจุดรวมพล: วัด ศาลาประชาคม โรงเรียนบนที่ดอน พร้อมเบอร์ติดต่อ</li><li>เส้นทางอพยพปลอดภัย: สำรวจแล้วว่าน้ำไม่ตัดขาด รถกู้ภัยและรถพยาบาลเข้าถึงได้</li><li>ระบบจำแนกบ้านกลุ่มเปราะบาง: ปักหมุดบ้านคนชราและผู้ป่วยติดเตียงที่ต้องการความช่วยเหลือด่วน</li><li>ปุ่มนำทางฉุกเฉิน: กดเพื่อชี้ทิศทางไปยังศูนย์พักพิงที่ใกล้ที่สุดทันที</li>
+                        </ul>
+                    </div>
+                    <div class="section-box impact">
+                        <h3>🌾 ประโยชน์ต่อการใช้งานจริง</h3>
+                        <ul class="bullet-list impact">
+                            <li>ชาวบ้านทราบจุดปลอดภัยและเส้นทางหนีน้ำล่วงหน้าก่อนที่กระแสน้ำจะทะลักเข้าท่วม</li><li>ชุดกู้ภัยและ อปพร. ประจำหมู่บ้านรู้พิกัดในการส่งเรือไปช่วยกลุ่มเปราะบางได้ทันที</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="right-placeholder-panel" onclick="triggerUpload(this)">
+                    <div class="placeholder-icon">📷</div>
+                    <div class="placeholder-title">[ ช่องสำหรับใส่ภาพหน้าจอระบบ ]</div>
+                    <div class="placeholder-rec">ภาพที่แนะนำ: </div>
+                    <div class="placeholder-focus">จุดสังเกตสำคัญ: </div>
+                    <div class="placeholder-aspect">ขนาด: 16:9 แนวนอน</div>
+                    <button type="button" class="placeholder-btn">📁 คลิกเพื่อเลือกรูปภาพจากเครื่องมาใส่ช่องนี้</button>
+                    <div class="preview-img-container">
+                        <img src="" alt="User uploaded preview">
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+
+        <div class="slide-view " data-notes="ในยุคข้อมูลข่าวสาร ข่าวลือเรื่องสารพิษมักแพร่กระจายเร็วกว่าความจริง... หน้านี้จึงเป็น 'กระบอกเสียงหลัก' ที่ชาวบ้านมั่นใจได้ 100% ทุกคำเตือนได้รับการรับรองจากอาจารย์ มฟล. หากมีสารเคมีรั่วไหล ระบบจะขึ้นแถบแดงเตือนทันที และสามารถกดแชร์เข้า LINE ให้พ่อหลวงเปิดหอกระจายข่าวประจำหมู่บ้านได้ในเสี้ยววินาทีครับ">
+            <div class="content-header">
+                <span class="header-badge">USER 07 • หน้าผู้ใช้งาน</span>
+                <div class="header-title-group">
+                    <h2>ศูนย์ข่าวสารเตือนภัยและกระจายข่าว LINE (Public Alerts)</h2>
+                    <div class="header-subtitle">เสียงเตือนภัยจากสายน้ำ • ข้อมูลจริง รวดเร็ว ตัดวงจรข่าวปลอม</div>
+                </div>
+            </div>
+            <div class="content-body">
+                <div class="left-info-panel">
+                    <div class="section-box mech">
+                        <h3>💡 สถาปัตยกรรมและกลไกระบบ</h3>
+                        <p class="section-desc">ระบบกระจายข่าวสารแบบ Multi-Channel ที่เชื่อมต่อกับ LINE Share API ช่วยให้ส่งต่อประกาศเตือนภัยทางการเข้ากลุ่มไลน์หมู่บ้านได้ทันที</p>
+                    </div>
+                    <div class="section-box">
+                        <h3>⚙️ ทูลและฟังก์ชันเด่นบนหน้านี้</h3>
+                        <ul class="bullet-list">
+                            <li>ป้ายระดับความเร่งด่วน: แถบสีแดง (ด่วนมาก), แถบสีส้ม (เตือนภัย), แถบสีเขียว (สาระน่ารู้)</li><li>ปุ่มแชร์เข้า LINE / Facebook: ส่งต่อเข้ากลุ่มไลน์ครอบครัวและกลุ่มหมู่บ้านใน 1 คลิก</li><li>ระบบตรวจทานที่มาข่าวสาร: ข้อมูลทุกชิ้นได้รับการยืนยันจากคณาจารย์ มฟล. และฝ่ายปกครอง</li><li>ตัวกรองหมวดหมู่ข่าว: กรองดูเฉพาะการเตือนภัยสารเคมี ข่าวน้ำท่วม หรือการแจกชุดตรวจ</li>
+                        </ul>
+                    </div>
+                    <div class="section-box impact">
+                        <h3>🌾 ประโยชน์ต่อการใช้งานจริง</h3>
+                        <ul class="bullet-list impact">
+                            <li>ระงับข่าวลือและการตื่นตระหนกในโซเชียลมีเดียด้วยข้อมูลวิทยาศาสตร์ที่ตรวจสอบแล้ว</li><li>ส่งสารเตือนภัยถึงมือถือชาวบ้านก่อนที่มวลน้ำปนเปื้อนจะไหลมาถึงแปลงเกษตร</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="right-placeholder-panel" onclick="triggerUpload(this)">
+                    <div class="placeholder-icon">📷</div>
+                    <div class="placeholder-title">[ ช่องสำหรับใส่ภาพหน้าจอระบบ ]</div>
+                    <div class="placeholder-rec">ภาพที่แนะนำ: </div>
+                    <div class="placeholder-focus">จุดสังเกตสำคัญ: </div>
+                    <div class="placeholder-aspect">ขนาด: 16:9 แนวนอน</div>
+                    <button type="button" class="placeholder-btn">📁 คลิกเพื่อเลือกรูปภาพจากเครื่องมาใส่ช่องนี้</button>
+                    <div class="preview-img-container">
+                        <img src="" alt="User uploaded preview">
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+
+        <div class="slide-view " data-notes="ข้ามมาฝั่งระบบหลังบ้านครับ... หน้าภาพรวมนี้เปรียบเสมือน 'หอบังคับการ' ของโครงการ เพียงคลิกเลือกชุมชนทางแถบซ้าย แผนที่จะกระโดดไปยังพิกัดจริงของหมู่บ้านนั้นทันที แอดมินสามารถตรวจสอบความพร้อมของข้อมูล ทั้งจุดตรวจน้ำ หมุดสถานที่ และเส้นทางอพยพ ทำให้การบริหารจัดการทั้ง 4 ชุมชนดำเนินไปอย่างเป็นระบบและไม่มีจุดบกพร่องครับ">
+            <div class="content-header">
+                <span class="header-badge">ADMIN 01 • ระบบจัดการแอดมิน</span>
+                <div class="header-title-group">
+                    <h2>ศูนย์บัญชาการข้อมูลลุ่มน้ำกก (Admin Command Center)</h2>
+                    <div class="header-subtitle">ตรวจความพร้อม 4 ชุมชนแบบเบ็ดเสร็จในหน้าจอเดียว</div>
+                </div>
+            </div>
+            <div class="content-body">
+                <div class="left-info-panel">
+                    <div class="section-box mech">
+                        <h3>💡 สถาปัตยกรรมและกลไกระบบ</h3>
+                        <p class="section-desc">แผงควบคุมหลักที่ซิงค์สถานะชุมชนแบบเรียลไทม์ผ่าน Dynamic Community Switcher เลื่อนจุดศูนย์กลางแผนที่และโหลดข้อมูลเฉพาะพื้นที่โดยอัตโนมัติ</p>
+                    </div>
+                    <div class="section-box">
+                        <h3>⚙️ ทูลและฟังก์ชันเด่นบนหน้านี้</h3>
+                        <ul class="bullet-list">
+                            <li>Sidebar สลับชุมชนไดนามิก: สลับระหว่างท่าตอน, ปงของ, รวมมิตร, ปากอิงใต้ แผนที่เลื่อนตามทันที</li><li>การ์ดเช็คความพร้อมข้อมูล (Data Readiness): ตรวจนับจุดตรวจ หมุดอพยพ และสถานที่สำคัญ</li><li>ปุ่มพรีวิวหน้าบ้าน: สลับไปดูมุมมองเดียวกับที่ชาวบ้านเห็นได้ในคลิกเดียว</li><li>ระบบตรวจสอบความปลอดภัยแอดมิน: แสดงสถานะการเข้าสู่ระบบที่ปลอดภัย</li>
+                        </ul>
+                    </div>
+                    <div class="section-box impact">
+                        <h3>🌾 ประโยชน์ต่อการใช้งานจริง</h3>
+                        <ul class="bullet-list impact">
+                            <li>ผู้ดูแลระบบและนักวิจัยสามารถควบคุมและตรวจสอบข้อมูลทั้ง 4 ชุมชนได้จากจุดเดียว</li><li>ทราบทันทีว่าชุมชนใดยังขาดข้อมูล ทำให้วางแผนลงพื้นที่เก็บข้อมูลเสริมได้อย่างตรงจุด</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="right-placeholder-panel" onclick="triggerUpload(this)">
+                    <div class="placeholder-icon">📷</div>
+                    <div class="placeholder-title">[ ช่องสำหรับใส่ภาพหน้าจอระบบ ]</div>
+                    <div class="placeholder-rec">ภาพที่แนะนำ: </div>
+                    <div class="placeholder-focus">จุดสังเกตสำคัญ: </div>
+                    <div class="placeholder-aspect">ขนาด: 16:9 แนวนอน</div>
+                    <button type="button" class="placeholder-btn">📁 คลิกเพื่อเลือกรูปภาพจากเครื่องมาใส่ช่องนี้</button>
+                    <div class="preview-img-container">
+                        <img src="" alt="User uploaded preview">
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+
+        <div class="slide-view " data-notes="แม่น้ำกกไม่ได้มีแค่เรื่องของสูตรเคมี... แต่แม่น้ำกกมีผู้คนและวัฒนธรรมที่หลากหลาย หน้านี้ช่วยให้แอดมินบันทึกข้อมูลเชิงลึกของแต่ละหมู่บ้าน ตั้งแต่พิกัดศูนย์กลาง ไปจนถึงวิถีการใช้น้ำ เช่น ชุมชนนี้ทำนาปรัง หรือชุมชนโน้นใช้น้ำจากลำห้วยสาขา ทำให้การแจ้งเตือนคุณภาพน้ำสอดคล้องกับความเป็นอยู่จริงของแต่ละพื้นที่อย่างแท้จริงครับ">
+            <div class="content-header">
+                <span class="header-badge">ADMIN 02 • ระบบจัดการแอดมิน</span>
+                <div class="header-title-group">
+                    <h2>ทะเบียนหมู่บ้านและบริบทชุมชน (Hamlet Registry & Profiles)</h2>
+                    <div class="header-subtitle">ผูกพันวิถีชุมชน • ผสานบริบทวัฒนธรรมและฐานข้อมูลเชิงพื้นที่</div>
+                </div>
+            </div>
+            <div class="content-body">
+                <div class="left-info-panel">
+                    <div class="section-box mech">
+                        <h3>💡 สถาปัตยกรรมและกลไกระบบ</h3>
+                        <p class="section-desc">ระบบจัดการข้อมูลเชิงพื้นที่ระดับหย่อมบ้าน (Hamlets) ที่เชื่อมโยงพิกัดทางภูมิศาสตร์เข้ากับฐานข้อมูลสังคมศาสตร์และวัฒนธรรมชุมชน</p>
+                    </div>
+                    <div class="section-box">
+                        <h3>⚙️ ทูลและฟังก์ชันเด่นบนหน้านี้</h3>
+                        <ul class="bullet-list">
+                            <li>ทะเบียนหมู่บ้านและหย่อมบ้าน: บันทึกรายชื่อหมู่บ้านในเขตรับผิดชอบอย่างครบถ้วน</li><li>เครื่องมือแก้ไขพิกัดศูนย์กลาง: ปักหมุดพิกัดจริงของหมู่บ้านเพื่อความแม่นยำของแผนที่</li><li>โปรไฟล์วิถีชีวิตชุมชน: บันทึกกลุ่มชาติพันธุ์ (ไทยวน, ลาหู่, อาข่า) อาชีพ และแหล่งน้ำต้นทุน</li><li>ระบบบันทึกและซิงค์คลาวด์: อัปเดตข้อมูลขึ้นระบบฐานข้อมูลกลางแบบเรียลไทม์</li>
+                        </ul>
+                    </div>
+                    <div class="section-box impact">
+                        <h3>🌾 ประโยชน์ต่อการใช้งานจริง</h3>
+                        <ul class="bullet-list impact">
+                            <li>เชื่อมโยงข้อมูลวิทยาศาสตร์เข้ากับบริบทวัฒนธรรมและวิถีชีวิตจริงของคนในพื้นที่</li><li>คำแนะนำเรื่องการใช้น้ำจะสอดคล้องกับพฤติกรรมจริงของชาวบ้านในแต่ละหย่อมบ้าน</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="right-placeholder-panel" onclick="triggerUpload(this)">
+                    <div class="placeholder-icon">📷</div>
+                    <div class="placeholder-title">[ ช่องสำหรับใส่ภาพหน้าจอระบบ ]</div>
+                    <div class="placeholder-rec">ภาพที่แนะนำ: </div>
+                    <div class="placeholder-focus">จุดสังเกตสำคัญ: </div>
+                    <div class="placeholder-aspect">ขนาด: 16:9 แนวนอน</div>
+                    <button type="button" class="placeholder-btn">📁 คลิกเพื่อเลือกรูปภาพจากเครื่องมาใส่ช่องนี้</button>
+                    <div class="preview-img-container">
+                        <img src="" alt="User uploaded preview">
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+
+        <div class="slide-view " data-notes="วิทยาศาสตร์พลเมืองต้องมาพร้อมกับความแม่นยำและความรับผิดชอบครับ... หน้านี้คือปราการด่านสำคัญที่สุด เมื่ออาสาสมัครส่งผลตรวจเข้ามา หากค่าปกติระบบจะแสดงผลทันที แต่หากพบค่าเกิน 50 ppb ระบบจะกักไว้ในหน้านี้ก่อน เพื่อให้อาจารย์นักวิจัยตรวจสอบรูปถ่ายแถบเทียบสี หากพบว่าสูงจริง จะอนุมัติเตือนภัยและส่งทีมลงไปเก็บตัวอย่างส่งแล็บใหญ่ทันทีครับ">
+            <div class="content-header">
+                <span class="header-badge">ADMIN 03 • ระบบจัดการแอดมิน</span>
+                <div class="header-title-group">
+                    <h2>ระบบคัดกรองผลตรวจน้ำและยกระดับแล็บ (Sample Moderation)</h2>
+                    <div class="header-subtitle">ความปลอดภัยสองชั้น • คัดกรองค่าวิกฤต (>50 ppb) ก่อนเผยแพร่</div>
+                </div>
+            </div>
+            <div class="content-body">
+                <div class="left-info-panel">
+                    <div class="section-box mech">
+                        <h3>💡 สถาปัตยกรรมและกลไกระบบ</h3>
+                        <p class="section-desc">ระบบ Moderation Queue อัตโนมัติที่สกัดตัวอย่างน้ำที่มีค่าสารหนูสูงเกินเกณฑ์ เพื่อให้นักวิจัย มฟล. ตรวจทานภาพถ่ายและยกระดับส่งตรวจห้องแล็บ</p>
+                    </div>
+                    <div class="section-box">
+                        <h3>⚙️ ทูลและฟังก์ชันเด่นบนหน้านี้</h3>
+                        <ul class="bullet-list">
+                            <li>คิวตรวจตัวอย่างเร่งด่วน: กรองเฉพาะผลตรวจที่มากกว่า 50 ppb โดยอัตโนมัติ</li><li>Side-by-side Strip Viewer: ตรวจเทียบรูปถ่ายแถบทดสอบกับแถบสีมาตรฐานเพื่อความแม่นยำ</li><li>ปุ่มอนุมัติเผยแพร่: ปล่อยหมุดขึ้นสู่แผนที่สาธารณะเมื่อตรวจสอบความถูกต้องเรียบร้อยแล้ว</li><li>ปุ่มยกระดับส่งแล็บ มฟล.: ประสานงานให้อาจารย์ลงพื้นที่เก็บตัวอย่างน้ำส่งตรวจเครื่อง ICP-MS</li>
+                        </ul>
+                    </div>
+                    <div class="section-box impact">
+                        <h3>🌾 ประโยชน์ต่อการใช้งานจริง</h3>
+                        <ul class="bullet-list impact">
+                            <li>ป้องกันข่าวลือและการตื่นตระหนกจากผลตรวจที่อาจเกิดความผิดพลาดของมนุษย์ (Human error)</li><li>เชื่อมโยงผลตรวจภาคสนามเข้าสู่การวิเคราะห์เชิงลึกระดับห้องปฏิบัติการมาตรฐานสากล</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="right-placeholder-panel" onclick="triggerUpload(this)">
+                    <div class="placeholder-icon">📷</div>
+                    <div class="placeholder-title">[ ช่องสำหรับใส่ภาพหน้าจอระบบ ]</div>
+                    <div class="placeholder-rec">ภาพที่แนะนำ: </div>
+                    <div class="placeholder-focus">จุดสังเกตสำคัญ: </div>
+                    <div class="placeholder-aspect">ขนาด: 16:9 แนวนอน</div>
+                    <button type="button" class="placeholder-btn">📁 คลิกเพื่อเลือกรูปภาพจากเครื่องมาใส่ช่องนี้</button>
+                    <div class="preview-img-container">
+                        <img src="" alt="User uploaded preview">
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+
+        <div class="slide-view " data-notes="ในหน้านี้ แอดมินสามารถคลิกลากเส้นทางอพยพบนแผนที่ดาวเทียมได้โดยตรงครับ หากสะพานไม้หมู่บ้านชำรุด ก็ปรับเส้นทางให้อ้อมเนินเขาแทน พร้อมทั้งจำแนกบ้านเรือนเป็น 5 กลุ่มความเปราะบาง โดยเฉพาะบ้านที่มีผู้ป่วยติดเตียง เพื่อให้ทีมกู้ภัยมีแผนที่ยุทธการในมือ รู้ทันทีว่าจะต้องส่งเรือไปช่วยบ้านหลังไหนก่อนเมื่อน้ำเริ่มหลากครับ">
+            <div class="content-header">
+                <span class="header-badge">ADMIN 04 • ระบบจัดการแอดมิน</span>
+                <div class="header-title-group">
+                    <h2>ระบบจัดการกลุ่มอพยพและวาดเส้นทาง (Evacuation Editor)</h2>
+                    <div class="header-subtitle">จัดทัพช่วยชีวิตรายหลังคาเรือน • ลากเส้นปลอดภัย ปกป้องกลุ่มเปราะบาง</div>
+                </div>
+            </div>
+            <div class="content-body">
+                <div class="left-info-panel">
+                    <div class="section-box mech">
+                        <h3>💡 สถาปัตยกรรมและกลไกระบบ</h3>
+                        <p class="section-desc">เครื่องมือแก้ไขแผนที่แบบโต้ตอบ (Interactive Route Drawing) พร้อมระบบจัดหมวดหมู่ความเปราะบางของครัวเรือน 5 ระดับ (Tier 1 ถึง Tier 5)</p>
+                    </div>
+                    <div class="section-box">
+                        <h3>⚙️ ทูลและฟังก์ชันเด่นบนหน้านี้</h3>
+                        <ul class="bullet-list">
+                            <li>ตัวกรองกลุ่มเปราะบาง 5 ระดับ: ระดับ 1 วิกฤตสูงสุด (มีผู้ป่วยติดเตียง) ถึงระดับ 5 บ้านปลอดภัย</li><li>เครื่องมือคลิกลากเส้นทาง (Interactive Draw): ลากเส้นทางอพยพเลี่ยงจุดเสี่ยงบนแผนที่ดาวเทียม</li><li>บัญชีครัวเรือนรายชุมชน: ค้นหาตามบ้านเลขที่และชื่อหัวหน้าครอบครัว</li><li>การ์ดสรุปยอดผู้ต้องการความช่วยเหลือ: คำนวณจำนวนคนที่ต้องเข้าศูนย์พักพิงในแต่ละหมู่บ้าน</li>
+                        </ul>
+                    </div>
+                    <div class="section-box impact">
+                        <h3>🌾 ประโยชน์ต่อการใช้งานจริง</h3>
+                        <ul class="bullet-list impact">
+                            <li>ปกป้องชีวิตกลุ่มเปราะบางที่สุดในชุมชนได้อย่างตรงเป้าหมายในชั่วโมงวิกฤต</li><li>ฝ่ายปกครองและทีมกู้ภัยมีแผนที่ยุทธการพร้อมมือ ซักซ้อมแผนเผชิญเหตุได้มีประสิทธิภาพ</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="right-placeholder-panel" onclick="triggerUpload(this)">
+                    <div class="placeholder-icon">📷</div>
+                    <div class="placeholder-title">[ ช่องสำหรับใส่ภาพหน้าจอระบบ ]</div>
+                    <div class="placeholder-rec">ภาพที่แนะนำ: </div>
+                    <div class="placeholder-focus">จุดสังเกตสำคัญ: </div>
+                    <div class="placeholder-aspect">ขนาด: 16:9 แนวนอน</div>
+                    <button type="button" class="placeholder-btn">📁 คลิกเพื่อเลือกรูปภาพจากเครื่องมาใส่ช่องนี้</button>
+                    <div class="preview-img-container">
+                        <img src="" alt="User uploaded preview">
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+
+        <div class="slide-view " data-notes="สถานที่สำคัญเหล่านี้คือที่พึ่งยามยากของชุมชนริมน้ำครับ ไม่ว่าจะเป็นวัดปงของ หรือศาลาประชาคมบ้านท่าตอน ในหน้านี้แอดมินสามารถบันทึกจุดยุทธศาสตร์ ระบุความจุคน สิ่งอำนวยความสะดวก และเบอร์โทรผู้ถือกุญแจฉุกเฉิน ทำให้ ปภ. ทราบทันทีว่าจะส่งข้าวสาร อาหารแห้ง หรือสุขาเคลื่อนที่ไปสนับสนุนที่พิกัดไหนครับ">
+            <div class="content-header">
+                <span class="header-badge">ADMIN 05 • ระบบจัดการแอดมิน</span>
+                <div class="header-title-group">
+                    <h2>ทะเบียนสถานที่สำคัญและศูนย์พักพิง (Places Management)</h2>
+                    <div class="header-subtitle">แผนที่ยุทธศาสตร์ชุมชน • 13 ประเภทสถานที่เพื่อความมั่นคง</div>
+                </div>
+            </div>
+            <div class="content-body">
+                <div class="left-info-panel">
+                    <div class="section-box mech">
+                        <h3>💡 สถาปัตยกรรมและกลไกระบบ</h3>
+                        <p class="section-desc">ฐานข้อมูลสินทรัพย์เชิงพื้นที่ จำแนกสถานที่ออกเป็น 13 หมวดหมู่ พร้อมบันทึกขีดความสามารถในการรองรับและข้อมูลสิ่งอำนวยความสะดวก</p>
+                    </div>
+                    <div class="section-box">
+                        <h3>⚙️ ทูลและฟังก์ชันเด่นบนหน้านี้</h3>
+                        <ul class="bullet-list">
+                            <li>ตัวกรอง 13 ประเภทสถานที่: วัด, โรงเรียน, รพ.สต., ศาลาหมู่บ้าน, แหล่งน้ำสะอาด ฯลฯ</li><li>ปุ่มเพิ่มสถานที่ (+ Add Place): ปักหมุดบนแผนที่พร้อมระบุรายละเอียด</li><li>การกำหนดบทบาทความปลอดภัย: กำหนดเป็น 'ศูนย์พักพิง' หรือ 'จุดรวมพลตามแผน'</li><li>ข้อมูลสิ่งอำนวยความสะดวก: บันทึกความจุคน มีห้องน้ำไหม มีเครื่องปั่นไฟไหม พร้อมเบอร์ผู้ถือกุญแจ</li>
+                        </ul>
+                    </div>
+                    <div class="section-box impact">
+                        <h3>🌾 ประโยชน์ต่อการใช้งานจริง</h3>
+                        <ul class="bullet-list impact">
+                            <li>รวบรวมสินทรัพย์และความพร้อมของสถานที่ในชุมชนไว้อย่างครบถ้วน</li><li>บูรณาการทำงานร่วมกับ ปภ. ท้องถิ่นในการส่งเสบียงและสิ่งบรรเทาทุกข์ได้อย่างแม่นยำ</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="right-placeholder-panel" onclick="triggerUpload(this)">
+                    <div class="placeholder-icon">📷</div>
+                    <div class="placeholder-title">[ ช่องสำหรับใส่ภาพหน้าจอระบบ ]</div>
+                    <div class="placeholder-rec">ภาพที่แนะนำ: </div>
+                    <div class="placeholder-focus">จุดสังเกตสำคัญ: </div>
+                    <div class="placeholder-aspect">ขนาด: 16:9 แนวนอน</div>
+                    <button type="button" class="placeholder-btn">📁 คลิกเพื่อเลือกรูปภาพจากเครื่องมาใส่ช่องนี้</button>
+                    <div class="preview-img-container">
+                        <img src="" alt="User uploaded preview">
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+
+        <div class="slide-view " data-notes="เบื้องหลังความสำเร็จของโครงการนี้ คือพี่น้องอาสาสมัครริมน้ำกกทุกคนครับ หน้านี้เก็บบันทึกประวัติว่าในแต่ละหมู่บ้านมีใครเป็นผู้ตรวจบ้าง ส่งผลมาแล้วกี่ครั้ง และเมื่อใดที่ตรวจพบค่าผิดปกติ ระบบจะติดป้าย 'ติดตามส่งแล็บซ้ำ' ให้อาจารย์ มฟล. ติดต่อกลับและส่งขวดเก็บตัวอย่างมาตรฐานไปให้ทันที เป็นการยกย่องพลังของคนตัวเล็กตัวน้อยที่ร่วมปกป้องสายน้ำครับ">
+            <div class="content-header">
+                <span class="header-badge">ADMIN 06 • ระบบจัดการแอดมิน</span>
+                <div class="header-title-group">
+                    <h2>เครือข่ายอาสาสมัครและติดตามส่งแล็บซ้ำ (Volunteer Registry)</h2>
+                    <div class="header-subtitle">เครือข่ายมดงานริมน้ำกก • หัวใจของการเฝ้าระวังภาคประชาชน</div>
+                </div>
+            </div>
+            <div class="content-body">
+                <div class="left-info-panel">
+                    <div class="section-box mech">
+                        <h3>💡 สถาปัตยกรรมและกลไกระบบ</h3>
+                        <p class="section-desc">ระบบติดตามผลงานอาสาสมัครที่ดึงข้อมูลจากบันทึกการส่งผลตรวจจริง พร้อมฟังก์ชันคัดกรองเพื่อส่งกระบอกเก็บตัวอย่างไปตรวจยืนยันซ้ำ</p>
+                    </div>
+                    <div class="section-box">
+                        <h3>⚙️ ทูลและฟังก์ชันเด่นบนหน้านี้</h3>
+                        <ul class="bullet-list">
+                            <li>ทะเบียนรายนามอาสาสมัคร: บันทึกชื่อ เบอร์โทร และหมู่บ้านที่รับผิดชอบจริง</li><li>ประวัติการส่งผลตรวจสะสม: นับจำนวนครั้งที่อาสาสมัครลงตรวจน้ำจริง</li><li>ป้ายเตือน 'ติดตามส่งแล็บซ้ำ': แจ้งเตือนเมื่ออาสาท่านนั้นพบสารหนูสูงผิดปกติ</li><li>ระบบส่งออกรายชื่อ: สำหรับจัดเตรียมชุดตรวจน้ำและเบี้ยเลี้ยงสนับสนุนอาสาสมัคร</li>
+                        </ul>
+                    </div>
+                    <div class="section-box impact">
+                        <h3>🌾 ประโยชน์ต่อการใช้งานจริง</h3>
+                        <ul class="bullet-list impact">
+                            <li>ดูแลและสนับสนุนเครือข่ายอาสาสมัครชุมชนได้อย่างต่อเนื่อง</li><li>มีกลไกติดตามผลทางห้องปฏิบัติการอย่างเป็นรูปธรรม สร้างการมีส่วนร่วมที่เข้มแข็ง</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="right-placeholder-panel" onclick="triggerUpload(this)">
+                    <div class="placeholder-icon">📷</div>
+                    <div class="placeholder-title">[ ช่องสำหรับใส่ภาพหน้าจอระบบ ]</div>
+                    <div class="placeholder-rec">ภาพที่แนะนำ: </div>
+                    <div class="placeholder-focus">จุดสังเกตสำคัญ: </div>
+                    <div class="placeholder-aspect">ขนาด: 16:9 แนวนอน</div>
+                    <button type="button" class="placeholder-btn">📁 คลิกเพื่อเลือกรูปภาพจากเครื่องมาใส่ช่องนี้</button>
+                    <div class="preview-img-container">
+                        <img src="" alt="User uploaded preview">
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+
+        <div class="slide-view " data-notes="ในชนบท เมื่อเกิดไฟดับหรือเสาสัญญาณล้ม ไม่มีอะไรทรงพลังไปกว่าแผนที่กระดาษแผ่นใหญ่ที่ติดไว้บนฝาผนังศาลาประชาคมครับ! เครื่องมือนี้ช่วยให้แอดมินคลิกเพียงปุ่มเดียว เพื่อสร้างแผนที่ความละเอียดสูงขนาด A0 หรือ A3 ที่มีกริดพิกัดมาตรฐาน 1 กม. พ่อหลวงสามารถนำไปแปะไว้หน้าศาลา กางบนโต๊ะประชุม ชี้ชวนให้ชาวบ้านดูร่วมกันได้อย่างเข้าใจ แม้ไม่มีสมาร์ทโฟนก็เข้าถึงได้ทุกคนครับ">
+            <div class="content-header">
+                <span class="header-badge">ADMIN 07 • ระบบจัดการแอดมิน</span>
+                <div class="header-title-group">
+                    <h2>เครื่องมือจัดทำแผนที่ฉบับพิมพ์ A0/A3 (Print Map Generator)</h2>
+                    <div class="header-subtitle">จากดิจิทัลสู่ศาลาหมู่บ้าน • แผนที่กระดาษขนาดใหญ่พร้อมพิกัดกริด 1 กม.</div>
+                </div>
+            </div>
+            <div class="content-body">
+                <div class="left-info-panel">
+                    <div class="section-box mech">
+                        <h3>💡 สถาปัตยกรรมและกลไกระบบ</h3>
+                        <p class="section-desc">ระบบเรนเดอร์แผนที่ความละเอียดสูงระดับเวกเตอร์ (Vector-based Map Renderer) รองรับการเปิด-ปิดชั้นข้อมูล และแปลงเป็น PDF มาตราส่วน 1:10,000</p>
+                    </div>
+                    <div class="section-box">
+                        <h3>⚙️ ทูลและฟังก์ชันเด่นบนหน้านี้</h3>
+                        <ul class="bullet-list">
+                            <li>ตัวเลือกขนาดกระดาษ: A0 (บอร์ดใหญ่ศาลาหมู่บ้าน), A3 (แจกแกนนำ), A4 (พกพา)</li><li>การวางแนว: แนวนอน (Landscape) หรือ แนวตั้ง (Portrait)</li><li>กล่องเลือกเลเยอร์ข้อมูล: ตำแหน่งหมู่บ้าน, แนวลุ่มน้ำกก, กริด UTM 1 กม., ศูนย์พักพิง, เส้นทางอพยพ</li><li>ปุ่มสั่งพิมพ์และบันทึก PDF: บันทึกเป็นเวกเตอร์คมชัดสูง ส่งโรงพิมพ์หรือพล็อตเตอร์ได้ทันที</li>
+                        </ul>
+                    </div>
+                    <div class="section-box impact">
+                        <h3>🌾 ประโยชน์ต่อการใช้งานจริง</h3>
+                        <ul class="bullet-list impact">
+                            <li>ทลายข้อจำกัดเรื่องไฟดับหรือเน็ตล่มในภาวะภัยพิบัติด้วยแผนที่กระดาษขนาดใหญ่</li><li>ตอบโจทย์จริงของผู้นำชุมชนในการกางแผนที่ประชุมชี้แจงลูกบ้านที่ศาลาประชาคม</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="right-placeholder-panel" onclick="triggerUpload(this)">
+                    <div class="placeholder-icon">📷</div>
+                    <div class="placeholder-title">[ ช่องสำหรับใส่ภาพหน้าจอระบบ ]</div>
+                    <div class="placeholder-rec">ภาพที่แนะนำ: </div>
+                    <div class="placeholder-focus">จุดสังเกตสำคัญ: </div>
+                    <div class="placeholder-aspect">ขนาด: 16:9 แนวนอน</div>
+                    <button type="button" class="placeholder-btn">📁 คลิกเพื่อเลือกรูปภาพจากเครื่องมาใส่ช่องนี้</button>
+                    <div class="preview-img-container">
+                        <img src="" alt="User uploaded preview">
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+
+        <div class="slide-view " data-notes="การเตือนภัยที่มีประสิทธิภาพ ต้องเร็วและถูกต้องครับ... ในหน้านี้ แอดมินสามารถออกประกาศแจ้งเตือนภัยได้ภายใน 2 นาที หากมีรายงานน้ำหลากปนเปื้อนสารเคมีจากแม่น้ำกกตอนบน เพียงพิมพ์หัวข้อ เลือกระดับด่วนมาก แนบรูป แล้วกดเผยแพร่ ข่าวจะไปขึ้นเป็นแบนเนอร์สีแดงเด่นสง่าที่หน้าแรกของชาวบ้านทุกคนทันที ช่วยให้เตรียมรับมือก่อนมวลน้ำมาถึงหลายชั่วโมงครับ">
+            <div class="content-header">
+                <span class="header-badge">ADMIN 08 • ระบบจัดการแอดมิน</span>
+                <div class="header-title-group">
+                    <h2>ระบบจัดการเนื้อหาข่าวสารเตือนภัย (News CMS)</h2>
+                    <div class="header-subtitle">กระจายข่าวเตือนภัยฉับไว • สื่อสารตรงสู่โทรศัพท์ชาวบ้าน</div>
+                </div>
+            </div>
+            <div class="content-body">
+                <div class="left-info-panel">
+                    <div class="section-box mech">
+                        <h3>💡 สถาปัตยกรรมและกลไกระบบ</h3>
+                        <p class="section-desc">ระบบบริหารจัดการเนื้อหาข่าวสาร (Content Management System) พร้อมระบบจัดลำดับความเร่งด่วนและการเผยแพร่สู่แบนเนอร์หน้าแรกทันที</p>
+                    </div>
+                    <div class="section-box">
+                        <h3>⚙️ ทูลและฟังก์ชันเด่นบนหน้านี้</h3>
+                        <ul class="bullet-list">
+                            <li>ตัวเลือกระดับความเร่งด่วน: ด่วนมาก (แดง), เตือนภัย (ส้ม), ข่าวทั่วไป (ฟ้า), องค์ความรู้ (เขียว)</li><li>Rich Text Content Box: จัดรูปแบบข้อความ ย่อหน้า และใส่ลิงก์อ้างอิง</li><li>ช่องอัปโหลดภาพประกอบข่าว: แนบภาพถ่ายสถานการณ์น้ำท่วมหรือกิจกรรมตรวจน้ำ</li><li>ปุ่มเผยแพร่ทันที / บันทึกร่าง: ควบคุมการแจ้งเตือนขึ้นหน้าแรกของชาวบ้านทันที</li>
+                        </ul>
+                    </div>
+                    <div class="section-box impact">
+                        <h3>🌾 ประโยชน์ต่อการใช้งานจริง</h3>
+                        <ul class="bullet-list impact">
+                            <li>ออกประกาศเตือนภัยถึงมือถือชาวบ้านได้ภายในเวลาไม่ถึง 2 นาที</li><li>ควบคุมความถูกต้องของข่าวสารผ่านผู้มีสิทธิ์ดูแลระบบ ป้องกันข่าวปลอม</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="right-placeholder-panel" onclick="triggerUpload(this)">
+                    <div class="placeholder-icon">📷</div>
+                    <div class="placeholder-title">[ ช่องสำหรับใส่ภาพหน้าจอระบบ ]</div>
+                    <div class="placeholder-rec">ภาพที่แนะนำ: </div>
+                    <div class="placeholder-focus">จุดสังเกตสำคัญ: </div>
+                    <div class="placeholder-aspect">ขนาด: 16:9 แนวนอน</div>
+                    <button type="button" class="placeholder-btn">📁 คลิกเพื่อเลือกรูปภาพจากเครื่องมาใส่ช่องนี้</button>
+                    <div class="preview-img-container">
+                        <img src="" alt="User uploaded preview">
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+
+        <div class="slide-view " data-notes="เบื้องหลังความแข็งแกร่งของระบบนี้ เกิดจากการผนึกกำลังกันของคณาจารย์และนักวิจัย มฟล. ถึง 7 กลุ่มวิจัยเฉพาะทางครับ! ตั้งแต่นักเคมี, นักเกษตรตรวจการสะสมสารหนูในรวงข้าว, แพทย์พยาบาลตรวจสุขภาพชาวบ้าน, ไปจนถึงนักสังคมศาสตร์ หน้านี้คือคลังสมองที่รวบรวมองค์ความรู้มาย่อยให้เป็นคู่มือภาษาชาวบ้าน นำวิทยาศาสตร์มาสู่วิถีชีวิตจริงของทุกคนครับ">
+            <div class="content-header">
+                <span class="header-badge">ADMIN 09 • ระบบจัดการแอดมิน</span>
+                <div class="header-title-group">
+                    <h2>คลังความรู้ 7 ทีมวิจัย มฟล. (SWG 1–7 Research Hub)</h2>
+                    <div class="header-subtitle">บูรณาการศาสตร์แห่งสายน้ำ • วิทยาศาสตร์เพื่อประชาชน</div>
+                </div>
+            </div>
+            <div class="content-body">
+                <div class="left-info-panel">
+                    <div class="section-box mech">
+                        <h3>💡 สถาปัตยกรรมและกลไกระบบ</h3>
+                        <p class="section-desc">ฐานความรู้สหวิทยาการ (Interdisciplinary Knowledge Hub) ที่จัดเก็บผลงานวิจัย คู่มือ และข้อเสนอนโยบายของ 7 กลุ่มวิจัยเฉพาะทาง มหาวิทยาลัยแม่ฟ้าหลวง</p>
+                    </div>
+                    <div class="section-box">
+                        <h3>⚙️ ทูลและฟังก์ชันเด่นบนหน้านี้</h3>
+                        <ul class="bullet-list">
+                            <li>แท็บนำทาง 7 ทีมวิจัย (SWG 1–7): มลพิษทางเคมี, ตะกอนดิน, ปลาและระบบนิเวศ, สุขภาพ, การอพยพ, เศรษฐกิจเกษตร, นโยบายข้ามพรมแดน</li><li>ระบบจัดการเอกสารเผยแพร่: อัปโหลดงานวิจัยฉบับเต็มและคู่มือสรุปภาษาชาวบ้าน</li><li>ช่องค้นหาคำสำคัญตามประเด็นวิจัย: ค้นหาข้อมูลเชิงลึกได้อย่างรวดเร็ว</li>
+                        </ul>
+                    </div>
+                    <div class="section-box impact">
+                        <h3>🌾 ประโยชน์ต่อการใช้งานจริง</h3>
+                        <ul class="bullet-list impact">
+                            <li>ผสานองค์ความรู้สหวิทยาการ ตอบโจทย์การฟื้นฟูลุ่มน้ำกกครบทุกมิติ</li><li>นำผลงานวิจัยจากหอคอยงาช้างมาสู่วิถีชีวิตจริงของเกษตรกรและชุมชน</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="right-placeholder-panel" onclick="triggerUpload(this)">
+                    <div class="placeholder-icon">📷</div>
+                    <div class="placeholder-title">[ ช่องสำหรับใส่ภาพหน้าจอระบบ ]</div>
+                    <div class="placeholder-rec">ภาพที่แนะนำ: </div>
+                    <div class="placeholder-focus">จุดสังเกตสำคัญ: </div>
+                    <div class="placeholder-aspect">ขนาด: 16:9 แนวนอน</div>
+                    <button type="button" class="placeholder-btn">📁 คลิกเพื่อเลือกรูปภาพจากเครื่องมาใส่ช่องนี้</button>
+                    <div class="preview-img-container">
+                        <img src="" alt="User uploaded preview">
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+
+        <div class="slide-view " data-notes="หากหน่วยงานราชการหรือนักวิจัยต้องการหลักฐานเชิงประจักษ์ไปจัดทำแผนงบประมาณ หน้านี้คือคำตอบครับ ประมวลผลจากฐานข้อมูลจริงแบบสดๆ ไม่มีการแต่งตัวเลข แสดงแนวโน้มสารหนูเทียบกับปริมาณน้ำหลาก และมีสวิตช์ PDPA Safe Mode เซ็นเซอร์ข้อมูลส่วนบุคคลก่อนส่งออกไฟล์ CSV นำไปใช้ในงานวิจัยและเสนอของบประมาณช่วยเหลือชุมชนได้อย่างปลอดภัยครับ">
+            <div class="content-header">
+                <span class="header-badge">ADMIN 10 • ระบบจัดการแอดมิน</span>
+                <div class="header-title-group">
+                    <h2>ศูนย์วิเคราะห์ข้อมูลและรายงานวิจัย Live DB (Analytics & Reports)</h2>
+                    <div class="header-subtitle">หลักฐานเชิงประจักษ์เพื่อการตัดสินใจ • สถิติสดจากฐานข้อมูลจริง พร้อมโหมด PDPA</div>
+                </div>
+            </div>
+            <div class="content-body">
+                <div class="left-info-panel">
+                    <div class="section-box mech">
+                        <h3>💡 สถาปัตยกรรมและกลไกระบบ</h3>
+                        <p class="section-desc">ระบบประมวลผลข้อมูลเชิงสถิติขั้นสูงแบบเรียลไทม์ (Live DB Query) พร้อมระบบเซ็นเซอร์ข้อมูลส่วนบุคคลอัตโนมัติ (Automated PDPA Masking)</p>
+                    </div>
+                    <div class="section-box">
+                        <h3>⚙️ ทูลและฟังก์ชันเด่นบนหน้านี้</h3>
+                        <ul class="bullet-list">
+                            <li>ตัวกรองช่วงเวลาวิจัย: 1 เดือนล่าสุด, 3 เดือน, 6 เดือน (รอบฤดูกาล), หรือทั้งหมด</li><li>สวิตช์เปิดใช้ PDPA Safe Mode: เซ็นเซอร์ชื่อ-เบอร์โทรชาวบ้านอัตโนมัติเมื่อออกรายงาน</li><li>การ์ดสถิติ 4 หมวดหมู่: ตรวจทั้งหมด, ปลอดภัย (<5 ppb), เฝ้าระวัง, เกินเกณฑ์วิกฤต (>50 ppb)</li><li>ปุ่มพิมพ์รายงานฉบับย่อ & ส่งออก CSV: นำข้อมูลดิบไปวิเคราะห์ต่อใน Excel หรือ SPSS ได้ทันที</li>
+                        </ul>
+                    </div>
+                    <div class="section-box impact">
+                        <h3>🌾 ประโยชน์ต่อการใช้งานจริง</h3>
+                        <ul class="bullet-list impact">
+                            <li>วิเคราะห์แนวโน้มสารเคมีตามฤดูกาลเพื่อเตรียมมาตรการรับมืองบประมาณล่วงหน้า</li><li>ปฏิบัติตามมาตรฐาน PDPA อย่างเคร่งครัด ข้อมูลปลอดภัยและถูกต้องตามกฎหมาย</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="right-placeholder-panel" onclick="triggerUpload(this)">
+                    <div class="placeholder-icon">📷</div>
+                    <div class="placeholder-title">[ ช่องสำหรับใส่ภาพหน้าจอระบบ ]</div>
+                    <div class="placeholder-rec">ภาพที่แนะนำ: </div>
+                    <div class="placeholder-focus">จุดสังเกตสำคัญ: </div>
+                    <div class="placeholder-aspect">ขนาด: 16:9 แนวนอน</div>
+                    <button type="button" class="placeholder-btn">📁 คลิกเพื่อเลือกรูปภาพจากเครื่องมาใส่ช่องนี้</button>
+                    <div class="preview-img-container">
+                        <img src="" alt="User uploaded preview">
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+
+        <div class="slide-view " data-notes="ความยั่งยืนของโครงการ มาจากการบริหารจัดการที่โปร่งใสและตรวจสอบได้ครับ ในหน้านี้เราให้เกียรติผู้สนับสนุนทุนวิจัยระดับนานาชาติ พร้อมทั้งมีระบบ Audit Log ที่บันทึกทุกความเคลื่อนไหวในระบบหลังบ้าน ใครอนุมัติตัวอย่างน้ำตอนกี่โมง ใครปรับเส้นทางอพยพ ระบบจดจำไว้ทั้งหมด ป้องกันการดัดแปลงข้อมูล ทำให้เป็นแพลตฟอร์มที่ได้รับความไว้วางใจสูงสุดครับ">
+            <div class="content-header">
+                <span class="header-badge">ADMIN 11 • ระบบจัดการแอดมิน</span>
+                <div class="header-title-group">
+                    <h2>ความปลอดภัยระบบ บันทึก Audit Log และผู้สนับสนุน (Settings)</h2>
+                    <div class="header-subtitle">โปร่งใส ตรวจสอบได้ทุกขั้นตอน • มาตรฐานการบริหารจัดการที่รัดกุม</div>
+                </div>
+            </div>
+            <div class="content-body">
+                <div class="left-info-panel">
+                    <div class="section-box mech">
+                        <h3>💡 สถาปัตยกรรมและกลไกระบบ</h3>
+                        <p class="section-desc">ระบบบันทึกประวัติการทำงาน (Audit Trail System) บันทึกทุกกิจกรรมของผู้ดูแลระบบอย่างละเอียด พร้อมระบบบริหารจัดการตราสัญลักษณ์ผู้สนับสนุน</p>
+                    </div>
+                    <div class="section-box">
+                        <h3>⚙️ ทูลและฟังก์ชันเด่นบนหน้านี้</h3>
+                        <ul class="bullet-list">
+                            <li>การจัดการโลโก้ผู้สนับสนุน: ตราสัญลักษณ์ Australian Aid, SDC, Oxfam, มฟล.</li><li>ตาราง Audit Log: บันทึกการเข้าสู่ระบบ การสร้างหมุด การแก้เส้นทาง พร้อม Timestamp</li><li>การตั้งค่าสิทธิ์ผู้ใช้งาน (Role & Permissions): แบ่งสิทธิ์นักวิจัย, อบต., และผู้ดูแลสูงสุด</li><li>สถานะเซิร์ฟเวอร์และฐานข้อมูล: ตรวจสอบความเสถียรของระบบคลาวด์แบบเรียลไทม์</li>
+                        </ul>
+                    </div>
+                    <div class="section-box impact">
+                        <h3>🌾 ประโยชน์ต่อการใช้งานจริง</h3>
+                        <ul class="bullet-list impact">
+                            <li>ตรวจสอบความโปร่งใสย้อนหลังได้ทุกการกระทำในระบบ ป้องกันการดัดแปลงข้อมูล</li><li>สร้างความเชื่อมั่นอย่างสูงแก่ผู้สนับสนุนทุนวิจัยทั้งในและต่างประเทศ</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="right-placeholder-panel" onclick="triggerUpload(this)">
+                    <div class="placeholder-icon">📷</div>
+                    <div class="placeholder-title">[ ช่องสำหรับใส่ภาพหน้าจอระบบ ]</div>
+                    <div class="placeholder-rec">ภาพที่แนะนำ: </div>
+                    <div class="placeholder-focus">จุดสังเกตสำคัญ: </div>
+                    <div class="placeholder-aspect">ขนาด: 16:9 แนวนอน</div>
+                    <button type="button" class="placeholder-btn">📁 คลิกเพื่อเลือกรูปภาพจากเครื่องมาใส่ช่องนี้</button>
+                    <div class="preview-img-container">
+                        <img src="" alt="User uploaded preview">
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+
+        <div class="slide-view " data-notes="ทุกท่านครับ... เทคโนโลยีทั้งหมดที่ท่านได้เห็นในสไลด์ที่ผ่านมา ไม่ได้ถูกสร้างขึ้นมาเพื่อให้เป็นเพียงซอฟต์แวร์ที่สวยงาม
+
+แต่ถูกสร้างขึ้นมาเพื่อให้ 'ลุงสม' รู้ว่าเช้านี้สูบน้ำเข้านาได้ไหม...
+เพื่อให้ 'พ่อหลวง' มีแผนที่นำทางพาลูกบ้านหนีน้ำหลากได้อย่างปลอดภัย...
+และเพื่อให้ 'เด็กๆ ริมน้ำกก' สามารถเติบโตขึ้นมากับสายน้ำที่บริสุทธิ์และปลอดภัย
+
+ระบบ MFU Kok Water Watch มหาวิทยาลัยแม่ฟ้าหลวง ได้พิสูจน์แล้วว่า เมื่อวิทยาศาสตร์จับมือกับภูมิปัญญาชาวบ้าน และมีเทคโนโลยีเป็นสะพานเชื่อม เราไม่เพียงแค่เฝ้าระวังคุณภาพน้ำได้ดีขึ้น... แต่เรากำลังร่วมกัน 'คืนรอยยิ้ม ความมั่นคง และความยั่งยืน' ให้กับทุกลมหายใจริมแม่น้ำกก ขอบคุณครับ">
+            <div class="content-header">
+                <span class="header-badge">CONCLUSION & FUTURE ROADMAP • บทสรุปและอนาคตลุ่มน้ำกก</span>
+                <div class="header-title-group">
+                    <h2>นวัตกรรมเพื่อความมั่นคงแห่งลุ่มน้ำกก</h2>
+                    <div class="header-subtitle">ก้าวต่อไปของ MFU Kok Water Watch • คืนรอยยิ้มสู่หมู่บ้านริมน้ำ</div>
+                </div>
+            </div>
+            <div class="content-body">
+                <div class="left-info-panel">
+                    <div class="section-box mech">
+                        <h3>💡 สถาปัตยกรรมและกลไกระบบ</h3>
+                        <p class="section-desc">เมื่อวิทยาศาสตร์จับมือกับภูมิปัญญาชาวบ้าน และมีเทคโนโลยีเป็นสะพานเชื่อม เราไม่เพียงแค่เฝ้าระวังคุณภาพน้ำได้ดีขึ้น... แต่เรากำลังร่วมกันคืนรอยยิ้ม ความมั่นคง และความยั่งยืน ให้กับทุกลมหายใจริมแม่น้ำกก</p>
+                    </div>
+                    <div class="section-box">
+                        <h3>⚙️ ทูลและฟังก์ชันเด่นบนหน้านี้</h3>
+                        <ul class="bullet-list">
+                            
+                        </ul>
+                    </div>
+                    <div class="section-box impact">
+                        <h3>🌾 ประโยชน์ต่อการใช้งานจริง</h3>
+                        <ul class="bullet-list impact">
+                            
+                        </ul>
+                    </div>
+                </div>
+                <div class="right-placeholder-panel" onclick="triggerUpload(this)">
+                    <div class="placeholder-icon">📷</div>
+                    <div class="placeholder-title">📷 ภาพสรุปโครงการ / รอยยิ้มชุมชนริมน้ำกก</div>
+                    <div class="placeholder-rec">ภาพที่แนะนำ: future-vision.png หรือ ภาพชาวบ้านและทีมนักวิจัยร่วมกัน</div>
+                    <div class="placeholder-focus">จุดสังเกตสำคัญ: ภาพกิจกรรมร่วมกันระหว่างนักวิจัย มฟล. ผู้นำชุมชน และชาวบ้านริมน้ำกก</div>
+                    <div class="placeholder-aspect">ขนาด: 16:9 แนวนอน</div>
+                    <button type="button" class="placeholder-btn">📁 คลิกเพื่อเลือกรูปภาพจากเครื่องมาใส่ช่องนี้</button>
+                    <div class="preview-img-container">
+                        <img src="" alt="User uploaded preview">
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        </div>
+
+        <aside class="notes-drawer" id="notesDrawer">
+            <div class="notes-title">🎙️ คำพูดผู้บรรยาย (Speaker Notes)</div>
+            <div class="notes-text" id="notesContent">กำลังโหลด...</div>
+        </aside>
+    </main>
+
+    <input type="file" id="fileInput" accept="image/*" onchange="handleImageUpload(event)">
+
+    <script>
+        const slides = document.querySelectorAll('.slide-view');
+        let currentSlide = 0;
+        const totalSlides = slides.length;
+        let activePlaceholderTarget = null;
+
+        function showSlide(index) {
+            if (index < 0) index = 0;
+            if (index >= totalSlides) index = totalSlides - 1;
+            
+            slides.forEach((s, idx) => {
+                s.classList.toggle('active', idx === index);
+            });
+            
+            currentSlide = index;
+            document.getElementById('slideCounter').textContent = `${index + 1} / ${totalSlides}`;
+            
+            const activeSlide = slides[index];
+            const notes = activeSlide.getAttribute('data-notes') || 'ไม่มีคำพูดผู้บรรยายสำหรับสไลด์นี้';
+            document.getElementById('notesContent').textContent = notes;
+        }
+
+        function changeSlide(direction) {
+            showSlide(currentSlide + direction);
+        }
+
+        function toggleNotes() {
+            document.getElementById('notesDrawer').classList.toggle('collapsed');
+        }
+
+        function triggerUpload(panelElement) {
+            activePlaceholderTarget = panelElement;
+            document.getElementById('fileInput').click();
+        }
+
+        function handleImageUpload(e) {
+            const file = e.target.files[0];
+            if (file && activePlaceholderTarget) {
+                const reader = new FileReader();
+                reader.onload = function(evt) {
+                    const preview = activePlaceholderTarget.querySelector('.preview-img-container');
+                    const img = preview.querySelector('img');
+                    img.src = evt.target.result;
+                    preview.classList.add('active');
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') {
+                e.preventDefault();
+                changeSlide(1);
+            } else if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
+                e.preventDefault();
+                changeSlide(-1);
+            } else if (e.key === 'n' || e.key === 'N') {
+                toggleNotes();
+            }
+        });
+
+        showSlide(0);
+    </script>
+</body>
+</html>

@@ -4,7 +4,7 @@ import { MongoClient } from 'mongodb'
 const clientKey = Symbol.for('kok.mongo.client')
 const indexedKey = Symbol.for('kok.mongo.indexed')
 
-const surveyFields = { _id: 0, id: 1, sample_code: 1, arsenic_level_ppb: 1, latitude: 1, longitude: 1, gps_accuracy_meters: 1, created_at: 1, collection_time: 1, water_source_type: 1 }
+const surveyFields = { _id: 0, id: 1, sample_code: 1, arsenic_level_ppb: 1, latitude: 1, longitude: 1, gps_accuracy_meters: 1, created_at: 1, collection_time: 1, water_source_type: 1, test_kit: 1 }
 const publishedSampleFields = {
   _id: 0, sample_code: 1, station_name: 1, latitude: 1, longitude: 1, collection_time: 1, gps_accuracy_meters: 1,
   arsenic_ppb: 1, measurements: 1, sample_nature: 1, publication_status: 1, created_at: 1, private_photo_paths: 1,
@@ -29,6 +29,11 @@ export async function getDb(settings) {
       db.collection('kok_admin_alerts').createIndexes([{ key: { sample_code: 1 } }, { key: { created_at: -1 } }]),
       db.collection('survey_rate_limits').createIndex({ ip_hash: 1 }, { unique: true }),
       db.collection('survey_daily_sequences').createIndex({ sequence_date: 1 }, { unique: true }),
+      db.collection('kok_evacuation_runs').createIndex({ community_id: 1, status: 1 }),
+      db.collection('kok_evacuation_cases').createIndexes([
+        { key: { run_id: 1, household_id: 1 }, unique: true },
+        { key: { run_id: 1, manual_rank: 1 } },
+      ]),
     ]).then((results) => results.forEach((result) => result.status === 'rejected' && console.error('MONGO INDEX ERROR:', result.reason?.message)))
     holder[indexedKey] = true
   }

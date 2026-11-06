@@ -80,3 +80,6 @@ Desktop.ini
 
 # Claude Code local settings
 /.claude/
+
+# Household-level survey data: coordinates and contacts that must never reach the repository.
+data/private/

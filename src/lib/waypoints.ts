@@ -5,6 +5,7 @@ export type SurveyWaypointCluster = {
   latitude: number
   longitude: number
   sampleCount: number
+  members: SurveyWaypoint[]
   latest: SurveyWaypoint
   minPpb: number
   maxPpb: number
@@ -36,6 +37,7 @@ export function clusterSurveyWaypoints(points: SurveyWaypoint[]): SurveyWaypoint
       latitude: members.reduce((total, point) => total + point.latitude, 0) / members.length,
       longitude: members.reduce((total, point) => total + point.longitude, 0) / members.length,
       sampleCount: members.length,
+      members,
       latest: anchor,
       minPpb: Math.min(...levels),
       maxPpb: Math.max(...levels),

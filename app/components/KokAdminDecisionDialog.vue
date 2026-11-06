@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { CheckCircle2, X, XCircle } from 'lucide-vue-next'
+import { formatPpb } from '../../src/lib/survey'
 import type { AdminSample, Decision } from '../utils/admin-types'
 import KokModalShell from './KokModalShell.vue'
 
@@ -21,7 +22,7 @@ const reason = ref(approve ? 'ตรวจสอบแล้ว ข้อมู�
         </div>
         <div>
           <h3 class="text-sm font-bold">{{ approve ? 'ยืนยันอนุมัติผลตรวจ' : 'ยืนยันปฏิเสธผลตรวจ' }}</h3>
-          <p class="text-[11px] text-slate-500 font-mono">รหัส: {{ sample.sample_code }} (ค่าสารหนู {{ sample.arsenic_ppb }} ppb)</p>
+          <p class="text-[11px] text-slate-500 font-mono">รหัส: {{ sample.sample_code }} (ค่าสารหนู {{ formatPpb(sample.arsenic_ppb, true) }})</p>
         </div>
       </div>
       <button type="button" aria-label="ปิด" class="text-slate-400 hover:text-slate-600" @click="$emit('close')"><X class="h-4 w-4" /></button>

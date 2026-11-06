@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { afterEach, expect, it, vi } from 'vitest'
+// @ts-expect-error - script without type definitions
 import { publicMyMapsPayload } from '../../scripts/publish-mymaps.mjs'
 
 afterEach(() => {
@@ -41,7 +42,8 @@ it('loads public My Maps data without credentials and caches promise', async () 
   const data = JSON.parse(readFileSync('public/mymaps/thaton.json', 'utf8'))
   const fetchMock = vi
     .fn()
-    .mockResolvedValueOnce({ ok: false }) // /mymaps/thaton.json fails
+    .mockResolvedValueOnce({ ok: false }) // /api/map-data/community fails
+    .mockResolvedValueOnce({ ok: false }) // /mymaps/thaton.json fallback fails
     .mockResolvedValueOnce({ ok: false }) // /local-review/mymaps fallback fails
     .mockResolvedValue({ ok: true, json: async () => data }) // retry succeeds
   vi.stubGlobal('fetch', fetchMock)
@@ -51,5 +53,24 @@ it('loads public My Maps data without credentials and caches promise', async () 
   const [a, b] = await Promise.all([loadMyMapsData(), loadMyMapsData()])
   expect(a.layers).toHaveLength(6)
   expect(a).toBe(b)
+  expect(fetchMock).toHaveBeenCalledWith('/api/map-data/community')
   expect(fetchMock).toHaveBeenCalledWith('/mymaps/thaton.json')
+})
+
+it('prefers the admin-edited API data, accepts hidden topics and falls back to the static file', async () => {
+  const data = JSON.parse(readFileSync('public/mymaps/thaton.json', 'utf8'))
+  const edited = { ...data, layers: data.layers.slice(0, 4), pointsPublic: true }
+  const apiFirst = vi.fn().mockResolvedValue({ ok: true, json: async () => edited })
+  vi.stubGlobal('fetch', apiFirst)
+  vi.resetModules()
+  const first = await (await import('../../app/utils/mymaps-review')).loadMyMapsData()
+  expect(first.layers).toHaveLength(4)
+  expect(apiFirst).toHaveBeenCalledTimes(1)
+
+  const apiDown = vi.fn().mockResolvedValueOnce({ ok: false }).mockResolvedValue({ ok: true, json: async () => data })
+  vi.stubGlobal('fetch', apiDown)
+  vi.resetModules()
+  const fallback = await (await import('../../app/utils/mymaps-review')).loadMyMapsData()
+  expect(fallback.layers).toHaveLength(6)
+  expect(apiDown).toHaveBeenNthCalledWith(2, '/mymaps/thaton.json')
 })

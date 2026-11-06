@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { afterEach, expect, it, vi } from 'vitest'
+// @ts-expect-error - script without type definitions
 import { publicEvacuationPayload } from '../../scripts/publish-evacuation.mjs'
 
 afterEach(() => { vi.unstubAllGlobals(); vi.resetModules() })

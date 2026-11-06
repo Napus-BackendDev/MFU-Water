@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MFU Kok Water Watch — Production Villager UI Prototypes</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #F5F4ED;
+      --card-bg: #FFFFFF;
+      --primary: #195640;
+      --primary-light: #E8F0EC;
+      --text: #213E32;
+      --text-muted: #556B60;
+      --border: #D8DFD5;
+      --alert-red: #A33228;
+      --alert-amber: #DE9922;
+      --alert-green: #2E7D32;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Noto Sans Thai', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      display: flex;
+      min-height: 100vh;
+    }
+    sidebar {
+      width: 340px;
+      background: #FFFFFF;
+      border-right: 1px solid var(--border);
+      padding: 24px 16px;
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+      overflow-y: auto;
+    }
+    .brand {
+      padding-bottom: 20px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 20px;
+    }
+    .brand h1 {
+      font-size: 18px;
+      font-weight: 800;
+      color: var(--primary);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .brand p {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+    .badge {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 12px;
+      background: #E8F5E9;
+      color: #1B5E20;
+      margin-top: 8px;
+    }
+    .nav-group-title {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      margin: 16px 8px 8px 8px;
+    }
+    .nav-btn {
+      width: 100%;
+      text-align: left;
+      padding: 12px 14px;
+      border-radius: 10px;
+      border: 1px solid transparent;
+      background: transparent;
+      color: var(--text);
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 6px;
+      transition: all 0.15s ease;
+    }
+    .nav-btn:hover {
+      background: var(--primary-light);
+      color: var(--primary);
+    }
+    .nav-btn.active {
+      background: var(--primary);
+      color: #FFFFFF;
+      font-weight: 700;
+      box-shadow: 0 4px 10px rgba(25, 86, 64, 0.25);
+    }
+    .nav-btn .pill {
+      font-size: 10px;
+      padding: 3px 7px;
+      border-radius: 10px;
+      background: rgba(0,0,0,0.06);
+    }
+    .nav-btn.active .pill {
+      background: rgba(255,255,255,0.25);
+      color: #fff;
+    }
+    main {
+      flex: 1;
+      padding: 32px 40px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+    .screen-header {
+      background: #FFFFFF;
+      border-radius: 16px;
+      padding: 20px 24px;
+      border: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .screen-title h2 {
+      font-size: 20px;
+      font-weight: 800;
+      color: var(--text);
+    }
+    .screen-title p {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+    .screen-actions {
+      display: flex;
+      gap: 12px;
+    }
+    .btn {
+      padding: 10px 18px;
+      font-size: 13px;
+      font-weight: 700;
+      font-family: inherit;
+      border-radius: 8px;
+      cursor: pointer;
+      border: 1px solid var(--border);
+      background: #FFFFFF;
+      color: var(--text);
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .btn:hover { background: #F8F9F8; }
+    .btn-primary {
+      background: var(--primary);
+      color: #FFFFFF;
+      border-color: var(--primary);
+    }
+    .btn-primary:hover { background: #134533; }
+    .viewer-container {
+      background: #EBEAE1;
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 24px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 600px;
+    }
+    .viewer-container img {
+      max-width: 100%;
+      height: auto;
+      border-radius: 12px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.14);
+      background: #fff;
+    }
+    .specs-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 16px;
+    }
+    .spec-card {
+      background: #FFFFFF;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 18px;
+    }
+    .spec-card h3 {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--primary);
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .spec-card ul {
+      font-size: 13px;
+      color: var(--text);
+      padding-left: 20px;
+      line-height: 1.6;
+    }
+  </style>
+</head>
+<body>
+  <sidebar>
+    <div class="brand">
+      <h1>🌊 น้ำกกใกล้บ้าน</h1>
+      <p>ระบบตรวจคุณภาพน้ำและอุทกภัยสำหรับเกษตรกร</p>
+      <span class="badge">✓ Production สำหรับชาวบ้าน</span>
+    </div>
+
+    <div class="nav-group-title">1. ฝั่งชาวบ้าน (บนมือถือ ใช้งานง่ายมาก)</div>
+    <button class="nav-btn active" onclick="showScreen(1)">
+      <span>01. หน้าหลักดูน้ำวันนี้</span>
+      <span class="pill">มือถือ</span>
+    </button>
+    <button class="nav-btn" onclick="showScreen(2)">
+      <span>02. ฟอร์มส่งผลตรวจ 3 ก้าว</span>
+      <span class="pill">ปุ่มใหญ่</span>
+    </button>
+    <button class="nav-btn" onclick="showScreen(3)">
+      <span>03. น้ำนี้ใช้ทำอะไรได้บ้าง?</span>
+      <span class="pill">คำแนะนำ</span>
+    </button>
+    <button class="nav-btn" onclick="showScreen(4)">
+      <span>04. ถ้าน้ำขึ้น... บ้านเราท่วมไหม?</span>
+      <span class="pill">สไลเดอร์</span>
+    </button>
+    <button class="nav-btn" onclick="showScreen(5)">
+      <span>05. ทางหนีน้ำ & จุดปลอดภัย</span>
+      <span class="pill">พาผู้ป่วย</span>
+    </button>
+
+    <div class="nav-group-title">2. ฝั่งผู้นำชุมชน / อสม. / มหาวิทยาลัย</div>
+    <button class="nav-btn" onclick="showScreen(6)">
+      <span>06. โต๊ะทำงาน อสม. & ผู้ใหญ่บ้าน</span>
+      <span class="pill">ตรวจรูป</span>
+    </button>
+    <button class="nav-btn" onclick="showScreen(7)">
+      <span>07. ทะเบียนข้อมูล 4 หมู่บ้าน</span>
+      <span class="pill">ตาราง อบต.</span>
+    </button>
+    <button class="nav-btn" onclick="showScreen(8)">
+      <span>08. ร่างประกาศเสียงตามสาย/LINE</span>
+      <span class="pill">ภาษาพูด</span>
+    </button>
+    <button class="nav-btn" onclick="showScreen(9)">
+      <span>09. ป้ายไวนิล A0 ติดศาลา</span>
+      <span class="pill">พิมพ์ใหญ่</span>
+    </button>
+  </sidebar>
+
+  <main>
+    <div class="screen-header">
+      <div class="screen-title">
+        <h2 id="current-title">หน้า 01: แผนที่น้ำกกใกล้บ้าน — หน้าหลักสำหรับชาวบ้านและเกษตรกร</h2>
+        <p id="current-desc">จำลองหน้าจอมือถือจริง ปุ่มสัมผัส 68px ไร้ศัพท์เทคนิค บอกสถานะ "ปลอดภัย" ทันที</p>
+      </div>
+      <div class="screen-actions">
+        <a id="download-svg" href="images/screen-01-map.svg" target="_blank" class="btn">เปิด SVG</a>
+        <a id="download-png" href="images/screen-01-map.png" target="_blank" class="btn btn-primary">ดูภาพ PNG ขนาดเต็ม</a>
+      </div>
+    </div>
+
+    <div class="viewer-container">
+      <img id="screen-img" src="images/screen-01-map.png" alt="Screen Preview">
+    </div>
+
+    <div class="specs-grid" id="specs-container"></div>
+  </main>
+
+  <script>
+    const screens = [
+      {
+        id: 1,
+        title: "หน้า 01: แผนที่น้ำกกใกล้บ้าน — หน้าหลักสำหรับชาวบ้านและเกษตรกร (บนมือถือ)",
+        desc: "ออกแบบให้เกษตรกรแตะดูได้ทันทีด้วยมือเดียว ตัวหนังสือใหญ่ ไม่มีคำว่า ppb/NTU ป้ายเขียวปลอดภัยชัดเจน",
+        svg: "images/screen-01-map.svg",
+        png: "images/screen-01-map.png",
+        specs: [
+          { title: "สิ่งที่ชาวบ้านเห็นทันที", items: ["ป้ายสถานะ 'คุณภาพน้ำวันนี้: ปลอดภัย' ใช้อาบ ซักล้าง รดผัก เลี้ยงปลาได้ปกติ", "แผนที่แม่น้ำกก พร้อมแลนด์มาร์กชุมชนที่คุ้นเคย: วัดท่าตอน, สะพานท่าตอน, โรงเรียน, ท่าเรือ"] },
+          { title: "ปุ่มสัมผัสขนาดใหญ่พิเศษ (68px)", items: ["ปุ่มส้มทองขนาดใหญ่: '📸 ส่งผลตรวจน้ำของคุณ' แตะง่ายแม้ใส่ถุงมือหรือมือเปื้อน", "ปุ่มช่วยเหลือด่วน: '🏃 จุดหนีน้ำท่วม' และ '📞 โทรหาผู้ใหญ่บ้าน'"] },
+          { title: "การเข้าถึงสำหรับผู้สูงอายุ", items: ["มีปุ่มลำโพงเสียงอ่านออกเสียงข้อความ (Text-to-Speech) สำหรับคนไม่อ่านหนังสือ", "คอนทราสต์สีสูง ชัดเจนในสภาพแสงแดดกลางแจ้งริมแม่น้ำ"] }
+        ]
+      },
+      {
+        id: 2,
+        title: "หน้า 02: แบบฟอร์มส่งผลตรวจน้ำ — ทำง่ายใน 3 ก้าว (ไม่ต้องพิมพ์ตัวเลข)",
+        desc: "เลือกสีจากตาเห็น ไม่ต้องพิมพ์ตัวเลข มีรูปไอคอนช่วยบอก 5 แหล่งน้ำ พร้อมปุ่มถ่ายภาพคู่",
+        svg: "images/screen-02-survey.svg",
+        png: "images/screen-02-survey.svg",
+        specs: [
+          { title: "ก้าวที่ 1: เลือกสีที่ตาเห็น", items: ["แบ่งเป็น 4 โซนสีใหญ่: เขียว (ปลอดภัย), ส้มอ่อน (เฝ้าระวัง), ส้มเข้ม (ห้ามดื่ม), น้ำตาล-ดำ (อันตรายมาก)", "ไม่ต้องรู้ค่าตัวเลขสารหนู แค่แตะเลือกกล่องสีที่ตรงกับแผ่นตรวจ"] },
+          { title: "ก้าวที่ 2: แหล่งน้ำจริง 5 ชนิด", items: ["ปุ่มใหญ่พร้อมไอคอน: น้ำถัง/น้ำขวด (ตรงสถิติ 91 หลังคา), ประปาหมู่บ้าน, บ่อบาดาล, แม่น้ำกก, น้ำฝน", "แตะครั้งเดียวเลือกได้ทันที"] },
+          { title: "ก้าวที่ 3: ภาพถ่ายคู่ & ความเป็นส่วนตัว", items: ["ปุ่มกล้องขนาดใหญ่: ถ่ายรูปแผ่นตรวจคู่แถบสี + ถ่ายรูปจุดตักน้ำ", "ดึงพิกัด GPS อัตโนมัติ ปิดบังชื่อและเบอร์โทรสู่สาธารณะตามมาตรฐาน PDPA"] }
+        ]
+      },
+      {
+        id: 3,
+        title: "หน้า 03: ผลตรวจจุดใกล้ฉัน — น้ำนี้เอาไปทำอะไรได้บ้าง?",
+        desc: "บอกชัดเจนว่าดื่มได้ไหม ซักผ้าได้ไหม รดผักได้ไหม พร้อมเส้นเวลาประวัติ 4 เดือนที่น้ำสะอาดขึ้นเรื่อยๆ",
+        svg: "images/screen-03-detail.svg",
+        png: "images/screen-03-detail.svg",
+        specs: [
+          { title: "คำแนะนำการใช้น้ำ (Actionable)", items: ["ดื่มกิน: 'ดื่มได้ แต่ต้องต้มสุกหรือผ่านเครื่องกรองก่อน'", "อาบน้ำ/ซักผ้า: 'ใช้ได้ตามปกติ ไม่ระคายเคืองผิวหนัง'", "การเกษตร: 'รดแปลงผัก เลี้ยงปลาในกระชังได้ ปลอดภัย 100%'"] },
+          { title: "ประวัติ 4 เดือนแบบเส้นเวลา", items: ["แสดงจุดวงกลม 4 เดือน (ม.ค. -> มี.ค. -> พ.ค. -> ล่าสุด)", "ชาวบ้านเห็นภาพทันทีว่าน้ำพัฒนาจาก 'ระวัง' มาเป็น 'ดีมาก'"] },
+          { title: "ปุ่มติดต่อชุมชน", items: ["ปุ่มโทรหา อสม. ประจำคุ้มบ้าน เพื่อขอคำปรึกษา", "ปุ่มขอรับแผ่นตรวจน้ำชุดใหม่มาตรวจบ่อที่บ้าน"] }
+        ]
+      },
+      {
+        id: 4,
+        title: "หน้า 04: แบบจำลองน้ำท่วม — 'ถ้าน้ำขึ้น... บ้านเราจะท่วมไหม?'",
+        desc: "สไลเดอร์ปรับระดับน้ำแม่น้ำกกเอ่อล้นตลิ่ง แสดงแผนที่น้ำท่วมทับแปลงนาและถนน พร้อมข้อแนะนำยกของ",
+        svg: "images/screen-04-flood.svg",
+        png: "images/screen-04-flood.svg",
+        specs: [
+          { title: "สไลเดอร์ระดับน้ำภาษาชาวบ้าน", items: ["+1 เมตร: น้ำปริ่มตลิ่ง ท่วมแปลงผักริมน้ำ", "+2 เมตร (ที่เลือก): น้ำเริ่มล้นข้ามถนนหน้าท่าเรือ รถเล็กวิ่งลำบาก", "+3 เมตร: ท่วมใต้ถุนบ้าน ให้รีบยกของขึ้นชั้น 2"] },
+          { title: "แผนที่น้ำท่วมจริง", items: ["ระบายสีน้ำเงินใสทับพื้นที่ลุ่มน้ำกกที่น้ำจะไหลเข้าถึงจริง", "ป้ายชี้ชัด: วัดท่าตอน (น้ำไม่ท่วม ✓) vs ท่าเรือ (⚠️ น้ำท่วม)"] },
+          { title: "รายการสิ่งที่ชาวบ้านต้องทำ", items: ["1. ยกเครื่องใช้ไฟฟ้าและปุ๋ยขึ้นสูงกว่า 1 เมตร", "2. พาผู้สูงอายุและเด็กไปศาลาวัดท่าตอน", "3. เลี่ยงถนนสายล่าง ใช้ถนนบายพาสสายบน"] }
+        ]
+      },
+      {
+        id: 5,
+        title: "หน้า 05: ทางหนีน้ำท่วม & จุดปลอดภัยใกล้บ้าน",
+        desc: "บอกเส้นทางเดินเท้าเลี่ยงถนนน้ำท่วม ไปยังศาลาพักพิงที่มีอาหารและยา พร้อมปุ่มขอเรือรับผู้ป่วยติดเตียง",
+        svg: "images/screen-05-evac.svg",
+        png: "images/screen-05-evac.svg",
+        specs: [
+          { title: "จุดปลอดภัยหลัก & สำรอง", items: ["ศาลาวัดท่าตอน (จุดที่ 1): เดินเท้า 6 นาที (450 ม.) พ้นน้ำท่วม 100% มีน้ำดื่ม ข้าวกล่อง และหมอ", "โรงเรียนบ้านท่าตอน (จุดที่ 2): มีลานจอดรถยนต์และรถไถ"] },
+          { title: "แผนที่เส้นทางเดินปลอดภัย", items: ["เส้นทางสีเขียวแนบถนนสายหลักที่น้ำไม่ท่วม", "กากบาทสีแดงเตือนถนนริมน้ำที่น้ำท่วมตัดผ่าน ห้ามเดินผ่าน"] },
+          { title: "ปุ่มฉุกเฉินสำหรับผู้ป่วยติดเตียง", items: ["ปุ่มส้มเด่นชัด: '🚨 แจ้งขอทีมมารับผู้ป่วยติดเตียง / คนชรา'", "ต่อตรงศูนย์กู้ภัย อบต. ส่งเรือและรถยกมารับถึงบ้านทันที"] }
+        ]
+      },
+      {
+        id: 6,
+        title: "หน้า 06: โต๊ะทำงานผู้ใหญ่บ้าน & อสม. — ตรวจสอบผลตรวจที่ชาวบ้านส่งมา",
+        desc: "ดูรูปถ่ายคู่ขยายใหญ่ ตรวจว่าสีกระดาษตรงกับแถบสีไหม พร้อมปุ่มส่งทีม อสม. ลงตรวจซ้ำ",
+        svg: "images/screen-06-admin-review.svg",
+        png: "images/screen-06-admin-review.svg",
+        specs: [
+          { title: "ระบบคัดกรองอัจฉริยะ", items: ["ผลสีปกติเผยแพร่อัตโนมัติทันที ไม่ต้องรอตรวจให้เสียเวลา", "ผลสีเข้มผิดปกติจะเข้าห้องนี้ เพื่อให้อสม.ช่วยดูรูปขยายและยืนยัน ป้องกันการตื่นตระหนก"] },
+          { title: "ตัวตรวจรูปถ่ายคู่ (Dual Photo)", items: ["ซูมดูรูปแผ่นตรวจเทียบแถบสีมาตรฐาน", "ดูรูปสถานที่ตักน้ำจริง เพื่อแยกแยะว่าน้ำขุ่นจากดินโคลนหรือมีสารปนเปื้อน"] },
+          { title: "ปุ่มตัดสินใจของผู้ใหญ่บ้าน", items: ["✓ ยืนยันผลและส่งเสียงตามสายเตือนชุมชน", "🔄 ส่งทีม อสม. ลงพื้นที่ตรวจซ้ำด้วยเครื่องมือมาตรฐาน", "✕ ภาพไม่ชัด ขอให้ชาวบ้านถ่ายใหม่"] }
+        ]
+      },
+      {
+        id: 7,
+        title: "หน้า 07: ทะเบียนข้อมูลคุณภาพน้ำ 4 หมู่บ้าน — สำหรับ อบต. และอาจารย์ มฟล.",
+        desc: "สรุปภาพรวม 129 จุดตรวจ แยก 4 หมู่บ้าน แสดงสถานะความปลอดภัย และปุ่มดาวน์โหลดรายงานส่งจังหวัด",
+        svg: "images/screen-07-admin-table.svg",
+        png: "images/screen-07-admin-table.svg",
+        specs: [
+          { title: "การ์ดสรุปภาพรวม 4 กล่อง", items: ["จุดตรวจทั้งหมด: 129 จุด ครบ 4 หมู่บ้าน", "น้ำปกติปลอดภัย: 122 จุด (94.6%)", "ต้องเฝ้าระวัง: 7 จุด (อสม. กำลังติดตาม)", "ปุ่มพิมพ์รายงานกระดาษส่งนายอำเภอ"] },
+          { title: "ตารางข้อมูลเข้าใจง่าย", items: ["แสดงชื่อหมู่บ้าน, ประเภทแหล่งน้ำ, ป้ายสถานะสี, คำแนะนำการใช้น้ำ, วันที่ตรวจ", "ค้นหาได้ตามชื่อหมู่บ้านหรือรหัสจุด"] },
+          { title: "การปกป้องข้อมูลส่วนบุคคล", items: ["ไม่แสดงชื่อหรือเบอร์โทรชาวบ้านบนตารางสาธารณะ แสดงเฉพาะประเภทแหล่งน้ำและรหัสจุด"] }
+        ]
+      },
+      {
+        id: 8,
+        title: "หน้า 08: ตัวช่วยร่างประกาศเสียงตามสาย & LINE ชุมชน — สำหรับผู้ใหญ่บ้าน",
+        desc: "แปลงผลตรวจเป็นบทอ่านภาษาพูดชาวบ้าน ผู้ใหญ่บ้านหยิบกระดาษไปอ่านออกหอกระจายข่าวได้ทันที",
+        svg: "images/screen-08-notice.svg",
+        png: "images/screen-08-notice.svg",
+        specs: [
+          { title: "บทอ่านหอกระจายข่าว (เสียงตามสาย)", items: ["เขียนด้วยภาษาพูดชาวบ้าน: 'สวัสดีครับ พ่อแม่พี่น้องบ้านท่าตอน...'", "บอกชัดเจน: น้ำในแม่น้ำกกปลอดภัย สูบเข้านาได้ ดื่มกินขอให้ต้มสุกก่อน", "มีปุ่มกดพิมพ์ลงกระดาษ A4 ตัวโตๆ อ่านง่าย"] },
+          { title: "ข้อความส่งเข้า LINE กลุ่มหมู่บ้าน", items: ["รูปแบบการ์ดสรุปสวยงาม อ่านง่ายบนมือถือ", "ปุ่มกดเดียว: '📋 คัดลอกข้อความส่งเข้า LINE ทันที' ผู้ใหญ่บ้านไม่ต้องพิมพ์เอง"] }
+        ]
+      },
+      {
+        id: 9,
+        title: "หน้า 09: ป้ายไวนิลคู่มือตรวจน้ำ 4 ขั้นตอน — สัดส่วนจริงสำหรับพิมพ์ติดศาลาหมู่บ้าน",
+        desc: "ป้ายขนาด A0 ตัวหนังสือใหญ่พิเศษ ภาพประกอบ 4 ขั้นตอน มองเห็นได้ชัดจากระยะ 3 เมตร",
+        svg: "images/screen-09-guide-a0.svg",
+        png: "images/screen-09-guide-a0.svg",
+        specs: [
+          { title: "4 ขั้นตอนง่ายๆ ใครก็ทำได้", items: ["1. จุ่มแผ่นตรวจในน้ำ 5 วินาที", "2. สะบัดน้ำส่วนเกินออก 1 ครั้ง", "3. วางราบบนโต๊ะรอ 30 วินาที", "4. ถ่ายรูปส่งให้ผู้ใหญ่บ้านหรือ อสม."] },
+          { title: "แถบเทียบสีขนาดยักษ์ท้ายป้าย", items: ["เขียว (ปลอดภัย): ใช้อาบ ซักล้าง รดผัก ต้มดื่มได้", "ส้มอ่อน (เฝ้าระวัง): ใช้รดผักได้ แต่ห้ามดื่มเด็ดขาด", "ส้มเข้ม (อันตราย): งดใช้น้ำ รีบแจ้งผู้ใหญ่บ้าน", "น้ำตาล-ดำ (อันตรายสูงสุด): ห้ามสัมผัส ส่งเจ้าหน้าที่ตรวจด่วน"] },
+          { title: "ข้อมูลการติดต่อชุมชน", items: ["ระบุจุดขอรับแผ่นตรวจน้ำฟรีที่ศาลาประชาคม หรือเบอร์ อสม. ประจำคุ้ม"] }
+        ]
+      }
+    ];
+
+    function showScreen(idx) {
+      const screen = screens[idx - 1];
+      document.getElementById('current-title').textContent = screen.title;
+      document.getElementById('current-desc').textContent = screen.desc;
+      document.getElementById('screen-img').src = screen.png;
+      document.getElementById('download-svg').href = screen.svg;
+      document.getElementById('download-png').href = screen.png;
+
+      const buttons = document.querySelectorAll('.nav-btn');
+      buttons.forEach((btn, i) => {
+        if (i === idx - 1) {
+          btn.classList.add('active');
+        } else {
+          btn.classList.remove('active');
+        }
+      });
+
+      const container = document.getElementById('specs-container');
+      container.innerHTML = screen.specs.map(s => `
+        <div class="spec-card">
+          <h3>📌 ${s.title}</h3>
+          <ul>
+            ${s.items.map(item => `<li>${item}</li>`).join('')}
+          </ul>
+        </div>
+      `).join('');
+    }
+
+    showScreen(1);
+  </script>
+</body>
+</html>

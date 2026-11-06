@@ -388,7 +388,7 @@ if (typeof window !== 'undefined') {
                 v-for="cat in NEWS_CATEGORIES"
                 :key="cat.value"
                 type="button"
-                class="rounded-xl px-3 py-1.5 text-xs font-semibold whitespace-nowrap transition cursor-pointer"
+                class="min-h-9 rounded-xl px-3 py-2 text-xs font-semibold whitespace-nowrap transition cursor-pointer"
                 :class="
                   selectedCategory === cat.value
                     ? 'bg-[#0284C7] text-white shadow-xs dark:bg-[#00E5FF] dark:text-slate-900'
@@ -404,7 +404,7 @@ if (typeof window !== 'undefined') {
             <div class="flex items-center gap-2 shrink-0">
               <select
                 v-model="selectedCommunity"
-                class="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 dark:border-[#2C2C2E] dark:bg-[#1E1E1E] dark:text-slate-200 outline-none focus:border-[#0284C7] dark:focus:border-[#00E5FF] cursor-pointer"
+                class="min-h-9 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 dark:border-[#2C2C2E] dark:bg-[#1E1E1E] dark:text-slate-200 outline-none focus:border-[#0284C7] dark:focus:border-[#00E5FF] cursor-pointer"
               >
                 <option v-for="c in COMMUNITY_OPTIONS" :key="c.value" :value="c.value">
                   {{ c.label }}
@@ -417,7 +417,7 @@ if (typeof window !== 'undefined') {
                   v-model="searchQuery"
                   type="text"
                   placeholder="ค้นหาข่าวหรือหัวข้อ..."
-                  class="w-full rounded-xl border border-slate-200 bg-white pl-8 pr-3 py-1.5 text-xs text-slate-700 dark:border-[#2C2C2E] dark:bg-[#1E1E1E] dark:text-slate-200 placeholder-slate-400 outline-none focus:border-[#0284C7] dark:focus:border-[#00E5FF]"
+                  class="w-full min-h-9 rounded-xl border border-slate-200 bg-white pl-8 pr-3 py-2 text-xs text-slate-700 dark:border-[#2C2C2E] dark:bg-[#1E1E1E] dark:text-slate-200 placeholder-slate-400 outline-none focus:border-[#0284C7] dark:focus:border-[#00E5FF]"
                 />
               </div>
             </div>

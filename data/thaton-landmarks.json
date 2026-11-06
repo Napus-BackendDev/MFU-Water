@@ -1,0 +1,16 @@
+{
+  "communityId": "thaton",
+  "source": "My Maps ชั้น Imported Photos",
+  "sourceUrl": "https://www.google.com/maps/d/viewer?mid=14fssLDgK82gtG_UMBYTfSe3mams_dbg",
+  "verificationStatus": "approximate_not_field_verified",
+  "note": "ตำแหน่งที่ถ่ายรูป ไม่ใช่ตำแหน่งอาคารที่ยืนยันแล้ว อาจคลาดหลายสิบเมตร",
+  "points": [
+    { "id": "TH-LM-01", "kind": "pier", "label": "ท่าเรือสาธารณะบ้านท่าตอน", "latitude": 20.06022, "longitude": 99.36254, "note": "" },
+    { "id": "TH-LM-02", "kind": "temple", "label": "Wat Matukaram", "latitude": 20.0567, "longitude": 99.35827, "note": "ยังไม่ยืนยันว่าเป็นวัดเดียวกับวัดท่าตอน (ความจุ 300 คนตามแผน F1)" },
+    { "id": "TH-LM-03", "kind": "other", "label": "Masjid Al-Rahmah (Thaton)", "latitude": 20.05962, "longitude": 99.3624, "note": "มัสยิด" },
+    { "id": "TH-LM-04", "kind": "other", "label": "จุดส่งพัสดุท่าตอน", "latitude": 20.06005, "longitude": 99.36137, "note": "จุดรับส่งของ" },
+    { "id": "TH-LM-05", "kind": "other", "label": "Western Union", "latitude": 20.05614, "longitude": 99.36, "note": "จุดรับเงินโอน" },
+    { "id": "TH-LM-06", "kind": "other", "label": "ห้องพัก จันทร์เกษม", "latitude": 20.05939, "longitude": 99.36257, "note": "ที่พักสำรอง" },
+    { "id": "TH-LM-07", "kind": "other", "label": "หจก.เงินไหลมาพานิช", "latitude": 20.05805, "longitude": 99.36034, "note": "ยังไม่ทราบประเภทกิจการ" }
+  ]
+}

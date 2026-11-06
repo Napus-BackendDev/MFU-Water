@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { watch } from 'vue'
+import { onMounted, ref, watch } from 'vue'
 import { House, FlaskConical, MapPin, Accessibility } from 'lucide-vue-next'
 import { hasPublicMapLayer, type CommunityMapType } from '../utils/community-map-layers'
 
@@ -14,27 +14,34 @@ const props = withDefaults(
 )
 const selectedId = defineModel<CommunityMapType | null>({ default: 'chemical' })
 const mapTypes: Array<{ id: CommunityMapType; label: string; shortLabel: string; icon: typeof House; color: string }> = [
-  { id: 'hamlets', label: 'หย่อมบ้าน', shortLabel: 'หย่อมบ้าน', icon: House, color: '#6D28D9' },
+  { id: 'hamlets', label: 'หมู่บ้าน', shortLabel: 'หมู่บ้าน', icon: House, color: '#6D28D9' },
   { id: 'chemical', label: 'สารเคมีปนเปื้อน', shortLabel: 'สารเคมี', icon: FlaskConical, color: '#0284C7' },
   { id: 'places', label: 'สถานที่สำคัญ', shortLabel: 'สถานที่', icon: MapPin, color: '#047857' },
   { id: 'evacuation', label: 'อพยพกลุ่มเปราะบาง', shortLabel: 'อพยพ', icon: Accessibility, color: '#B45309' },
 ]
 
+// Which layers exist depends on data the browser fetches, so the server cannot know it yet.
+// Until this component is mounted both sides answer the same way, otherwise Vue reports a
+// hydration mismatch on every page load.
+const hydrated = ref(false)
+onMounted(() => { hydrated.value = true })
+const isEnabled = (id: CommunityMapType) => (hydrated.value ? hasPublicMapLayer(props.communityId, id) : id !== 'places' && hasPublicMapLayer(props.communityId, id))
+
 function selectType(id: CommunityMapType) {
-  if (!hasPublicMapLayer(props.communityId, id)) return
+  if (!isEnabled(id)) return
   selectedId.value = selectedId.value === id ? null : id
 }
 
 watch(() => props.communityId, () => {
-  if (selectedId.value && hasPublicMapLayer(props.communityId, selectedId.value)) return
+  if (selectedId.value && isEnabled(selectedId.value)) return
   selectedId.value = 'chemical'
 }, { immediate: true })
 
 function label(id: CommunityMapType, name: string) {
-  const status = hasPublicMapLayer(props.communityId, id)
+  const status = isEnabled(id)
     ? id === 'chemical' ? 'จุดสำรวจคุณภาพน้ำและสารเคมีปนเปื้อนตามช่วงเวลา'
       : id === 'evacuation' ? 'จุดศูนย์พักพิงและรวมพล ตำแหน่งประมาณจากภาพ PDF'
-      : 'ข้อมูลชุมชน'
+      : 'ข้อมูลแผนที่'
     : 'ปิดการใช้งาน (ไม่สามารถกดได้)'
   return `แผนที่${name}: ${status}`
 }
@@ -57,12 +64,12 @@ function label(id: CommunityMapType, name: string) {
         :class="[
           selectedId === type.id
             ? 'font-bold shadow-xs'
-            : !hasPublicMapLayer(communityId, type.id)
+            : !isEnabled(type.id)
               ? 'opacity-40 cursor-not-allowed text-slate-400 dark:text-zinc-600'
               : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white'
         ]"
-        :style="selectedId === type.id && hasPublicMapLayer(communityId, type.id) ? { color: type.color, backgroundColor: `color-mix(in srgb, ${type.color} 14%, transparent)` } : {}"
-        :disabled="!hasPublicMapLayer(communityId, type.id)"
+        :style="selectedId === type.id && isEnabled(type.id) ? { color: type.color, backgroundColor: `color-mix(in srgb, ${type.color} 14%, transparent)` } : {}"
+        :disabled="!isEnabled(type.id)"
         :aria-pressed="selectedId === type.id"
         :aria-label="label(type.id, type.label)"
         :title="label(type.id, type.label)"
@@ -78,9 +85,9 @@ function label(id: CommunityMapType, name: string) {
   <div v-else class="map-types-control pointer-events-auto" role="group" aria-label="เลือกประเภทแผนที่">
     <button
       v-for="type in mapTypes" :key="type.id" type="button"
-      class="map-type-option" :class="{ selected: selectedId === type.id, disabled: !hasPublicMapLayer(communityId, type.id) }"
-      :style="{ '--type-color': hasPublicMapLayer(communityId, type.id) ? type.color : '#94A3B8' }"
-      :disabled="!hasPublicMapLayer(communityId, type.id)"
+      class="map-type-option" :class="{ selected: selectedId === type.id, disabled: !isEnabled(type.id) }"
+      :style="{ '--type-color': isEnabled(type.id) ? type.color : '#94A3B8' }"
+      :disabled="!isEnabled(type.id)"
       :aria-pressed="selectedId === type.id" :aria-label="label(type.id, type.label)" :title="label(type.id, type.label)"
       @click="selectType(type.id)"
     >

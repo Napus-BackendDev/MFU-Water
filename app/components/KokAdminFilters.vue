@@ -35,9 +35,9 @@ const tabs = computed(() => [
       <span>ระดับ</span>
       <select v-model="severity" :class="selectInPillClass">
         <option value="all">ทั้งหมด</option>
-        <option value="safe">ปกติ (&lt;=10 ppb)</option>
-        <option value="watch">เฝ้าระวัง (10-50 ppb)</option>
-        <option value="critical">วิกฤติ (&gt;50 ppb)</option>
+        <option value="normal">ปกติ (&lt; 5 ppb)</option>
+        <option value="watch">เฝ้าระวัง (5–10 ppb)</option>
+        <option value="over">เกินเกณฑ์ คพ. (&gt; 10 ppb)</option>
       </select>
     </label>
 

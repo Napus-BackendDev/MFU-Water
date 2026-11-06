@@ -1,0 +1,30 @@
+import { chromium } from 'file:///C:/Users/asus/Desktop/Fastwork/mfu%20kok%20water%20watch/node_modules/playwright/index.mjs';
+const b = await chromium.launch({ headless: true });
+const U = 'http://127.0.0.1:5173/';
+async function run(tag, vp, dsf) {
+  const ctx = await b.newContext({ viewport: vp, deviceScaleFactor: dsf, isMobile: tag === 'm', hasTouch: tag === 'm' });
+  const p = await ctx.newPage();
+  const shot = async n => { await p.waitForTimeout(900); await p.screenshot({ path: `shots/${n}-${tag}.png` }); console.log('ok', n, tag); };
+  const go = async q => { await p.goto(U + q, { waitUntil: 'networkidle', timeout: 60000 }); await p.waitForTimeout(3500); };
+  await go(''); await shot('s1-landing');
+  await go('?view=dashboard&community=thaton'); await shot('s2-map');
+  const typeBtn = t => p.locator(`button:has-text("${t}")`).last();
+  await typeBtn('น้ำท่วม').click({ timeout: 8000 }).catch(e => console.log('flood btn', e.message.slice(0, 60)));
+  await shot('s2b-flood');
+  await typeBtn(tag === 'm' ? 'อพยพ' : 'อพยพกลุ่มเปราะบาง').click({ timeout: 8000 }).catch(() => {});
+  await shot('s2c-evac');
+  await go('?view=dashboard&community=thaton');
+  await p.locator('button:has-text("ทำแบบสำรวจ"):visible').first().click({ timeout: 8000 }).catch(() => {});
+  await shot('s3-survey');
+  await go('?view=dashboard&community=thaton');
+  await p.locator('button[aria-label="สรุปรายวันและดูกราฟ"]').click({ timeout: 8000 }).catch(() => {});
+  await shot('s4-summary');
+  await go('?view=dashboard&community=thaton');
+  await p.locator('button[aria-label="คู่มือ"]').click({ timeout: 8000 }).catch(() => {});
+  await shot('s6-guide');
+  await go('?view=admin'); await shot('s5-admin');
+  await ctx.close();
+}
+await run('d', { width: 1440, height: 900 }, 1);
+await run('m', { width: 390, height: 844 }, 2);
+await b.close();

@@ -1,3 +1,4 @@
+import { ARSENIC_LIMIT_PPB, ARSENIC_REVIEW_PPB, arsenicLevel, arsenicLevelMeta } from '../../src/lib/arsenic'
 import { contractData } from './kok-contract'
 
 export type PublicationStatus = 'pending_review' | 'approved' | 'auto_published' | 'rejected'
@@ -12,7 +13,7 @@ export type AdminSample = {
   gps_accuracy_meters: number | null
   arsenic_ppb: number
   measurements?: { arsenic?: { unit?: string; value?: number; status?: string } }
-  sample_nature?: { water_source?: string; water_appearance?: string }
+  sample_nature?: { water_source?: string; water_appearance?: string; test_kit?: string }
   publication_status: PublicationStatus
   reviewed_at?: string | null
   reviewed_by?: string | null
@@ -68,11 +69,13 @@ export function formatThaiDate(iso: string): string {
 }
 
 export function getArsenicMeta(ppb: number) {
-  const match = contractData.levels.find((level) => level.ppb === ppb)
-  if (match) return match
-  if (ppb > 50) return { color: '#7A2E1E', hex: '#7A2E1E', action: 'เกินเกณฑ์วิกฤติ (>50 ppb)' }
-  if (ppb > 10) return { color: '#E5A93C', hex: '#E5A93C', action: 'เกินมาตรฐานผิวดิน (>10 ppb)' }
-  return { color: '#FFFFFF', hex: '#FFFFFF', action: 'เกณฑ์ปกติ (<=10 ppb)' }
+  const meta = arsenicLevelMeta[arsenicLevel(ppb)]
+  // The nine kit colours stay as printed on the strip; the label always comes from the shared scale.
+  const swatch = contractData.levels.find((level) => level.ppb === ppb)
+  return { ...swatch, color: swatch?.color ?? meta.hex, hex: swatch?.color ?? meta.hex, action: `${meta.label} (${meta.note})` }
 }
 
-export const arsenicSeverity = (ppb: number) => (ppb > 50 ? 'critical' : ppb > 10 ? 'watch' : 'safe')
+// Same scale as the public map: above the 10 ppb surface-water limit is already over, whoever is looking.
+export const arsenicSeverity = arsenicLevel
+
+export { ARSENIC_LIMIT_PPB, ARSENIC_REVIEW_PPB }

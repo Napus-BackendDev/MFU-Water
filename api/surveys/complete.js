@@ -12,6 +12,8 @@ import {
 } from './_shared.js'
 import { inspectPhoto, maxPhotoBytes } from './_photos.js'
 import { findSurveyById, insertSurvey, saveAlert, saveContact, saveSample } from './_db.js'
+import { sendReviewAlert } from './_mail.js'
+import { ARSENIC_REVIEW_PPB, needsAdminReview } from '../../src/lib/arsenic.js'
 
 export default async function handler(request, response) {
   if (request.method !== 'POST') {
@@ -49,7 +51,7 @@ export default async function handler(request, response) {
     }
 
     // กำหนด publication_status: ค่าเกิน 50 ppb จะต้องรอแอดมินยืนยัน (pending_review)
-    const publicationStatus = body.arsenicLevelPpb > 50 ? 'pending_review' : 'auto_published'
+    const publicationStatus = needsAdminReview(body.arsenicLevelPpb) ? 'pending_review' : 'auto_published'
 
     const values = publicSurveyPayload(body)
     values.id = claims.surveyId
@@ -57,6 +59,8 @@ export default async function handler(request, response) {
     values.public_consent_at = claims.consentAt
     values.photo_1_path = claims.photoPaths[0]
     values.photo_2_path = claims.photoPaths[1]
+    // The public map and its time filter read this, so a back-dated sample lands on the day it was collected.
+    values.collection_time = new Date(body.sampleCollectedAt || Date.now())
 
     const waypoint = await insertSurvey(settings, values)
     if (!waypoint) {
@@ -76,6 +80,7 @@ export default async function handler(request, response) {
         entry_type: 'realtime',
         sample_nature: {
           water_source: body.waterSourceType || 'แม่น้ำกก',
+          test_kit: typeof body.testKit === 'string' ? body.testKit.trim() : null,
           water_appearance: body.rainContext ? `บริบทฝน: ${body.rainContext}` : ''
         },
         measurements: {
@@ -100,13 +105,25 @@ export default async function handler(request, response) {
         phone: body.phoneNumber.trim()
       })
 
-      // หากค่าเกิน 50 ppb ให้สร้างแจ้งเตือนแอดมินใน kok_admin_alerts
-      if (body.arsenicLevelPpb > 50) {
+      // R10: a result above the review line is held back; the admins get an email and the alert records whether it went.
+      if (needsAdminReview(body.arsenicLevelPpb)) {
+        const email = await sendReviewAlert({
+          sampleCode: claims.sampleCode,
+          ppb: body.arsenicLevelPpb,
+          reviewPpb: ARSENIC_REVIEW_PPB,
+          collectedAt: samplePayload.collection_time,
+          waterSource: samplePayload.sample_nature.water_source,
+          latitude: samplePayload.latitude,
+          longitude: samplePayload.longitude,
+        })
+        if (email.status === 'failed') console.error('Review alert email failed:', email.error)
         await saveAlert(settings, {
           sample_code: claims.sampleCode,
           arsenic_ppb: body.arsenicLevelPpb,
           publication_status: 'pending_review',
-          email_status: 'queued'
+          email_status: email.status,
+          ...(email.error ? { email_error: email.error } : {}),
+          ...(email.status === 'sent' ? { emailed_at: new Date() } : {}),
         })
       }
     } catch {
@@ -117,6 +134,7 @@ export default async function handler(request, response) {
       ...waypoint,
       water_source_type: body.waterSourceType,
       rain_context: body.rainContext,
+      test_kit: typeof body.testKit === 'string' ? body.testKit.trim() : undefined,
       publication_status: publicationStatus,
     })
 

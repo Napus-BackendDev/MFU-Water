@@ -1,0 +1,138 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 960" width="1200" height="960">
+  <defs>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@300;400;500;600;700;800&amp;display=swap');
+      * { font-family: 'Noto Sans Thai', 'Segoe UI', sans-serif; }
+      .bold { font-weight: 700; }
+      .semibold { font-weight: 600; }
+      .medium { font-weight: 500; }
+      .regular { font-weight: 400; }
+      .shadow { filter: drop-shadow(0px 4px 12px rgba(0,0,0,0.08)); }
+      .shadow-lg { filter: drop-shadow(0px 8px 24px rgba(0,0,0,0.14)); }
+      .btn-pulse { animation: pulse 2s infinite; }
+    </style>
+    <linearGradient id="grad-green" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#195640"/>
+      <stop offset="100%" stop-color="#113D2E"/>
+    </linearGradient>
+    <linearGradient id="grad-safe" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#E8F5E9"/>
+      <stop offset="100%" stop-color="#C8E6C9"/>
+    </linearGradient>
+    <linearGradient id="grad-danger" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#FFEBEE"/>
+      <stop offset="100%" stop-color="#FFCDD2"/>
+    </linearGradient>
+    <linearGradient id="river-grad" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#72B5CC"/>
+      <stop offset="50%" stop-color="#4A9BB8"/>
+      <stop offset="100%" stop-color="#3182A0"/>
+    </linearGradient>
+    <linearGradient id="flood-water" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#1976D2" stop-opacity="0.6"/>
+      <stop offset="100%" stop-color="#0D47A1" stop-opacity="0.8"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="960" fill="#F5F4ED"/>
+  
+    <rect x="0" y="0" width="1200" height="960" fill="#EBE9DF"/>
+    
+    <text x="60" y="56" fill="#195640" font-size="28" font-weight="800">🏃 ทางหนีน้ำท่วม & จุดปลอดภัยใกล้บ้าน</text>
+    <text x="60" y="90" fill="#556B60" font-size="16" font-weight="500">บอกเส้นทางเดินเท้าที่น้ำไม่ท่วม และศาลาพักพิงที่มีอาหาร-ยา พร้อมปุ่มแจ้งช่วยผู้ป่วยติดเตียง</text>
+
+    <g transform="translate(380, 110)">
+      <rect x="-6" y="-6" width="452" height="832" rx="42" fill="#2D3732" opacity="0.15" class="shadow-lg"/>
+      <rect x="0" y="0" width="440" height="820" rx="36" fill="#FFFFFF" stroke="#D0D7D0" stroke-width="3"/>
+      <rect x="150" y="10" width="140" height="22" rx="11" fill="#213E32"/>
+
+      <!-- Header -->
+      <rect x="0" y="38" width="440" height="66" fill="#195640"/>
+      <text x="24" y="74" fill="#FFFFFF" font-size="20" font-weight="800">⚠️ จุดปลอดภัยใกล้คุณที่สุด</text>
+      <text x="24" y="94" fill="#D2E7DC" font-size="12">อิงจากโครงข่ายถนนจริง 190 สายในพื้นที่</text>
+
+      <g transform="translate(18, 116)">
+        <!-- 1. NEAREST SAFE HAVEN (Hero Card) -->
+        <rect x="0" y="0" width="404" height="136" rx="16" fill="#E8F5E9" stroke="#81C784" stroke-width="2" class="shadow"/>
+        <circle cx="48" cy="48" r="28" fill="#2E7D32"/>
+        <text x="35" y="57" fill="#FFFFFF" font-size="28">🛕</text>
+        <text x="88" y="38" fill="#1B5E20" font-size="18" font-weight="800">ศาลาวัดท่าตอน (จุดที่ 1)</text>
+        <text x="88" y="60" fill="#2E7D32" font-size="13" font-weight="600">🚶 เดินเท้า 6 นาที (ห่างจากบ้านคุณ 450 ม.)</text>
+        <text x="88" y="80" fill="#4B6B56" font-size="11">✓ พ้นน้ำท่วม 100% • มีน้ำดื่ม ข้าวกล่อง และหน่วยปฐมพยาบาล</text>
+        
+        <!-- Button: Start Walking Direction -->
+        <rect x="88" y="94" width="200" height="32" rx="8" fill="#2E7D32"/>
+        <text x="188" y="115" fill="#FFFFFF" font-size="12" font-weight="700" text-anchor="middle">➔ กดเปิดเส้นทางเดินนำทาง</text>
+
+        <!-- 2. SECONDARY SAFE HAVEN -->
+        <g transform="translate(0, 150)">
+          <rect x="0" y="0" width="404" height="90" rx="14" fill="#FAFAFA" stroke="#D8DFD5" stroke-width="1.5"/>
+          <circle cx="40" cy="45" r="22" fill="#E8F0EC"/>
+          <text x="28" y="53" font-size="20">🏫</text>
+          <text x="76" y="34" fill="#213E32" font-size="16" font-weight="700">โรงเรียนบ้านท่าตอน (จุดที่ 2)</text>
+          <text x="76" y="54" fill="#556B60" font-size="12">🚶 เดินเท้า 12 นาที (ห่าง 900 ม.) • รองรับได้ 200 คน</text>
+          <text x="76" y="72" fill="#2E7D32" font-size="11">✓ น้ำไม่ท่วม • มีลานจอดรถยนต์และรถไถ</text>
+        </g>
+
+        <!-- 3. MAP SNIPPET SHOWING SAFE ROUTE -->
+        <g transform="translate(0, 252)">
+          <rect x="0" y="0" width="404" height="200" rx="14" fill="#F4F8F4" stroke="#D8DFD5"/>
+          
+          <!-- Evacuation Path (Green Line) -->
+          <path d="M 60,160 L 140,110 L 220,130 L 320,50" fill="none" stroke="#2E7D32" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M 60,160 L 140,110 L 220,130 L 320,50" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-dasharray="6 6"/>
+
+          <!-- Flooded Roads (Red X) -->
+          <path d="M 60,160 L 100,180 L 180,180" fill="none" stroke="#A33228" stroke-width="6" stroke-dasharray="4 4"/>
+          <circle cx="140" cy="180" r="12" fill="#FFCDD2"/>
+          <text x="135" y="185" fill="#A33228" font-size="12" font-weight="700">✕</text>
+
+          <!-- Your Location Pin -->
+          <circle cx="60" cy="160" r="14" fill="#1976D2" stroke="#FFF" stroke-width="3" class="shadow"/>
+          <text x="54" y="165" fill="#FFF" font-size="11">🏠</text>
+          <text x="35" y="190" fill="#0D47A1" font-size="11" font-weight="700">บ้านคุณ</text>
+
+          <!-- Safe Destination Pin -->
+          <circle cx="320" cy="50" r="16" fill="#2E7D32" stroke="#FFF" stroke-width="3" class="shadow"/>
+          <text x="312" y="56" fill="#FFF" font-size="14">🛕</text>
+          <text x="280" y="26" fill="#1B5E20" font-size="12" font-weight="800">วัดท่าตอน</text>
+
+          <rect x="10" y="10" width="130" height="26" rx="6" fill="rgba(255,255,255,0.9)"/>
+          <text x="18" y="28" fill="#2E7D32" font-size="11" font-weight="700">เส้นทางปลอดภัย (เดินตามนี้)</text>
+        </g>
+
+        <!-- 4. VULNERABLE PERSON EMERGENCY HELP (Elderly, Bedridden, Disabled) -->
+        <g transform="translate(0, 466)">
+          <rect x="0" y="0" width="404" height="110" rx="14" fill="#FFF3E0" stroke="#FFE082" stroke-width="2"/>
+          <text x="16" y="32" font-size="24">🧓</text>
+          <text x="50" y="28" fill="#C45A10" font-size="15" font-weight="800">มีผู้สูงอายุ / ผู้ป่วยติดเตียง อยู่ในบ้าน?</text>
+          <text x="50" y="48" fill="#556B60" font-size="12">กดแจ้งทีมกู้ภัยและ อสม. จะนำเรือและรถยกมารับถึงบ้าน</text>
+
+          <!-- Big Alert Button -->
+          <rect x="50" y="60" width="338" height="40" rx="10" fill="#E65100"/>
+          <text x="219" y="85" fill="#FFFFFF" font-size="13" font-weight="700" text-anchor="middle">🚨 กดแจ้งขอทีมมารับผู้ป่วยติดเตียง</text>
+        </g>
+
+        <!-- Bottom Call Leader Button -->
+        <g transform="translate(0, 588)">
+          <rect x="0" y="0" width="404" height="60" rx="16" fill="#195640" class="shadow"/>
+          <text x="202" y="36" fill="#FFFFFF" font-size="16" font-weight="800" text-anchor="middle">📞 โทรสายด่วนผู้ใหญ่บ้าน: 081-XXX-XXXX</text>
+        </g>
+      </g>
+    </g>
+
+    <g transform="translate(860, 160)">
+      <rect x="0" y="0" width="280" height="340" rx="16" fill="#FFFFFF" stroke="#D8DFD5" class="shadow"/>
+      <rect x="0" y="0" width="280" height="44" rx="16" fill="#195640"/>
+      <text x="18" y="28" fill="#FFFFFF" font-size="15" font-weight="700">📌 จุดเด่นหน้าอพยพ (R06, R07)</text>
+      
+      <text x="18" y="75" fill="#213E32" font-size="13" font-weight="700">1. แนบแนวถนนจริง 190 สาย:</text>
+      <text x="18" y="95" fill="#556B60" font-size="12">เส้นทางเดินไม่ตัดผ่านทุ่งนาที่น้ำท่วม</text>
+      
+      <text x="18" y="130" fill="#213E32" font-size="13" font-weight="700">2. บอกระยะทางและเวลาเดิน:</text>
+      <text x="18" y="150" fill="#556B60" font-size="12">ชาวบ้านกะเวลาและวางแผนพาครอบครัวได้</text>
+
+      <text x="18" y="185" fill="#213E32" font-size="13" font-weight="700">3. ใส่ใจกลุ่มเปราะบาง 6 มิติ:</text>
+      <text x="18" y="205" fill="#556B60" font-size="12">ปุ่มขอเรือรับผู้ป่วยติดเตียงโดยเฉพาะ</text>
+    </g>
+    
+</svg>

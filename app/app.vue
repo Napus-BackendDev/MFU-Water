@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import type { ObservationDate } from './utils/flood-observations'
-import { Activity, BookOpen, CheckCircle2, ClipboardList, Filter, Newspaper, ShieldAlert } from 'lucide-vue-next'
+import { Activity, BookOpen, CheckCircle2, ClipboardList, Newspaper, ShieldAlert } from 'lucide-vue-next'
 import KokLandingHero from './components/KokLandingHero.vue'
 import KokKpiCard from './components/KokKpiCard.vue'
 import KokLoadingScreen from './components/KokLoadingScreen.vue'
@@ -13,8 +13,13 @@ import KokCommunityProfileCard from './components/KokCommunityProfileCard.vue'
 import KokPointDetailModal from './components/KokPointDetailModal.vue'
 import KokAdminDataTablePage from './components/KokAdminDataTablePage.vue'
 import KokNewsPage from './components/KokNewsPage.vue'
+import KokEvacuationMode from './components/KokEvacuationMode.vue'
+import KokAdminLogin from './components/KokAdminLogin.vue'
+import { getAdminToken, requestAdminBypass } from './utils/admin-session'
+import { useAdminQueue } from './composables/useAdminQueue'
 
 import type { CommunityMapType } from './utils/community-map-layers'
+import { isPublicSample } from '../src/lib/arsenic'
 import { communityOfPoint } from '../src/lib/community-of-point'
 import { fetchSurveyWaypoints, type SurveyWaypoint } from '../src/lib/survey'
 
@@ -84,9 +89,7 @@ watch(selectedCommunityId, (newId) => {
     }
   }
 })
-const zoomScope = ref<'inner' | 'outer'>('inner')
-const selectedTimeRange = ref<'today' | '24h' | '7d' | '30d' | 'none'>('today')
-const selectedStatusFilter = ref<'all' | 'normal' | 'alert'>('all')
+const selectedTimeRange = ref<'24h' | '7d' | '30d' | 'all'>('all')
 const waterwayTrigger = ref(0)
 const waterwayMessage = ref<string | null>(null)
 const virtualPolygonActive = ref(false)
@@ -96,6 +99,42 @@ watch(activeCommunityMapType, (newType) => {
     selectedCommunityId.value = 'thaton'
   }
 })
+
+// Evacuation Mode (Response Team) State
+const evacuationModeActive = ref(false)
+const evacuationQueue = ref<any[]>([])
+const selectedEvacuationCase = ref<any | null>(null)
+const evacuationDestinations = ref<any[]>([])
+const adminLoginForEvacuationOpen = ref(false)
+const isDesktop = ref(typeof window !== 'undefined' ? window.innerWidth >= 1024 : true)
+const adminQueue = useAdminQueue()
+
+async function enterEvacuationMode() {
+  if (activeCommunityMapType.value !== 'evacuation') {
+    activeCommunityMapType.value = 'evacuation'
+  }
+  selectedCommunityId.value = 'thaton'
+
+  const token = getAdminToken()
+  if (token) {
+    evacuationModeActive.value = true
+    return
+  }
+  const bypassed = await requestAdminBypass()
+  if (bypassed) {
+    evacuationModeActive.value = true
+    return
+  }
+  adminLoginForEvacuationOpen.value = true
+}
+
+async function handleEvacuationLoginSubmit() {
+  await adminQueue.login()
+  if (adminQueue.isUnlocked.value) {
+    adminLoginForEvacuationOpen.value = false
+    evacuationModeActive.value = true
+  }
+}
 
 // Selected Map Item for Right Inspector
 const selectedWaypoint = ref<SurveyWaypoint | null>(null)
@@ -180,7 +219,7 @@ const selectedDistributionCol = ref(distributionColumns[1]?.colKey ?? distributi
 // Only the points of the selected community (within 10 km of its centre), so a village with no surveys shows none.
 const communityWaypoints = computed(() => {
   // R10 safety: only <= 50 ppb (or approved) in public waypoints
-  const published = waypoints.value.filter((wp) => wp.arsenic_level_ppb <= 50 || wp.publication_status === 'approved')
+  const published = waypoints.value.filter((wp) => isPublicSample(wp.arsenic_level_ppb, wp.publication_status))
   if (selectedCommunityId.value === 'all') return published
   return published.filter((wp) => communityOfPoint(wp.latitude, wp.longitude, communityTargets)?.id === selectedCommunityId.value)
 })
@@ -189,19 +228,11 @@ const communityWaypoints = computed(() => {
 const filteredWaypoints = computed(() => {
   const now = Date.now()
   return communityWaypoints.value.filter((wp) => {
-    if (selectedStatusFilter.value === 'normal' && wp.arsenic_level_ppb > 10) return false
-    if (selectedStatusFilter.value === 'alert' && wp.arsenic_level_ppb <= 10) return false
-
-    if (selectedTimeRange.value === 'none') return false
-    {
-      const rawDate = wp.collection_time || wp.created_at
-      const createdMs = Date.parse(rawDate)
+    if (selectedTimeRange.value !== 'all') {
+      const createdMs = Date.parse(wp.collection_time || wp.created_at)
       if (Number.isFinite(createdMs)) {
-        const ageHours = (now - createdMs) / (1000 * 3600)
-        if (selectedTimeRange.value === 'today' && ageHours > 24) return false
-        if (selectedTimeRange.value === '24h' && ageHours > 24) return false
-        if (selectedTimeRange.value === '7d' && ageHours > 24 * 7) return false
-        if (selectedTimeRange.value === '30d' && ageHours > 24 * 30) return false
+        const maxHours = selectedTimeRange.value === '24h' ? 24 : selectedTimeRange.value === '7d' ? 24 * 7 : 24 * 30
+        if ((now - createdMs) / (1000 * 3600) > maxHours) return false
       }
     }
     return true
@@ -373,6 +404,12 @@ onMounted(() => {
     else if (params.get('view') === 'news') currentView.value = 'news'
     else if (params.get('view') === 'landing') currentView.value = 'landing'
     welcomeOpen.value = currentView.value === 'dashboard' && params.get('welcome') !== 'off'
+    window.addEventListener('resize', () => {
+      isDesktop.value = window.innerWidth >= 1024
+    })
+    if (params.get('mode') === 'evacuation' || params.get('evac') === '1') {
+      void enterEvacuationMode()
+    }
     window.addEventListener('popstate', () => {
       const p = new URLSearchParams(window.location.search)
       const v = p.get('view')
@@ -416,7 +453,6 @@ onMounted(() => {
           :waypoints="filteredWaypoints"
           :active-thematic-layer="activeThematicLayer"
           :community-map-type="activeCommunityMapType"
-          @update:community-map-type="activeCommunityMapType = $event"
           v-model:flood-stage="floodStage"
           flood-view="depth"
           :flood-sensitivity="false"
@@ -424,20 +460,34 @@ onMounted(() => {
           :observations-visible="observationsVisible"
           :observation-date="observationDate"
           v-model:selected-community-id="selectedCommunityId"
-          :zoom-scope="zoomScope"
           :waterway-request-trigger="waterwayTrigger"
           :virtual-polygon-active="virtualPolygonActive"
           :is-full-screen="true"
+          :evacuation-mode-active="evacuationModeActive"
+          :evacuation-queue="evacuationQueue"
+          :selected-evacuation-case="selectedEvacuationCase"
+          :evacuation-destinations="evacuationDestinations"
           @update:active-thematic-layer="activeThematicLayer = $event"
-          @update:zoom-scope="zoomScope = $event"
           @select-waypoint="handleSelectWaypoint($event)"
           @select-grid-cell="selectedGridCell = $event"
           @waterway-loaded="waterwayMessage = $event"
+          @select-evacuation-case="selectedEvacuationCase = $event"
         />
       </div>
 
+      <!-- Evacuation Mode Full Overlay (โหมดทีมช่วยเหลือ) -->
+      <KokEvacuationMode
+        v-if="evacuationModeActive"
+        :active="evacuationModeActive"
+        :is-desktop="isDesktop"
+        @close="evacuationModeActive = false; selectedEvacuationCase = null"
+        @update:queue="evacuationQueue = $event"
+        @update:destinations="evacuationDestinations = $event"
+        @select-case="selectedEvacuationCase = $event"
+      />
+
       <!-- Floating Top Header Bar -->
-      <header class="no-print absolute top-3 left-3 right-3 z-20 flex items-start justify-between gap-3 pointer-events-none">
+      <header v-if="!evacuationModeActive" class="no-print absolute top-3 left-3 right-3 z-20 flex items-start justify-between gap-3 pointer-events-none">
         <div class="pointer-events-auto flex items-center gap-1 shrink-0">
           <!-- Community Target Dropdown (4 Focus Communities) -->
           <KokCommunityDropdown
@@ -494,10 +544,10 @@ onMounted(() => {
 
 
       <!-- หย่อมบ้าน: การ์ดรู้จักชุมชน (เนื้อหาพื้นที่) ของทุกชุมชน -->
-      <KokCommunityProfileCard v-if="activeCommunityMapType === 'hamlets'" :community-id="selectedCommunityId" />
+      <KokCommunityProfileCard v-if="!evacuationModeActive && activeCommunityMapType === 'hamlets'" :community-id="selectedCommunityId" />
 
       <!-- Desktop Bottom Bar: Tabs centered at bottom-[9px], Survey Button on right at bottom-[9px] (+4px lifted) -->
-      <div class="pointer-events-none hidden sm:flex absolute bottom-[9px] left-1/2 -translate-x-1/2 z-20 items-center justify-center">
+      <div v-if="!evacuationModeActive" class="pointer-events-none hidden sm:flex absolute bottom-[9px] left-1/2 -translate-x-1/2 z-20 items-center justify-center">
         <KokMapTypesControl
           v-model="activeCommunityMapType"
           :community-id="selectedCommunityId"
@@ -505,9 +555,31 @@ onMounted(() => {
         />
       </div>
 
+      <!-- Desktop: ปุ่มเข้าโหมดอพยพทีมช่วยเหลือ เมื่ออยู่ในแท็บ 'อพยพ' -->
+      <div v-if="!evacuationModeActive && activeCommunityMapType === 'evacuation'" class="pointer-events-none hidden sm:block absolute bottom-[16px] right-4 z-20">
+        <button
+          type="button"
+          class="pointer-events-auto flex items-center gap-2 px-4 py-2.5 rounded-full font-bold text-sm text-white bg-[#B91C1C] hover:bg-[#991B1B] shadow-xl border border-red-500/30 transition-transform hover:scale-105 active:scale-95"
+          @click="enterEvacuationMode"
+        >
+          <span>🚨 โหมดอพยพ (ทีมช่วยเหลือ)</span>
+        </button>
+      </div>
+
+      <!-- A community with nothing published yet says so, instead of showing a blank map. -->
+      <div
+        v-if="!evacuationModeActive && activeCommunityMapType === 'chemical' && !loadingWaypoints && communityWaypoints.length === 0"
+        class="pointer-events-none absolute left-1/2 top-1/2 z-20 w-[min(22rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-amber-200 bg-white/95 p-4 text-center shadow-lg backdrop-blur dark:border-amber-900/60 dark:bg-[#1E1E1E]/95"
+      >
+        <p class="text-sm font-bold text-slate-900 dark:text-white">ยังไม่มีผลตรวจที่เผยแพร่ของ{{ selectedCommunityName }}</p>
+        <p class="mt-1 text-xs text-slate-600 dark:text-[#98A2A8]">
+          ชุมชนนี้ยังไม่มีผลชุดตรวจสารหนูที่ผ่านการเผยแพร่ กดปุ่ม “ทำแบบสำรวจ” เพื่อส่งผลตรวจเป็นรายการแรก
+        </p>
+      </div>
+
       <!-- Desktop: ตัวกรองเวลาสารเคมีปนเปื้อน ลอยกึ่งกลางเหนือแถบเมนูล่าง -->
       <div
-        v-if="activeCommunityMapType === 'chemical'"
+        v-if="!evacuationModeActive && activeCommunityMapType === 'chemical'"
         class="pointer-events-none hidden sm:flex absolute bottom-[68px] left-1/2 -translate-x-1/2 z-20 items-center justify-center"
       >
         <KokChemicalTimeFilter
@@ -518,7 +590,7 @@ onMounted(() => {
       </div>
 
       <!-- Desktop: ปุ่มทำแบบสำรวจ แสดงเฉพาะเมื่ออยู่ในแท็บ 'สารเคมีปนเปื้อน' -->
-      <div v-if="activeCommunityMapType === 'chemical'" class="pointer-events-none hidden sm:block absolute bottom-[9px] right-4 z-20">
+      <div v-if="!evacuationModeActive && activeCommunityMapType === 'chemical'" class="pointer-events-none hidden sm:block absolute bottom-[9px] right-4 z-20">
         <button
           type="button"
           class="survey-button pointer-events-auto"
@@ -530,7 +602,7 @@ onMounted(() => {
       </div>
 
       <!-- Mobile: Floating Survey Button (แสดงเฉพาะเมื่ออยู่ในแท็บ 'สารเคมีปนเปื้อน' ลอยเหนือตัวกรองเวลา) -->
-      <div v-if="activeCommunityMapType === 'chemical'" class="pointer-events-none sm:hidden absolute bottom-[144px] right-3 z-20">
+      <div v-if="!evacuationModeActive && activeCommunityMapType === 'chemical'" class="pointer-events-none sm:hidden absolute bottom-[144px] right-3 z-20">
         <button
           type="button"
           class="survey-button pointer-events-auto shadow-xl"
@@ -541,9 +613,20 @@ onMounted(() => {
         </button>
       </div>
 
+      <!-- Mobile: ปุ่มเข้าโหมดอพยพทีมช่วยเหลือ เมื่ออยู่ในแท็บ 'อพยพ' -->
+      <div v-if="!evacuationModeActive && activeCommunityMapType === 'evacuation'" class="pointer-events-none sm:hidden fixed bottom-[68px] right-3 z-20">
+        <button
+          type="button"
+          class="pointer-events-auto flex items-center gap-1.5 px-3.5 py-2.5 rounded-full font-bold text-xs text-white bg-[#B91C1C] hover:bg-[#991B1B] shadow-xl border border-red-500/30 transition-transform active:scale-95"
+          @click="enterEvacuationMode"
+        >
+          <span>🚨 โหมดอพยพ (ทีม)</span>
+        </button>
+      </div>
+
       <!-- Mobile: ตัวกรองเวลาสารเคมีปนเปื้อน ลอยเหนือแถบเมนูด้านล่าง -->
       <div
-        v-if="activeCommunityMapType === 'chemical'"
+        v-if="!evacuationModeActive && activeCommunityMapType === 'chemical'"
         class="pointer-events-none sm:hidden fixed bottom-[66px] left-3 right-3 z-20 flex justify-center"
       >
         <KokChemicalTimeFilter
@@ -555,11 +638,27 @@ onMounted(() => {
       </div>
 
       <!-- Mobile: Bottom Navigation Button Menu (4 tabs as native bottom menu bar) -->
-      <div class="sm:hidden fixed bottom-0 left-0 right-0 z-30 pointer-events-auto">
+      <div v-if="!evacuationModeActive" class="sm:hidden fixed bottom-0 left-0 right-0 z-30 pointer-events-auto">
         <KokMapTypesControl
           v-model="activeCommunityMapType"
           :community-id="selectedCommunityId"
           variant="bottom-nav"
+        />
+      </div>
+
+      <!-- Admin Passcode Modal for Evacuation Mode -->
+      <div
+        v-if="adminLoginForEvacuationOpen"
+        class="fixed inset-0 z-[1400] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+        @click.self="adminLoginForEvacuationOpen = false"
+      >
+        <KokAdminLogin
+          v-model:passcode="adminQueue.passcode.value"
+          v-model:reviewer="adminQueue.reviewer.value"
+          :verifying="adminQueue.verifying.value"
+          :error="adminQueue.loginError.value"
+          @submit="handleEvacuationLoginSubmit"
+          @cancel="adminLoginForEvacuationOpen = false"
         />
       </div>
 

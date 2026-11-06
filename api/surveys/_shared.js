@@ -19,6 +19,7 @@ export function toSurveyWaypointDto(row) {
     collection_time: row?.collection_time || row?.created_at || new Date().toISOString(),
     water_source: row?.sample_nature?.water_source || row?.water_source_type || 'แม่น้ำกก',
     rain_context: row?.rain_context || 'ไม่ทราบ',
+    test_kit: row?.test_kit || row?.sample_nature?.test_kit || undefined,
     contributor_label: publicPseudonym(sampleCode),
     publication_status: row?.publication_status || (ppb > 50 ? 'pending_review' : 'auto_published'),
   }
@@ -68,7 +69,11 @@ export function validateSurvey(body) {
   const point = body?.coordinates
   const validWater = body?.waterSourceType === undefined || body?.waterSourceType === null || ['แม่น้ำ', 'บ่อ', 'ประปา'].includes(body.waterSourceType)
   const validRain = body?.rainContext === undefined || body?.rainContext === null || ['ไม่ทราบ', 'ไม่ตก', 'ตก'].includes(body.rainContext)
-  const validMeasured = body?.sampleCollectedAt === undefined || body?.sampleCollectedAt === null || (typeof body.sampleCollectedAt === 'string' && body.sampleCollectedAt.length <= 64)
+  // A collection time must be a real date and cannot be in the future (10 minutes of clock drift allowed).
+  const measuredAt = Date.parse(body?.sampleCollectedAt)
+  const validMeasured = body?.sampleCollectedAt === undefined || body?.sampleCollectedAt === null
+    || (typeof body.sampleCollectedAt === 'string' && body.sampleCollectedAt.length <= 64 && Number.isFinite(measuredAt) && measuredAt <= Date.now() + 10 * 60 * 1000)
+  const validKit = body?.testKit === undefined || body?.testKit === null || (typeof body.testKit === 'string' && body.testKit.trim().length > 0 && body.testKit.trim().length <= 80)
   return Boolean(body && typeof body === 'object' && !Array.isArray(body)
     && typeof body.fullName === 'string' && body.fullName.trim().length > 0 && body.fullName.length <= 200
     && typeof body.phoneNumber === 'string' && body.phoneNumber.trim().length > 0 && body.phoneNumber.length <= 40
@@ -76,7 +81,7 @@ export function validateSurvey(body) {
     && Number.isFinite(point?.latitude) && Math.abs(point.latitude) <= 90
     && Number.isFinite(point?.longitude) && Math.abs(point.longitude) <= 180
     && (body.gpsAccuracyMeters === null || Number.isSafeInteger(body.gpsAccuracyMeters) && body.gpsAccuracyMeters >= 0 && body.gpsAccuracyMeters <= 2147483647)
-    && validWater && validRain && validMeasured
+    && validWater && validRain && validMeasured && validKit
     && body.publicConsent === true)
 }
 
@@ -85,6 +90,7 @@ export function publicSurveyPayload(body) {
     full_name: body.fullName.trim(),
     phone_number: body.phoneNumber.trim(),
     arsenic_level_ppb: body.arsenicLevelPpb,
+    test_kit: typeof body.testKit === 'string' ? body.testKit.trim() : null,
     latitude: body.coordinates.latitude,
     longitude: body.coordinates.longitude,
     gps_accuracy_meters: body.gpsAccuracyMeters,

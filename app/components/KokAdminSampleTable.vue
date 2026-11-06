@@ -1,21 +1,26 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-import { Camera, Check, Copy, RefreshCw } from 'lucide-vue-next'
+import { Camera, RefreshCw } from 'lucide-vue-next'
+import { arsenicLevel } from '../../src/lib/arsenic'
+import { formatPpb } from '../../src/lib/survey'
+import { communityOfPoint } from '../../src/lib/community-of-point'
+import { communityTargets } from '../utils/kok-contract'
 import { formatThaiDate, getArsenicMeta, type AdminSample } from '../utils/admin-types'
 import KokStatusBadge from './KokStatusBadge.vue'
 
 defineProps<{ items: AdminSample[]; loading: boolean; selected: string | null }>()
 defineEmits<{ (e: 'select', sample: AdminSample): void }>()
 
-const copied = ref<string | null>(null)
-function copyCode(code: string) {
-  if (typeof navigator === 'undefined' || !navigator.clipboard) return
-  void navigator.clipboard.writeText(code)
-  copied.value = code
-  setTimeout(() => { if (copied.value === code) copied.value = null }, 2000)
+function getCommunityName(item: AdminSample): string {
+  const matched = communityOfPoint(item.latitude, item.longitude, communityTargets, 25)
+  if (matched) return matched.name
+  if (item.station_name && !item.station_name.startsWith('จุดตรวจ KOK-')) return item.station_name
+  return 'ลุ่มน้ำกก'
 }
 
-const ppbClass = (ppb: number) => (ppb > 50 ? 'text-[#DC2626] dark:text-[#FF453A]' : ppb > 10 ? 'text-[#B45309] dark:text-amber-400' : 'text-[#16A34A] dark:text-emerald-400')
+const ppbClass = (ppb: number) => {
+  const level = arsenicLevel(ppb)
+  return level === 'over' ? 'text-[#DC2626] dark:text-[#FF453A]' : level === 'watch' ? 'text-[#B45309] dark:text-amber-400' : 'text-[#16A34A] dark:text-emerald-400'
+}
 </script>
 
 <template>
@@ -23,11 +28,11 @@ const ppbClass = (ppb: number) => (ppb > 50 ? 'text-[#DC2626] dark:text-[#FF453A
     <table class="w-full text-left text-xs">
       <thead class="border-b border-slate-200 text-slate-500 dark:border-[#2C2C2E] dark:text-[#98A2A8]">
         <tr>
-          <th scope="col" class="whitespace-nowrap px-4 py-3 font-semibold">รหัสตัวอย่าง</th>
+          <th scope="col" class="whitespace-nowrap px-4 py-3 font-semibold">ชุมชน</th>
           <th scope="col" class="hidden whitespace-nowrap px-3 py-3 font-semibold sm:table-cell">เวลาเก็บ</th>
           <th scope="col" class="whitespace-nowrap px-3 py-3 font-semibold">ppb</th>
           <th scope="col" class="hidden whitespace-nowrap px-3 py-3 font-semibold md:table-cell">แหล่งน้ำ</th>
-          <th scope="col" class="hidden whitespace-nowrap px-3 py-3 font-semibold md:table-cell">ผู้รายงาน</th>
+          <th scope="col" class="hidden whitespace-nowrap px-3 py-3 font-semibold md:table-cell">ผู้รายงาน (ชื่อ / เบอร์)</th>
           <th scope="col" class="whitespace-nowrap px-4 py-3 font-semibold">สถานะ</th>
         </tr>
       </thead>
@@ -49,25 +54,35 @@ const ppbClass = (ppb: number) => (ppb > 50 ? 'text-[#DC2626] dark:text-[#FF453A
           :class="selected === item.sample_code ? 'bg-sky-50 dark:bg-sky-950/30' : 'hover:bg-slate-50 dark:hover:bg-[#252525]/60'"
           @click="$emit('select', item)"
         >
+          <!-- 1. ชุมชน -->
           <td class="px-4 py-3">
-            <div class="flex items-center gap-1.5 whitespace-nowrap font-mono font-semibold text-slate-900 dark:text-white">
-              <button type="button" class="cursor-pointer hover:underline" :aria-pressed="selected === item.sample_code" @click.stop="$emit('select', item)">{{ item.sample_code }}</button>
-              <button type="button" aria-label="คัดลอกรหัส" class="hidden text-slate-400 hover:text-slate-700 sm:block dark:hover:text-slate-200" @click.stop="copyCode(item.sample_code)">
-                <Check v-if="copied === item.sample_code" class="h-3.5 w-3.5 text-emerald-600" />
-                <Copy v-else class="h-3.5 w-3.5" />
-              </button>
-            </div>
+            <button
+              type="button"
+              :aria-label="item.sample_code"
+              class="cursor-pointer text-left font-semibold text-slate-900 hover:text-[#0284C7] hover:underline dark:text-white"
+              :aria-pressed="selected === item.sample_code"
+              @click.stop="$emit('select', item)"
+            >
+              {{ getCommunityName(item) }}
+            </button>
           </td>
 
-          <td class="hidden min-w-24 px-3 py-3 text-slate-600 sm:table-cell dark:text-[#98A2A8]">{{ formatThaiDate(item.collection_time || item.created_at || '') }}</td>
+          <!-- 2. เวลาเก็บ -->
+          <td class="hidden min-w-24 px-3 py-3 text-slate-600 sm:table-cell dark:text-[#98A2A8]">
+            {{ formatThaiDate(item.collection_time || item.created_at || '') }}
+          </td>
 
+          <!-- 3. ppb -->
           <td class="px-3 py-3">
             <div class="flex items-center gap-1.5 whitespace-nowrap">
               <span class="h-2.5 w-2.5 shrink-0 rounded-full border border-black/20" :style="{ backgroundColor: getArsenicMeta(item.arsenic_ppb).hex }" />
-              <span class="font-mono font-bold tabular-nums" :class="ppbClass(item.arsenic_ppb)">{{ item.arsenic_ppb }}</span>
+              <span class="font-mono font-bold tabular-nums" :class="ppbClass(item.arsenic_ppb)">
+                {{ formatPpb(item.arsenic_ppb).replace(' ppb', '') }}
+              </span>
             </div>
           </td>
 
+          <!-- 4. แหล่งน้ำ -->
           <td class="hidden px-3 py-3 md:table-cell">
             <span class="whitespace-nowrap">{{ item.sample_nature?.water_source || 'แม่น้ำกก' }}</span>
             <span v-if="item.private_photo_paths?.length" class="ml-1.5 inline-flex items-center gap-1 whitespace-nowrap text-[11px] text-slate-500 dark:text-[#98A2A8]">
@@ -75,9 +90,25 @@ const ppbClass = (ppb: number) => (ppb > 50 ? 'text-[#DC2626] dark:text-[#FF453A
             </span>
           </td>
 
-          <td class="hidden max-w-36 truncate px-3 py-3 md:table-cell">{{ item.contact_name || 'ไม่ระบุชื่อ' }}</td>
+          <!-- 5. ผู้รายงาน (ชื่อ / เบอร์) -->
+          <td class="hidden px-3 py-3 md:table-cell">
+            <div class="flex flex-col min-w-0">
+              <span class="max-w-44 truncate font-medium text-slate-900 dark:text-white">
+                {{ item.contact_name || 'ไม่ระบุชื่อ' }}
+              </span>
+              <span v-if="item.contact_phone" class="font-mono text-[11px] text-slate-500 dark:text-[#98A2A8]">
+                {{ item.contact_phone }}
+              </span>
+              <span v-else class="text-[11px] text-slate-400 dark:text-slate-600">
+                -
+              </span>
+            </div>
+          </td>
 
-          <td class="px-4 py-3"><KokStatusBadge :status="item.publication_status" /></td>
+          <!-- 6. สถานะ -->
+          <td class="px-4 py-3">
+            <KokStatusBadge :status="item.publication_status" />
+          </td>
         </tr>
       </tbody>
     </table>

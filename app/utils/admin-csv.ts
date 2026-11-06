@@ -1,6 +1,6 @@
+import { arsenicLevelMeta } from '../../src/lib/arsenic'
 import { arsenicSeverity, type AdminSample } from './admin-types'
 
-const severityLabel = { critical: 'วิกฤติ (>50 ppb)', watch: 'เฝ้าระวัง', safe: 'ปกติ' } as const
 
 export function exportSamplesCsv(samples: AdminSample[]) {
   if (!samples.length) return
@@ -10,7 +10,7 @@ export function exportSamplesCsv(samples: AdminSample[]) {
     quote(s.sample_code),
     quote(s.collection_time || s.created_at),
     s.arsenic_ppb,
-    quote(severityLabel[arsenicSeverity(s.arsenic_ppb)]),
+    quote(arsenicLevelMeta[arsenicSeverity(s.arsenic_ppb)].label),
     s.latitude,
     s.longitude,
     quote(s.sample_nature?.water_source || 'แม่น้ำกก'),

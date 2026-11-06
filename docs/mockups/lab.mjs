@@ -1,0 +1,11 @@
+import { chromium } from 'file:///C:/Users/asus/Desktop/Fastwork/mfu%20kok%20water%20watch/node_modules/playwright/index.mjs';
+import fs from 'node:fs';
+import { createRequire } from 'node:module';
+const require = createRequire(import.meta.url);
+const { svg, POSES } = require('./mascot.js');
+const ref = 'data:image/png;base64,' + fs.readFileSync('mascot-ball.png').toString('base64');
+const html = `<body style="margin:0;background:#fff;font-family:sans-serif"><div style="display:flex;gap:10px;padding:10px;align-items:flex-end"><div><img src="${ref}" width="300"><div>reference</div></div>${Object.keys(POSES).map(k => `<div id="${k}">${svg(k, 300)}<div>${k}</div></div>`).join('')}</div>`;
+const b = await chromium.launch(); const p = await b.newPage({ viewport: { width: 1900, height: 460 } });
+await p.setContent(html);
+await p.evaluate(() => document.getAnimations().forEach(a => { a.pause(); a.currentTime = 300; }));
+await p.screenshot({ path: 'lab.png' }); await b.close();

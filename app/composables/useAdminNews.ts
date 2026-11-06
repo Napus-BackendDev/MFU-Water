@@ -9,7 +9,6 @@ export function useAdminNews(onSessionExpired?: (message: string) => void) {
   const counts = ref<AdminNewsCounts>({
     total: 0,
     published: 0,
-    draft: 0,
     pinned: 0,
   })
   const loading = ref(false)
@@ -17,7 +16,7 @@ export function useAdminNews(onSessionExpired?: (message: string) => void) {
   const feedback = ref<{ type: 'success' | 'error'; message: string } | null>(null)
 
   const searchQuery = ref('')
-  const statusFilter = ref<'all' | 'published' | 'pinned' | 'draft'>('all')
+  const statusFilter = ref<'all' | 'published' | 'pinned'>('all')
   const categoryFilter = ref<string>('all')
   const communityFilter = ref<string>('all')
 

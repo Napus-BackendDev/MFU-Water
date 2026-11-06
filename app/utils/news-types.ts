@@ -1,6 +1,6 @@
 export type NewsCategory = 'urgent' | 'water' | 'flood' | 'event' | 'knowledge'
 
-export type NewsStatus = 'draft' | 'published' | 'archived'
+export type NewsStatus = 'published'
 
 export interface NewsArticle {
   id: string
@@ -23,7 +23,6 @@ export interface NewsArticle {
 export interface AdminNewsCounts {
   total: number
   published: number
-  draft: number
   pinned: number
 }
 

@@ -1,0 +1,160 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 960" width="1200" height="960">
+  <defs>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@300;400;500;600;700;800&amp;display=swap');
+      * { font-family: 'Noto Sans Thai', 'Segoe UI', sans-serif; }
+      .bold { font-weight: 700; }
+      .semibold { font-weight: 600; }
+      .medium { font-weight: 500; }
+      .regular { font-weight: 400; }
+      .shadow { filter: drop-shadow(0px 4px 12px rgba(0,0,0,0.08)); }
+      .shadow-lg { filter: drop-shadow(0px 8px 24px rgba(0,0,0,0.14)); }
+      .btn-pulse { animation: pulse 2s infinite; }
+    </style>
+    <linearGradient id="grad-green" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#195640"/>
+      <stop offset="100%" stop-color="#113D2E"/>
+    </linearGradient>
+    <linearGradient id="grad-safe" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#E8F5E9"/>
+      <stop offset="100%" stop-color="#C8E6C9"/>
+    </linearGradient>
+    <linearGradient id="grad-danger" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#FFEBEE"/>
+      <stop offset="100%" stop-color="#FFCDD2"/>
+    </linearGradient>
+    <linearGradient id="river-grad" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#72B5CC"/>
+      <stop offset="50%" stop-color="#4A9BB8"/>
+      <stop offset="100%" stop-color="#3182A0"/>
+    </linearGradient>
+    <linearGradient id="flood-water" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#1976D2" stop-opacity="0.6"/>
+      <stop offset="100%" stop-color="#0D47A1" stop-opacity="0.8"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="960" fill="#F5F4ED"/>
+  
+    <rect x="0" y="0" width="1200" height="960" fill="#EBE9DF"/>
+    
+    <text x="60" y="56" fill="#195640" font-size="28" font-weight="800">📊 ทะเบียนข้อมูลคุณภาพน้ำ 4 หมู่บ้าน — สำหรับ อบต. และอาจารย์ มฟล.</text>
+    <text x="60" y="90" fill="#556B60" font-size="16" font-weight="500">รวบรวมข้อมูลครบทั้ง 129 จุดสำรวจ แสดงสถานะความปลอดภัย และส่งออกรายงานส่งจังหวัดได้ทันที</text>
+
+    <g transform="translate(60, 120)">
+      <rect x="0" y="0" width="1080" height="780" rx="20" fill="#FFFFFF" stroke="#D8DFD5" class="shadow-lg"/>
+      
+      <!-- Summary KPI Metric Cards (Plain Thai) -->
+      <g transform="translate(30, 24)">
+        <!-- Metric 1: Total Tested -->
+        <rect x="0" y="0" width="240" height="84" rx="12" fill="#F4F8F4" stroke="#D8DFD5"/>
+        <text x="20" y="32" fill="#556B60" font-size="13">จุดตรวจทั้งหมด</text>
+        <text x="20" y="66" fill="#195640" font-size="28" font-weight="800">129 จุด</text>
+        <text x="130" y="62" fill="#556B60" font-size="12">ครบ 4 หมู่บ้าน</text>
+
+        <!-- Metric 2: Safe -->
+        <rect x="260" y="0" width="240" height="84" rx="12" fill="#E8F5E9" stroke="#A5D6A7"/>
+        <text x="280" y="32" fill="#2E7D32" font-size="13" font-weight="600">คุณภาพน้ำปกติ (ปลอดภัย)</text>
+        <text x="280" y="66" fill="#1B5E20" font-size="28" font-weight="800">122 จุด</text>
+        <text x="390" y="62" fill="#2E7D32" font-size="12">94.6% ของพื้นที่</text>
+
+        <!-- Metric 3: Caution -->
+        <rect x="520" y="0" width="240" height="84" rx="12" fill="#FFF8E1" stroke="#FFE082"/>
+        <text x="540" y="32" fill="#C45A10" font-size="13" font-weight="600">ต้องเฝ้าระวัง</text>
+        <text x="540" y="66" fill="#C45A10" font-size="28" font-weight="800">7 จุด</text>
+        <text x="630" y="62" fill="#C45A10" font-size="12">อสม. ติดตามแล้ว</text>
+
+        <!-- Metric 4: Export Button -->
+        <rect x="780" y="0" width="240" height="84" rx="12" fill="#195640"/>
+        <text x="830" y="38" fill="#FFFFFF" font-size="15" font-weight="700">📥 ดาวน์โหลดรายงาน</text>
+        <text x="830" y="60" fill="#D2E7DC" font-size="12">พิมพ์เป็นกระดาษส่งนายอำเภอ</text>
+      </g>
+
+      <!-- Search & Filters -->
+      <g transform="translate(30, 126)">
+        <rect x="0" y="0" width="400" height="42" rx="8" fill="#FFFFFF" stroke="#CCD5CC"/>
+        <text x="16" y="27" fill="#888" font-size="14">🔍 ค้นหาตามชื่อหมู่บ้าน หรือรหัสจุดตรวจ...</text>
+
+        <!-- Village Filter Pills -->
+        <rect x="420" y="0" width="130" height="42" rx="8" fill="#195640"/>
+        <text x="485" y="26" fill="#FFFFFF" font-size="13" font-weight="700" text-anchor="middle">ทุกหมู่บ้าน (4)</text>
+
+        <rect x="560" y="0" width="110" height="42" rx="8" fill="#F0F4F1" stroke="#CCD5CC"/>
+        <text x="615" y="26" fill="#213E32" font-size="13" text-anchor="middle">บ้านท่าตอน</text>
+
+        <rect x="680" y="0" width="110" height="42" rx="8" fill="#F0F4F1" stroke="#CCD5CC"/>
+        <text x="735" y="26" fill="#213E32" font-size="13" text-anchor="middle">บ้านฮ่างต่ำ</text>
+
+        <rect x="800" y="0" width="110" height="42" rx="8" fill="#F0F4F1" stroke="#CCD5CC"/>
+        <text x="855" y="26" fill="#213E32" font-size="13" text-anchor="middle">บ้านรังแร้ง</text>
+
+        <rect x="920" y="0" width="100" height="42" rx="8" fill="#F0F4F1" stroke="#CCD5CC"/>
+        <text x="970" y="26" fill="#213E32" font-size="13" text-anchor="middle">บ้านผาใต้</text>
+      </g>
+
+      <!-- Table View -->
+      <g transform="translate(30, 186)">
+        <!-- Table Header -->
+        <rect x="0" y="0" width="1020" height="44" rx="6" fill="#E8F0EC"/>
+        <text x="24" y="28" fill="#195640" font-size="13" font-weight="700">รหัสจุด</text>
+        <text x="140" y="28" fill="#195640" font-size="13" font-weight="700">หมู่บ้าน</text>
+        <text x="280" y="28" fill="#195640" font-size="13" font-weight="700">ประเภทแหล่งน้ำ</text>
+        <text x="440" y="28" fill="#195640" font-size="13" font-weight="700">ผลตรวจแถบสี</text>
+        <text x="600" y="28" fill="#195640" font-size="13" font-weight="700">คำแนะนำการใช้น้ำ</text>
+        <text x="800" y="28" fill="#195640" font-size="13" font-weight="700">วันที่ตรวจล่าสุด</text>
+        <text x="940" y="28" fill="#195640" font-size="13" font-weight="700">จัดการ</text>
+
+        <!-- Row 1 -->
+        <g transform="translate(0, 52)">
+          <rect x="0" y="0" width="1020" height="54" rx="6" fill="#FFFFFF" stroke="#EAEAEA"/>
+          <text x="24" y="33" fill="#213E32" font-size="13" font-weight="700">W-001</text>
+          <text x="140" y="33" fill="#213E32" font-size="13">บ้านท่าตอน หมู่ 3</text>
+          <text x="280" y="33" fill="#213E32" font-size="13">น้ำถังบริโภค (91 ครัวเรือน)</text>
+          <rect x="440" y="14" width="90" height="26" rx="13" fill="#E8F5E9"/>
+          <text x="485" y="32" fill="#2E7D32" font-size="11" font-weight="700" text-anchor="middle">✓ ปลอดภัย</text>
+          <text x="600" y="33" fill="#2E7D32" font-size="13">ดื่มได้ตามปกติ</text>
+          <text x="800" y="33" fill="#556B60" font-size="13">15 ต.ค. 2569</text>
+          <text x="950" y="33" fill="#195640" font-size="13" font-weight="700">ดูรูป 🔍</text>
+        </g>
+
+        <!-- Row 2 -->
+        <g transform="translate(0, 114)">
+          <rect x="0" y="0" width="1020" height="54" rx="6" fill="#FFFFFF" stroke="#EAEAEA"/>
+          <text x="24" y="33" fill="#213E32" font-size="13" font-weight="700">W-042</text>
+          <text x="140" y="33" fill="#213E32" font-size="13">บ้านท่าตอน หมู่ 3</text>
+          <text x="280" y="33" fill="#213E32" font-size="13">ท่าน้ำแม่น้ำกกหน้าวัด</text>
+          <rect x="440" y="14" width="90" height="26" rx="13" fill="#E8F5E9"/>
+          <text x="485" y="32" fill="#2E7D32" font-size="11" font-weight="700" text-anchor="middle">✓ ปลอดภัย</text>
+          <text x="600" y="33" fill="#2E7D32" font-size="13">ใช้อาบ-ซักล้าง-รดผักได้</text>
+          <text x="800" y="33" fill="#556B60" font-size="13">15 ต.ค. 2569</text>
+          <text x="950" y="33" fill="#195640" font-size="13" font-weight="700">ดูรูป 🔍</text>
+        </g>
+
+        <!-- Row 3: Caution -->
+        <g transform="translate(0, 176)">
+          <rect x="0" y="0" width="1020" height="54" rx="6" fill="#FFFDF8" stroke="#FFE082"/>
+          <text x="24" y="33" fill="#213E32" font-size="13" font-weight="700">W-088</text>
+          <text x="140" y="33" fill="#213E32" font-size="13">บ้านรังแร้ง หมู่ 4</text>
+          <text x="280" y="33" fill="#213E32" font-size="13">บ่อน้ำบาดาลท้ายบ้าน</text>
+          <rect x="440" y="14" width="90" height="26" rx="13" fill="#FFF3E0"/>
+          <text x="485" y="32" fill="#C45A10" font-size="11" font-weight="700" text-anchor="middle">⚠️ เฝ้าระวัง</text>
+          <text x="600" y="33" fill="#C45A10" font-size="13">งดดื่มชั่วคราว / ส่งตรวจซ้ำ</text>
+          <text x="800" y="33" fill="#556B60" font-size="13">14 ต.ค. 2569</text>
+          <text x="950" y="33" fill="#DE9922" font-size="13" font-weight="700">ติดตาม 📞</text>
+        </g>
+
+        <!-- Row 4 -->
+        <g transform="translate(0, 238)">
+          <rect x="0" y="0" width="1020" height="54" rx="6" fill="#FFFFFF" stroke="#EAEAEA"/>
+          <text x="24" y="33" fill="#213E32" font-size="13" font-weight="700">W-105</text>
+          <text x="140" y="33" fill="#213E32" font-size="13">บ้านผาใต้ หมู่ 5</text>
+          <text x="280" y="33" fill="#213E32" font-size="13">ประปาภูเขาหมู่บ้าน</text>
+          <rect x="440" y="14" width="90" height="26" rx="13" fill="#E8F5E9"/>
+          <text x="485" y="32" fill="#2E7D32" font-size="11" font-weight="700" text-anchor="middle">✓ ปลอดภัย</text>
+          <text x="600" y="33" fill="#2E7D32" font-size="13">ใช้อุปโภคบริโภคได้</text>
+          <text x="800" y="33" fill="#556B60" font-size="13">13 ต.ค. 2569</text>
+          <text x="950" y="33" fill="#195640" font-size="13" font-weight="700">ดูรูป 🔍</text>
+        </g>
+      </g>
+    </g>
+    
+</svg>

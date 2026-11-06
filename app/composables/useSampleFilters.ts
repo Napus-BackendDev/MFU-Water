@@ -2,7 +2,7 @@ import { computed, ref, watch, type Ref } from 'vue'
 import { arsenicSeverity, type AdminSample, type PublicationStatus } from '../utils/admin-types'
 
 export type SampleTab = 'all' | PublicationStatus
-export type SeverityFilter = 'all' | 'safe' | 'watch' | 'critical'
+export type SeverityFilter = 'all' | 'normal' | 'watch' | 'over'
 
 // Tab, severity and text filters plus pagination over the admin sample list.
 export function useSampleFilters(samples: Ref<AdminSample[]>) {

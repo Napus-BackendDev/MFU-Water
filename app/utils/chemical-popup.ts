@@ -1,15 +1,11 @@
+import { ARSENIC_LIMIT_PPB, arsenicLevel, arsenicLevelMeta, type ArsenicLevel } from '../../src/lib/arsenic'
+import { formatPpb } from '../../src/lib/survey'
 import type { SurveyWaypointCluster } from '../../src/lib/waypoints'
 
 type Tone = 'danger' | 'watch' | 'safe'
+const toneOf: Record<ArsenicLevel, Tone> = { over: 'danger', watch: 'watch', normal: 'safe' }
 
-export const ppbTone = (ppb: number): Tone => (ppb > 10 ? 'danger' : ppb >= 5 ? 'watch' : 'safe')
-
-const toneLabel: Record<Tone, string> = { danger: 'เกินเกณฑ์', watch: 'เฝ้าระวัง', safe: 'ปกติ' }
-const toneNote: Record<Tone, string> = {
-  danger: 'ค่านี้เกินเกณฑ์ 10 ppb ของ คพ. (น้ำผิวดิน)',
-  watch: 'ค่าอยู่ในช่วงเฝ้าระวัง 5–10 ppb',
-  safe: 'ค่าต่ำกว่า 5 ppb',
-}
+export const ppbTone = (ppb: number): Tone => toneOf[arsenicLevel(ppb)]
 
 function node<K extends keyof HTMLElementTagNameMap>(tag: K, className: string, text?: string) {
   const element = document.createElement(tag)
@@ -44,16 +40,16 @@ export function buildChemicalPopup(cluster: SurveyWaypointCluster, dotColor: str
 
   const kpis = node('div', 'kok-pop-kpis')
   kpis.append(
-    kpi(`${cluster.maxPpb} ppb`, many ? 'สารหนูสูงสุด · เกณฑ์ 10' : 'สารหนู · เกณฑ์ 10 ppb', tone),
+    kpi(formatPpb(cluster.maxPpb), many ? `สารหนูสูงสุด · เกณฑ์ ${ARSENIC_LIMIT_PPB}` : `สารหนู · เกณฑ์ ${ARSENIC_LIMIT_PPB} ppb`, tone),
     many
-      ? kpi(`${cluster.minPpb}–${cluster.maxPpb}`, `ช่วงค่า ppb จาก ${cluster.sampleCount} ครั้ง`)
-      : kpi(toneLabel[tone], 'เทียบเกณฑ์น้ำผิวดิน คพ.', tone),
+      ? kpi(`${cluster.minPpb === 0 ? '< 5' : cluster.minPpb}–${cluster.maxPpb}`, `ช่วงค่า ppb จาก ${cluster.sampleCount} ครั้ง`)
+      : kpi(arsenicLevelMeta[arsenicLevel(cluster.maxPpb)].label, 'เทียบเกณฑ์น้ำผิวดิน คพ.', tone),
   )
 
   const info = node('div', 'kok-pop-info')
   const list = node('ul', '')
   list.append(
-    node('li', '', toneNote[tone]),
+    node('li', '', arsenicLevelMeta[arsenicLevel(cluster.maxPpb)].note),
     node('li', '', 'ชุดตรวจชาวบ้านใช้คัดกรองเบื้องต้น ไม่ใช่คำรับรองว่าน้ำดื่มได้'),
   )
   info.append(node('strong', '', 'อ่านผลอย่างไร'), list)
@@ -64,11 +60,13 @@ export function buildChemicalPopup(cluster: SurveyWaypointCluster, dotColor: str
   const who = node('span', '')
   who.append(node('b', '', 'ผู้บันทึก '), wp.contributor_label || 'ผู้ส่งผลตรวจ')
   recorder.append(dot, who)
+  const kit = wp.test_kit ? node('div', 'kok-pop-row') : null
+  kit?.append(node('span', '', `ชุดตรวจ: ${wp.test_kit}`))
 
   const button = node('button', 'kok-pop-button', 'ดูรายละเอียดและกราฟ →')
   button.type = 'button'
   button.addEventListener('click', onDetail)
 
-  root.append(kpis, info, recorder, node('p', 'kok-pop-foot', 'ชุดตรวจชาวบ้านวัดเฉพาะสารหนู · ● ชาวบ้าน'), button)
+  root.append(kpis, info, recorder, ...(kit ? [kit] : []), node('p', 'kok-pop-foot', 'ชุดตรวจชาวบ้านวัดเฉพาะสารหนู · ● ชาวบ้าน'), button)
   return root
 }

@@ -51,6 +51,15 @@ describe('chemical point popup', () => {
     expect(popup.querySelector('h3')?.textContent).toBe('<img src=x onerror=alert(1)>')
   })
 
+  it('shows level 0 as below 5 ppb and names the test kit', () => {
+    const popup = popupFor([waypoint('1', 0, { test_kit: 'Oxfam' })])
+    expect(popup.querySelector('.kok-pop-kpi')?.textContent).toContain('< 5 ppb')
+    expect(popup.textContent).not.toMatch(/(^|\D)0 ppb/)
+    expect(popup.textContent).toContain('ชุดตรวจ: Oxfam')
+    const range = popupFor([waypoint('1', 0), waypoint('2', 30, { created_at: '2026-11-01T06:00:00.000Z' })])
+    expect(range.querySelectorAll('.kok-pop-kpi')[1]?.textContent).toContain('< 5–30')
+  })
+
   it('opens the details when the button is pressed', () => {
     const onDetail = vi.fn()
     popupFor([waypoint('1', 5)], onDetail).querySelector('button')!.click()

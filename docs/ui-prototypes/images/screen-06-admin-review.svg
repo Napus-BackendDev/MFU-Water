@@ -1,0 +1,139 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 960" width="1200" height="960">
+  <defs>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@300;400;500;600;700;800&amp;display=swap');
+      * { font-family: 'Noto Sans Thai', 'Segoe UI', sans-serif; }
+      .bold { font-weight: 700; }
+      .semibold { font-weight: 600; }
+      .medium { font-weight: 500; }
+      .regular { font-weight: 400; }
+      .shadow { filter: drop-shadow(0px 4px 12px rgba(0,0,0,0.08)); }
+      .shadow-lg { filter: drop-shadow(0px 8px 24px rgba(0,0,0,0.14)); }
+      .btn-pulse { animation: pulse 2s infinite; }
+    </style>
+    <linearGradient id="grad-green" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#195640"/>
+      <stop offset="100%" stop-color="#113D2E"/>
+    </linearGradient>
+    <linearGradient id="grad-safe" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#E8F5E9"/>
+      <stop offset="100%" stop-color="#C8E6C9"/>
+    </linearGradient>
+    <linearGradient id="grad-danger" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#FFEBEE"/>
+      <stop offset="100%" stop-color="#FFCDD2"/>
+    </linearGradient>
+    <linearGradient id="river-grad" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#72B5CC"/>
+      <stop offset="50%" stop-color="#4A9BB8"/>
+      <stop offset="100%" stop-color="#3182A0"/>
+    </linearGradient>
+    <linearGradient id="flood-water" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#1976D2" stop-opacity="0.6"/>
+      <stop offset="100%" stop-color="#0D47A1" stop-opacity="0.8"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="960" fill="#F5F4ED"/>
+  
+    <rect x="0" y="0" width="1200" height="960" fill="#EBE9DF"/>
+    
+    <text x="60" y="56" fill="#195640" font-size="28" font-weight="800">📋 โต๊ะทำงานผู้ใหญ่บ้าน &amp; อสม. — ตรวจสอบผลตรวจที่ชาวบ้านส่งมา</text>
+    <text x="60" y="90" fill="#556B60" font-size="16" font-weight="500">ผลที่สีปกติเผยแพร่อัตโนมัติทันที ส่วนผลที่สีเข้มผิดปกติจะเข้าห้องนี้ เพื่อให้อสม.ช่วยดูรูปขยายและยืนยัน</text>
+
+    <g transform="translate(60, 120)">
+      <rect x="0" y="0" width="1080" height="780" rx="20" fill="#FFFFFF" stroke="#D8DFD5" class="shadow-lg"/>
+      
+      <!-- Top Status Header -->
+      <g transform="translate(30, 24)">
+        <rect x="0" y="0" width="1020" height="60" rx="12" fill="#E8F0EC"/>
+        <text x="24" y="38" fill="#195640" font-size="17" font-weight="700">⚠️ มีผลตรวจที่ต้องช่วยตรวจสอบ: 1 รายการ (สีแผ่นตรวจเข้มกว่าปกติ)</text>
+        <rect x="880" y="12" width="120" height="36" rx="8" fill="#195640"/>
+        <text x="940" y="35" fill="#FFFFFF" font-size="12" font-weight="700" text-anchor="middle">ดูประวัติทั้งหมด</text>
+      </g>
+
+      <!-- Left Column: Pending Item Details -->
+      <g transform="translate(30, 100)">
+        <rect x="0" y="0" width="460" height="640" rx="14" fill="#FAFAFA" stroke="#D8DFD5"/>
+        <rect x="0" y="0" width="460" height="42" rx="14" fill="#DE9922"/>
+        <text x="20" y="27" fill="#FFFFFF" font-size="15" font-weight="700">🔔 รายละเอียดผลตรวจที่รอตรวจสอบ</text>
+
+        <!-- Information rows -->
+        <g transform="translate(20, 60)">
+          <text x="0" y="20" fill="#556B60" font-size="13">รหัสตัวอย่าง:</text>
+          <text x="120" y="20" fill="#213E32" font-size="14" font-weight="700">KOK-20261015-0042</text>
+
+          <text x="0" y="55" fill="#556B60" font-size="13">ผู้ส่งข้อมูล:</text>
+          <text x="120" y="55" fill="#213E32" font-size="14" font-weight="700">ลุงสมชาย (โทร 089-XXX-4512)</text>
+
+          <text x="0" y="90" fill="#556B60" font-size="13">สถานที่ตักน้ำ:</text>
+          <text x="120" y="90" fill="#213E32" font-size="14" font-weight="700">บ่อน้ำบาดาลหลังบ้าน (บ้านรังแร้ง หมู่ 4)</text>
+
+          <text x="0" y="125" fill="#556B60" font-size="13">เวลาที่ตรวจ:</text>
+          <text x="120" y="125" fill="#213E32" font-size="14">วันนี้ 09:15 น.</text>
+
+          <text x="0" y="160" fill="#556B60" font-size="13">สีที่ชาวบ้านเลือก:</text>
+          <rect x="120" y="142" width="160" height="28" rx="6" fill="#F8E5B8" stroke="#DE9922"/>
+          <text x="200" y="161" fill="#C45A10" font-size="12" font-weight="700" text-anchor="middle">สีส้มเข้ม (เฝ้าระวังด่วน)</text>
+        </g>
+
+        <!-- Village Leader Quick Notes -->
+        <g transform="translate(20, 240)">
+          <rect x="0" y="0" width="420" height="120" rx="10" fill="#FFF8E1" stroke="#FFE082"/>
+          <text x="16" y="26" fill="#C45A10" font-size="13" font-weight="700">💡 คำแนะนำสำหรับผู้ใหญ่บ้าน / อสม.:</text>
+          <text x="16" y="48" fill="#556B60" font-size="12">1. ดูรูปขยายทางขวามือ ว่าสีกระดาษตรงกับแถบสีจริงหรือไม่</text>
+          <text x="16" y="70" fill="#556B60" font-size="12">2. ถ้าน้ำขุ่นจากดินโคลน อาจทำให้สีเพี้ยนได้</text>
+          <text x="16" y="92" fill="#556B60" font-size="12">3. หากไม่แน่ใจ ให้กดปุ่ม "ส่งทีม อสม. ไปตรวจซ้ำ"</text>
+        </g>
+
+        <!-- Action Buttons for Village Leader -->
+        <g transform="translate(20, 480)">
+          <!-- Button 1: Approve & Alert -->
+          <rect x="0" y="0" width="420" height="48" rx="10" fill="#2E7D32"/>
+          <text x="210" y="30" fill="#FFFFFF" font-size="14" font-weight="700" text-anchor="middle">✓ ยืนยันผล และแจ้งเตือนชุมชน</text>
+
+          <!-- Button 2: Send Team to re-test -->
+          <rect x="0" y="60" width="420" height="48" rx="10" fill="#DE9922"/>
+          <text x="210" y="90" fill="#213E32" font-size="14" font-weight="700" text-anchor="middle">🔄 ส่งทีม อสม. ลงพื้นที่ตรวจซ้ำ</text>
+
+          <!-- Button 3: Reject blurry photo -->
+          <rect x="0" y="120" width="420" height="40" rx="10" fill="#FFFFFF" stroke="#CCD5CC"/>
+          <text x="210" y="145" fill="#777" font-size="13" text-anchor="middle">✕ ภาพไม่ชัด ขอให้ชาวบ้านถ่ายใหม่</text>
+        </g>
+      </g>
+
+      <!-- Right Column: Visual Dual Photo Inspector -->
+      <g transform="translate(510, 100)">
+        <rect x="0" y="0" width="540" height="640" rx="14" fill="#FAFAFA" stroke="#D8DFD5"/>
+        <rect x="0" y="0" width="540" height="42" rx="14" fill="#195640"/>
+        <text x="20" y="27" fill="#FFFFFF" font-size="15" font-weight="700">📸 ภาพถ่ายคู่ที่ชาวบ้านส่งมา (ซูมดูได้ชัดเจน)</text>
+
+        <!-- Photo 1: Strip with Color Swatch -->
+        <g transform="translate(24, 60)">
+          <text x="0" y="20" fill="#213E32" font-size="14" font-weight="700">1. ภาพแผ่นตรวจเทียบกับแถบสีมาตรฐาน</text>
+          <rect x="0" y="32" width="492" height="230" rx="10" fill="#E8F0EC" stroke="#CCD5CC"/>
+          <!-- Mockup Strip Inside -->
+          <rect x="60" y="110" width="160" height="40" rx="6" fill="#FFFFFF" stroke="#888"/>
+          <rect x="70" y="118" width="40" height="24" rx="4" fill="#F8E5B8"/>
+          <text x="120" y="135" fill="#555" font-size="11">แผ่นตรวจจริง</text>
+          <!-- Standard Swatch Card -->
+          <rect x="250" y="70" width="200" height="150" rx="8" fill="#FFFFFF" stroke="#999"/>
+          <text x="270" y="95" fill="#222" font-size="12" font-weight="700">แถบสีมาตรฐาน</text>
+          <rect x="270" y="110" width="40" height="20" fill="#DFF0D8"/><text x="320" y="125" fill="#333" font-size="10">ปลอดภัย</text>
+          <rect x="270" y="140" width="40" height="20" fill="#F8E5B8"/><text x="320" y="155" fill="#333" font-size="10">เฝ้าระวัง (ตรงกับสีนี้)</text>
+          <rect x="270" y="170" width="40" height="20" fill="#7A4328"/><text x="320" y="185" fill="#333" font-size="10">อันตราย</text>
+        </g>
+
+        <!-- Photo 2: Water Source Environment -->
+        <g transform="translate(24, 340)">
+          <text x="0" y="20" fill="#213E32" font-size="14" font-weight="700">2. ภาพสถานที่ตักน้ำจริง</text>
+          <rect x="0" y="32" width="492" height="230" rx="10" fill="#E8F0EC" stroke="#CCD5CC"/>
+          <!-- Mockup Well Landscape -->
+          <circle cx="246" cy="140" r="60" fill="#A5D6A7" opacity="0.6"/>
+          <rect x="186" y="120" width="120" height="60" rx="10" fill="#8D6E63"/>
+          <text x="246" y="155" fill="#FFFFFF" font-size="14" font-weight="700" text-anchor="middle">บ่อน้ำบาดาลลุงสมชาย</text>
+          <text x="246" y="175" fill="#FFF" font-size="11" text-anchor="middle">สภาพแวดล้อม: น้ำใส ไม่มีคราบน้ำมัน</text>
+        </g>
+      </g>
+    </g>
+    
+</svg>

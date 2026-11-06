@@ -26,7 +26,7 @@ const emit = defineEmits<{
   (e: 'refresh'): void
 }>()
 
-const statusFilter = defineModel<'all' | 'published' | 'pinned' | 'draft'>('statusFilter', { default: 'all' })
+const statusFilter = defineModel<'all' | 'published' | 'pinned'>('statusFilter', { default: 'all' })
 const categoryFilter = defineModel<string>('categoryFilter', { default: 'all' })
 const communityFilter = defineModel<string>('communityFilter', { default: 'all' })
 const searchQuery = defineModel<string>('searchQuery', { default: '' })
@@ -37,7 +37,6 @@ const statusPills = computed(() => [
   { id: 'all' as const, label: 'ทั้งหมด', count: props.counts.total },
   { id: 'published' as const, label: 'เผยแพร่แล้ว', count: props.counts.published },
   { id: 'pinned' as const, label: 'ปักหมุด', count: props.counts.pinned },
-  { id: 'draft' as const, label: 'ฉบับร่าง', count: props.counts.draft },
 ])
 
 const filtered = computed(() => {
@@ -86,12 +85,11 @@ function formatDate(isoStr: string) {
 
 <template>
   <div class="space-y-4">
-    <!-- 4 KPI Cards for News Management (S5.1) -->
-    <div class="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+    <!-- 3 KPI Cards for News Management (S5.1) -->
+    <div class="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
       <KokKpiCard label="ข่าวทั้งหมด" :value="counts.total" caption="ในระบบ 4 ชุมชน" />
       <KokKpiCard label="เผยแพร่แล้ว" :value="counts.published" tone="emerald" caption="แสดงบนหน้าข่าวสาธารณะ" />
       <KokKpiCard label="ข่าวปักหมุด" :value="counts.pinned" tone="amber" caption="แสดงเด่นบนสุดของหน้าข่าว" />
-      <KokKpiCard label="ฉบับร่าง" :value="counts.draft" tone="slate" caption="รอตรวจสอบก่อนเผยแพร่" />
     </div>
 
     <!-- Filter Row -->
@@ -135,49 +133,45 @@ function formatDate(isoStr: string) {
     </div>
 
     <!-- Management Table (S5.1): rows become cards below lg, from the same markup -->
-    <div :class="adminCardClass" class="overflow-hidden">
+    <div :class="adminCardClass" class="overflow-x-auto">
       <table class="block w-full text-left text-xs text-slate-700 lg:table dark:text-slate-200">
         <thead class="hidden border-b border-slate-200 text-slate-500 lg:table-header-group dark:border-[#2C2C2E] dark:text-[#98A2A8]">
           <tr>
-            <th scope="col" class="whitespace-nowrap px-4 py-3 font-semibold">รหัสข่าว</th>
-            <th scope="col" class="px-3 py-3 font-semibold">หัวข้อข่าวประชาสัมพันธ์</th>
-            <th scope="col" class="whitespace-nowrap px-3 py-3 font-semibold">หมวดหมู่</th>
-            <th scope="col" class="whitespace-nowrap px-3 py-3 font-semibold">พื้นที่ชุมชน</th>
-            <th scope="col" class="whitespace-nowrap px-3 py-3 font-semibold">วันที่อัปเดต</th>
-            <th scope="col" class="whitespace-nowrap px-3 py-3 font-semibold">ปักหมุด</th>
-            <th scope="col" class="whitespace-nowrap px-3 py-3 font-semibold">สถานะ</th>
-            <th scope="col" class="whitespace-nowrap px-4 py-3 text-right font-semibold">จัดการ</th>
+            <th scope="col" class="px-3.5 py-3 font-semibold">หัวข้อข่าวประชาสัมพันธ์</th>
+            <th scope="col" class="whitespace-nowrap px-2.5 py-3 font-semibold">หมวดหมู่</th>
+            <th scope="col" class="whitespace-nowrap px-2.5 py-3 font-semibold">พื้นที่ชุมชน</th>
+            <th scope="col" class="whitespace-nowrap px-2.5 py-3 font-semibold">วันที่อัปเดต</th>
+            <th scope="col" class="whitespace-nowrap px-2.5 py-3 font-semibold">ปักหมุด</th>
+            <th scope="col" class="whitespace-nowrap px-2.5 py-3 font-semibold">สถานะ</th>
+            <th scope="col" class="whitespace-nowrap px-3.5 py-3 text-right font-semibold">จัดการ</th>
           </tr>
         </thead>
         <tbody class="block lg:table-row-group lg:divide-y lg:divide-slate-100 lg:dark:divide-[#2C2C2E]/60">
           <tr v-if="loading && articles.length === 0" class="block lg:table-row">
-            <td colspan="8" class="block py-12 text-center text-slate-500 lg:table-cell">กำลังโหลดรายการข่าวสาร...</td>
+            <td colspan="7" class="block py-12 text-center text-slate-500 lg:table-cell">กำลังโหลดรายการข่าวสาร...</td>
           </tr>
           <tr v-else-if="filtered.length === 0" class="block lg:table-row">
-            <td colspan="8" class="block py-12 text-center text-slate-500 lg:table-cell">ไม่พบข่าวสารที่ตรงกับเงื่อนไข</td>
+            <td colspan="7" class="block py-12 text-center text-slate-500 lg:table-cell">ไม่พบข่าวสารที่ตรงกับเงื่อนไข</td>
           </tr>
           <tr
             v-for="item in paged"
             :key="item.id"
             class="flex flex-wrap items-center gap-x-2 gap-y-2 border-b border-slate-200 p-4 transition last:border-b-0 lg:table-row lg:border-b-0 lg:p-0 lg:hover:bg-slate-50 dark:border-[#2C2C2E] lg:dark:hover:bg-[#252525]/60"
           >
-            <!-- ID -->
-            <td class="order-1 whitespace-nowrap font-mono font-semibold text-[#0369A1] lg:px-4 lg:py-3 dark:text-sky-400">{{ item.id }}</td>
-
             <!-- Title -->
-            <td class="order-5 w-full border-b border-slate-100 pb-2.5 lg:w-auto lg:border-b-0 lg:px-3 lg:py-3 dark:border-[#2C2C2E]">
+            <td class="order-5 w-full border-b border-slate-100 pb-2.5 lg:w-auto lg:border-b-0 lg:px-3.5 lg:py-3 dark:border-[#2C2C2E]">
               <div class="line-clamp-1 text-[13px] font-semibold text-slate-900 dark:text-white" :title="item.title">{{ item.title }}</div>
             </td>
 
             <!-- Category -->
-            <td class="order-6 whitespace-nowrap lg:px-3 lg:py-3">
+            <td class="order-6 whitespace-nowrap lg:px-2.5 lg:py-3">
               <span class="inline-flex rounded-full px-2.5 py-0.5 text-[11px] font-semibold" :class="getCategoryBadge(item.category).badgeClass">
                 {{ getCategoryBadge(item.category).label }}
               </span>
             </td>
 
             <!-- Community -->
-            <td class="order-7 min-w-0 lg:px-3 lg:py-3">
+            <td class="order-7 min-w-0 lg:px-2.5 lg:py-3">
               <span class="inline-flex max-w-32 items-center sm:max-w-44 gap-1 rounded-full border border-slate-200 bg-slate-50 px-2.5 py-0.5 text-[11px] font-semibold text-slate-700 dark:border-[#2C2C2E] dark:bg-[#252525] dark:text-slate-200">
                 <MapPin class="h-3 w-3 shrink-0 text-rose-500" />
                 <span class="truncate">{{ item.community_name }}</span>
@@ -185,12 +179,12 @@ function formatDate(isoStr: string) {
             </td>
 
             <!-- Date -->
-            <td class="order-2 whitespace-nowrap font-mono text-[11px] text-slate-500 lg:px-3 lg:py-3 dark:text-[#98A2A8]">
-              <span class="mr-1 lg:hidden">•</span><span class="sm:hidden">{{ shortDate(item.updated_at || item.published_at || item.created_at) }}</span><span class="hidden sm:inline">{{ formatDate(item.updated_at || item.published_at || item.created_at) }}</span>
+            <td class="order-2 whitespace-nowrap font-mono text-[11px] text-slate-500 lg:px-2.5 lg:py-3 dark:text-[#98A2A8]">
+              <span class="sm:hidden">{{ shortDate(item.updated_at || item.published_at || item.created_at) }}</span><span class="hidden sm:inline">{{ formatDate(item.updated_at || item.published_at || item.created_at) }}</span>
             </td>
 
             <!-- Pin Toggle -->
-            <td class="order-3 ml-auto whitespace-nowrap lg:ml-0 lg:px-3 lg:py-3">
+            <td class="order-3 ml-auto whitespace-nowrap lg:ml-0 lg:px-2.5 lg:py-3">
               <button
                 type="button"
                 title="สลับสถานะปักหมุด"
@@ -206,17 +200,16 @@ function formatDate(isoStr: string) {
             </td>
 
             <!-- Status -->
-            <td class="order-4 whitespace-nowrap lg:px-3 lg:py-3">
+            <td class="order-4 whitespace-nowrap lg:px-2.5 lg:py-3">
               <span
-                class="inline-flex rounded-full border px-2.5 py-0.5 text-[11px] font-semibold"
-                :class="item.status === 'published' ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300' : 'border-slate-300 bg-white text-slate-600 dark:border-[#2C2C2E] dark:bg-[#252525] dark:text-slate-300'"
+                class="inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300"
               >
-                {{ item.status === 'published' ? 'เผยแพร่แล้ว' : 'ฉบับร่าง' }}
+                เผยแพร่แล้ว
               </span>
             </td>
 
             <!-- Actions -->
-            <td class="order-8 ml-auto whitespace-nowrap lg:ml-0 lg:px-4 lg:py-3 lg:text-right">
+            <td class="order-8 ml-auto whitespace-nowrap lg:ml-0 lg:px-3.5 lg:py-3 lg:text-right">
               <div class="inline-flex items-center gap-1.5">
                 <button
                   type="button"

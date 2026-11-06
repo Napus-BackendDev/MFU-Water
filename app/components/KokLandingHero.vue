@@ -49,7 +49,7 @@ const communityRoleBadges: Record<string, { role: string; riverPart: string; col
               MFU KOK WATER WATCH · TELEMETRY PORTAL
             </div>
             <h1 class="text-sm font-semibold text-slate-900 dark:text-white tracking-tight">
-              ระบบติดตามคุณภาพน้ำแม่น้ำกกและข้อมูลชุมชนต้นแบบ
+              ระบบติดตามคุณภาพน้ำแม่น้ำกก
             </h1>
           </div>
         </div>

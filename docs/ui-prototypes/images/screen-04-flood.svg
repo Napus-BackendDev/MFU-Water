@@ -1,0 +1,174 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 960" width="1200" height="960">
+  <defs>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@300;400;500;600;700;800&amp;display=swap');
+      * { font-family: 'Noto Sans Thai', 'Segoe UI', sans-serif; }
+      .bold { font-weight: 700; }
+      .semibold { font-weight: 600; }
+      .medium { font-weight: 500; }
+      .regular { font-weight: 400; }
+      .shadow { filter: drop-shadow(0px 4px 12px rgba(0,0,0,0.08)); }
+      .shadow-lg { filter: drop-shadow(0px 8px 24px rgba(0,0,0,0.14)); }
+      .btn-pulse { animation: pulse 2s infinite; }
+    </style>
+    <linearGradient id="grad-green" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#195640"/>
+      <stop offset="100%" stop-color="#113D2E"/>
+    </linearGradient>
+    <linearGradient id="grad-safe" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#E8F5E9"/>
+      <stop offset="100%" stop-color="#C8E6C9"/>
+    </linearGradient>
+    <linearGradient id="grad-danger" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#FFEBEE"/>
+      <stop offset="100%" stop-color="#FFCDD2"/>
+    </linearGradient>
+    <linearGradient id="river-grad" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#72B5CC"/>
+      <stop offset="50%" stop-color="#4A9BB8"/>
+      <stop offset="100%" stop-color="#3182A0"/>
+    </linearGradient>
+    <linearGradient id="flood-water" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#1976D2" stop-opacity="0.6"/>
+      <stop offset="100%" stop-color="#0D47A1" stop-opacity="0.8"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="960" fill="#F5F4ED"/>
+  
+    <rect x="0" y="0" width="1200" height="960" fill="#EBE9DF"/>
+    
+    <text x="60" y="56" fill="#195640" font-size="28" font-weight="800">🌊 แบบจำลองน้ำท่วม — "ถ้าน้ำขึ้น... บ้านเราจะท่วมไหม?"</text>
+    <text x="60" y="90" fill="#556B60" font-size="16" font-weight="500">เลื่อนสไลเดอร์ดูระดับน้ำท่วมล่วงหน้า เพื่อเตรียมยกของขึ้นที่สูงหรือพาผู้สูงอายุอพยพทันเวลา</text>
+
+    <!-- Main Tablet / Large Viewport Box (Width 1080, Height 780) -->
+    <g transform="translate(60, 120)">
+      <rect x="0" y="0" width="1080" height="780" rx="24" fill="#FFFFFF" stroke="#D8DFD5" class="shadow-lg"/>
+      
+      <!-- Top Control Bar: Water Rise Slider for Villagers -->
+      <g transform="translate(30, 24)">
+        <rect x="0" y="0" width="1020" height="120" rx="16" fill="#F4F8F4" stroke="#D0DDD4" stroke-width="1.5"/>
+        <text x="24" y="38" fill="#195640" font-size="18" font-weight="800">เลื่อนแถบเพื่อดู: ถ้าน้ำแม่น้ำกกเอ่อล้นตลิ่งสูงขึ้น...</text>
+        <text x="24" y="60" fill="#556B60" font-size="13">คำนวณจากระดับความสูงจริงของหมู่บ้านและคันดินธรรมชาติ</text>
+
+        <!-- Slider Bar Visual -->
+        <g transform="translate(24, 76)">
+          <!-- Track -->
+          <rect x="0" y="8" width="972" height="14" rx="7" fill="#E0E8E3"/>
+          <rect x="0" y="8" width="486" height="14" rx="7" fill="#1976D2"/> <!-- Active +2m -->
+
+          <!-- 4 Friendly Rise Milestones -->
+          <!-- Level 1: +1m -->
+          <circle cx="160" cy="15" r="10" fill="#1976D2" stroke="#FFF" stroke-width="2"/>
+          <text x="160" y="-4" fill="#213E32" font-size="12" font-weight="700" text-anchor="middle">+1 เมตร (น้ำปริ่มตลิ่ง)</text>
+
+          <!-- Level 2: +2m (CURRENT SELECTED) -->
+          <circle cx="486" cy="15" r="16" fill="#DE9922" stroke="#FFF" stroke-width="3" class="shadow"/>
+          <text x="486" y="19" fill="#FFF" font-size="11" font-weight="800" text-anchor="middle">✓</text>
+          <text x="486" y="-8" fill="#C45A10" font-size="14" font-weight="800" text-anchor="middle">⚠️ +2 เมตร (น้ำเริ่มล้นถนน)</text>
+
+          <!-- Level 3: +3m -->
+          <circle cx="750" cy="15" r="10" fill="#E0E8E3" stroke="#888" stroke-width="2"/>
+          <text x="750" y="-4" fill="#666" font-size="12" font-weight="600" text-anchor="middle">+3 เมตร (ท่วมใต้ถุนบ้าน)</text>
+
+          <!-- Level 4: +5m -->
+          <circle cx="950" cy="15" r="10" fill="#E0E8E3" stroke="#888" stroke-width="2"/>
+          <text x="950" y="-4" fill="#666" font-size="12" font-weight="600" text-anchor="middle">+5 เมตร (ท่วมหนักปี 67)</text>
+        </g>
+      </g>
+
+      <!-- Map Display Area: Realistic River Basin + Flooded Lands -->
+      <g transform="translate(30, 160)">
+        <rect x="0" y="0" width="700" height="580" rx="16" fill="#F0F4EF" stroke="#D8DFD5"/>
+        
+        <!-- Mountain areas (Safe high ground) -->
+        <path d="M 0,0 L 220,0 L 140,160 L 0,80 Z" fill="#DDEADE"/>
+        <text x="50" y="50" fill="#4B6B56" font-size="14" font-weight="700">⛰️ ดอยแม่สลอง / เนินเขาสูง (ปลอดภัย 100%)</text>
+
+        <!-- River Kok Winding Path -->
+        <path d="M 40,540 Q 200,420 300,320 T 660,140" fill="none" stroke="#3182A0" stroke-width="44" stroke-linecap="round"/>
+        <text x="420" y="240" fill="#FFFFFF" font-size="16" font-weight="700" transform="rotate(-30, 420, 240)">แม่น้ำกก</text>
+
+        <!-- Simulated Flood Water Over Bank (+2m: Blue transparent polygon over lowlands) -->
+        <path d="M 60,540 Q 220,400 320,300 Q 420,200 680,120 L 680,260 Q 480,360 360,460 L 160,570 Z" fill="url(#flood-water)"/>
+        
+        <!-- Flooded Land Warning Tag -->
+        <g transform="translate(360, 360)">
+          <rect x="-10" y="-12" width="190" height="30" rx="8" fill="#FFF3E0" stroke="#DE9922" stroke-width="2" class="shadow"/>
+          <text x="0" y="8" font-size="14">🌊</text>
+          <text x="24" y="8" fill="#C45A10" font-size="12" font-weight="700">น้ำท่วมสูงประมาณ 30-50 ซม.</text>
+        </g>
+
+        <!-- Landmarks on Map -->
+        <!-- 1. วัดท่าตอน (Safe) -->
+        <g transform="translate(180, 180)">
+          <circle cx="0" cy="0" r="14" fill="#2E7D32" stroke="#FFF" stroke-width="2"/>
+          <text x="-8" y="5" fill="#FFF" font-size="12">🛕</text>
+          <rect x="20" y="-14" width="150" height="30" rx="6" fill="#FFFFFF" stroke="#2E7D32" stroke-width="1.5"/>
+          <text x="28" y="6" fill="#1B5E20" font-size="12" font-weight="700">วัดท่าตอน (น้ำไม่ท่วม ✓)</text>
+        </g>
+
+        <!-- 2. ตลาดและท่าเรือ (Flooded!) -->
+        <g transform="translate(260, 420)">
+          <circle cx="0" cy="0" r="14" fill="#A33228" stroke="#FFF" stroke-width="2"/>
+          <text x="-8" y="5" fill="#FFF" font-size="12">🚤</text>
+          <rect x="20" y="-14" width="160" height="30" rx="6" fill="#FFFFFF" stroke="#A33228" stroke-width="1.5"/>
+          <text x="28" y="6" fill="#A33228" font-size="12" font-weight="700">ท่าเรือท่าตอน (⚠️ น้ำท่วม)</text>
+        </g>
+
+        <!-- 3. โรงเรียนบ้านท่าตอน (Safe) -->
+        <g transform="translate(480, 100)">
+          <circle cx="0" cy="0" r="14" fill="#2E7D32" stroke="#FFF" stroke-width="2"/>
+          <text x="-8" y="5" fill="#FFF" font-size="12">🏫</text>
+          <rect x="20" y="-14" width="150" height="30" rx="6" fill="#FFFFFF" stroke="#2E7D32" stroke-width="1.5"/>
+          <text x="28" y="6" fill="#1B5E20" font-size="12" font-weight="700">โรงเรียนท่าตอน (ปลอดภัย ✓)</text>
+        </g>
+
+        <!-- Floating Comparison Button: "Compare with real Flood 2024" -->
+        <g transform="translate(20, 520)">
+          <rect x="0" y="0" width="260" height="42" rx="10" fill="#FFFFFF" stroke="#195640" stroke-width="1.5" class="shadow"/>
+          <text x="14" y="26" font-size="18">🛰️</text>
+          <text x="42" y="26" fill="#195640" font-size="12" font-weight="700">เทียบกับภาพดาวเทียมน้ำท่วมปี 67</text>
+        </g>
+      </g>
+
+      <!-- Right Side: Action Plan for Farmers at +2m -->
+      <g transform="translate(750, 160)">
+        <rect x="0" y="0" width="300" height="580" rx="16" fill="#FAFAFA" stroke="#D8DFD5"/>
+        <rect x="0" y="0" width="300" height="44" rx="16" fill="#195640"/>
+        <text x="18" y="28" fill="#FFFFFF" font-size="15" font-weight="700">📢 ข้อแนะนำสำหรับชาวบ้าน (ระดับ +2 ม.)</text>
+
+        <!-- Checklist Cards -->
+        <g transform="translate(16, 60)">
+          <rect x="0" y="0" width="268" height="90" rx="12" fill="#FFF8E1" stroke="#FFE082"/>
+          <text x="14" y="26" font-size="20">📦</text>
+          <text x="44" y="24" fill="#C45A10" font-size="13" font-weight="700">1. ยกของขึ้นที่สูงทันที</text>
+          <text x="44" y="44" fill="#556B60" font-size="11">เครื่องใช้ไฟฟ้า ปุ๋ย และอาหารสัตว์</text>
+          <text x="44" y="60" fill="#556B60" font-size="11">ให้อยู่สูงกว่าพื้นอย่างน้อย 1 เมตร</text>
+        </g>
+
+        <g transform="translate(16, 164)">
+          <rect x="0" y="0" width="268" height="90" rx="12" fill="#E3F2FD" stroke="#BBDEFB"/>
+          <text x="14" y="26" font-size="20">👵</text>
+          <text x="44" y="24" fill="#0D47A1" font-size="13" font-weight="700">2. พาผู้สูงอายุและเด็กไปที่ปลอดภัย</text>
+          <text x="44" y="44" fill="#556B60" font-size="11">ศูนย์พักพิงที่ศาลาวัดท่าตอนเปิดแล้ว</text>
+          <text x="44" y="60" fill="#556B60" font-size="11">มีหมอและพยาบาลประจำการ 24 ชม.</text>
+        </g>
+
+        <g transform="translate(16, 268)">
+          <rect x="0" y="0" width="268" height="90" rx="12" fill="#FFEBEE" stroke="#FFCDD2"/>
+          <text x="14" y="26" font-size="20">🚗</text>
+          <text x="44" y="24" fill="#B71C1C" font-size="13" font-weight="700">3. เลี่ยงการใช้ถนนริมแม่น้ำ</text>
+          <text x="44" y="44" fill="#556B60" font-size="11">ถนนสายล่างหน้าท่าเรือน้ำท่วมขัง</text>
+          <text x="44" y="60" fill="#556B60" font-size="11">ให้ใช้ถนนบายพาสสายบนแทน</text>
+        </g>
+
+        <!-- Big Red Call Button -->
+        <g transform="translate(16, 480)">
+          <rect x="0" y="0" width="268" height="66" rx="16" fill="#A33228" class="shadow"/>
+          <text x="134" y="32" fill="#FFFFFF" font-size="16" font-weight="800" text-anchor="middle">🚨 ขอความช่วยเหลือด่วน</text>
+          <text x="134" y="52" fill="#FFCDD2" font-size="12" text-anchor="middle">โทรศูนย์กู้ภัย อบต. ท่าตอน</text>
+        </g>
+      </g>
+    </g>
+    
+</svg>

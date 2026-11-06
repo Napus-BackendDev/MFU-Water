@@ -9,7 +9,7 @@ const props = defineProps<{ total: number }>()
 const totalPages = computed(() => Math.max(1, Math.ceil(props.total / pageSize.value)))
 const from = computed(() => (props.total === 0 ? 0 : (page.value - 1) * pageSize.value + 1))
 const to = computed(() => Math.min(page.value * pageSize.value, props.total))
-const stepClass = 'rounded-lg border border-slate-300 p-1.5 text-slate-600 disabled:opacity-30 dark:border-[#2C2C2E] dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-[#252525]'
+const stepClass = 'rounded-lg border border-slate-300 p-2 text-slate-600 disabled:opacity-30 dark:border-[#2C2C2E] dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-[#252525]'
 </script>
 
 <template>

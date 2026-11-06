@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue'
 import { X } from 'lucide-vue-next'
 import { actionButtonClass, fieldClass, fieldLabelClass, primaryButtonClass } from '../utils/admin-ui'
+import { formatPpb } from '../../src/lib/survey'
 import type { AdminSample, SampleEdit } from '../utils/admin-types'
 import KokModalShell from './KokModalShell.vue'
 
@@ -70,7 +71,7 @@ function submit() {
         <div>
           <label for="sample-ppb" :class="fieldLabelClass">ระดับสารหนู (ppb)</label>
           <select id="sample-ppb" v-model.number="form.arsenicPpb" :class="fieldClass" class="cursor-pointer">
-            <option v-for="level in levels" :key="level" :value="level">{{ level }} ppb</option>
+            <option v-for="level in levels" :key="level" :value="level">{{ formatPpb(level, true) }}</option>
           </select>
         </div>
         <div>

@@ -76,17 +76,17 @@ export const SEED_NEWS_ARTICLES = [
   },
   {
     id: 'NW-2026-011',
-    title: '(ร่าง) กำหนดการประชุมเวทีชาวบ้านเพื่อทบทวนเส้นทางอพยพกลุ่มเปราะบาง',
+    title: 'กำหนดการประชุมเวทีชาวบ้านเพื่อทบทวนเส้นทางอพยพกลุ่มเปราะบาง',
     category: 'event',
     community_id: 'pongkhong',
     community_name: 'บ้านปงของ',
     summary: 'เตรียมจัดเวทีรับฟังความคิดเห็นชาวบ้านเพื่อปรับปรุงแผนที่จุดรวมพลและเส้นทางอพยพกรณีเกิดน้ำป่าไหลหลาก',
-    content: `ร่างกำหนดการเวทีชาวบ้านบ้านปงของ ต.แม่เงิน อ.เชียงแสน:
+    content: `กำหนดการเวทีชาวบ้านบ้านปงของ ต.แม่เงิน อ.เชียงแสน:
 จัดขึ้นเพื่อร่วมกันทบทวนจุดเสี่ยงดินสไลด์และน้ำหลากริมลำห้วยสาขา พร้อมตรวจสอบรายชื่อกลุ่มเปราะบางและจุดพักพิงปลอดภัยร่วมกับผู้ใหญ่บ้านและฝ่ายปกครอง`,
     cover_image_url: '/data/news/thaton-map-preview.png',
     gallery_image_urls: [],
     is_pinned: false,
-    status: 'draft',
+    status: 'published',
     author: 'ผู้ประสานงานพื้นที่บ้านปงของ',
     published_at: '2026-10-16T11:00:00+07:00',
     created_at: '2026-10-16T11:00:00+07:00',
@@ -220,10 +220,9 @@ export async function listAdminNews(settings, { category, communityId, status, s
   const total = await col.countDocuments({})
   const published = await col.countDocuments({ status: 'published' })
   const pinned = await col.countDocuments({ is_pinned: true })
-  const draft = await col.countDocuments({ status: 'draft' })
   return {
     items: docs.map(plain),
-    counts: { total, published, pinned, draft }
+    counts: { total, published, pinned }
   }
 }
 
@@ -243,12 +242,12 @@ export async function createNewsArticle(settings, data) {
     community_name: data.community_name || 'ทุกชุมชน',
     summary: String(data.summary || (data.content ? data.content.slice(0, 160) + '...' : '')).trim(),
     content: String(data.content || '').trim(),
-    cover_image_url: data.cover_image_url || '/data/news/thaton-sentinel2-flood.png',
+    cover_image_url: data.cover_image_url !== undefined ? String(data.cover_image_url).trim() : '',
     gallery_image_urls: Array.isArray(data.gallery_image_urls) ? data.gallery_image_urls : [],
     is_pinned: Boolean(data.is_pinned),
-    status: data.status === 'draft' ? 'draft' : 'published',
+    status: 'published',
     author: data.author || 'ศูนย์ประสานงานวิจัยลุ่มน้ำกก มฟล.',
-    published_at: data.status === 'draft' ? null : now,
+    published_at: now,
     created_at: now,
     updated_at: now,
   }
@@ -259,7 +258,7 @@ export async function createNewsArticle(settings, data) {
 export async function updateNewsArticle(settings, id, data) {
   const col = await getNewsCollection(settings)
   const now = new Date()
-  const update = { updated_at: now }
+  const update = { updated_at: now, status: 'published' }
   if (data.title !== undefined) update.title = String(data.title).trim()
   if (data.category !== undefined) update.category = data.category
   if (data.community_id !== undefined) update.community_id = data.community_id
@@ -269,14 +268,8 @@ export async function updateNewsArticle(settings, id, data) {
   if (data.cover_image_url !== undefined) update.cover_image_url = data.cover_image_url
   if (data.gallery_image_urls !== undefined) update.gallery_image_urls = data.gallery_image_urls
   if (data.is_pinned !== undefined) update.is_pinned = Boolean(data.is_pinned)
-  if (data.status !== undefined) {
-    update.status = data.status
-    // Keep the original date when an already published article is edited.
-    if (data.status === 'published') {
-      const existing = await col.findOne({ id }, { projection: { published_at: 1 } })
-      if (!existing?.published_at) update.published_at = now
-    }
-  }
+  const existing = await col.findOne({ id }, { projection: { published_at: 1 } })
+  if (!existing?.published_at) update.published_at = now
   if (data.author !== undefined) update.author = data.author
 
   const res = await col.findOneAndUpdate(

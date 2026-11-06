@@ -2,8 +2,9 @@
 import { computed, ref, watch } from 'vue'
 import KokModalShell from './KokModalShell.vue'
 import { Calendar, Camera, Clock, Compass, Flame, MapPin, User, X } from 'lucide-vue-next'
-import type { SurveyWaypoint } from '../../src/lib/survey'
+import { formatPpb, type SurveyWaypoint } from '../../src/lib/survey'
 import { publicPseudonym } from '../../src/lib/publicPseudonym'
+import { clusterSurveyWaypoints } from '../../src/lib/waypoints'
 import KokPPBTrendChart from './KokPPBTrendChart.vue'
 import KokImageLightbox from './KokImageLightbox.vue'
 import KokMiniPager from './KokMiniPager.vue'
@@ -19,17 +20,12 @@ const emit = defineEmits<{
   (e: 'focus', waypoint: SurveyWaypoint): void
 }>()
 
-// หาตัวอย่างทั้งหมดที่อยู่ในบริเวณเดียวกัน (รัศมี ~250 ม. หรือละติจูด/ลองจิจูดใกล้กัน)
+// Same grouping the map used to draw the dot, so the popup and this window always agree.
 const nearbySamples = computed<SurveyWaypoint[]>(() => {
   if (!props.waypoint) return []
-  const lat = props.waypoint.latitude
-  const lon = props.waypoint.longitude
-
-  return props.allWaypoints.filter((wp) => {
-    const dLat = Math.abs(wp.latitude - lat)
-    const dLon = Math.abs(wp.longitude - lon)
-    return dLat <= 0.0025 && dLon <= 0.0025
-  })
+  const code = props.waypoint.sample_code
+  const cluster = clusterSurveyWaypoints(props.allWaypoints).find((item) => item.members.some((member) => member.sample_code === code))
+  return cluster ? cluster.members : [props.waypoint]
 })
 
 // Photos open in the in-page viewer (with a close button) instead of a bare image tab.
@@ -129,10 +125,10 @@ function handleFlyTo() {
             <h3 class="mt-1 text-base font-bold text-slate-900 dark:text-white sm:text-lg">
               {{ waypoint.station_name || `จุดตรวจ ${waypoint.sample_code}` }}
             </h3>
-            <p class="mt-0.5 flex items-center gap-1.5 font-mono text-xs text-slate-500 dark:text-[#98A2A8]">
-              <Compass class="h-3.5 w-3.5 text-sky-600 dark:text-[#00E5FF]" />
-              <span>พิกัด: {{ waypoint.latitude.toFixed(5) }}, {{ waypoint.longitude.toFixed(5) }}</span>
-              <span v-if="waypoint.gps_accuracy_meters" class="text-[11px] text-emerald-600 dark:text-[#32D74B]">
+            <p class="mt-0.5 flex flex-wrap items-center gap-x-1.5 font-mono text-xs text-slate-500 dark:text-[#98A2A8]">
+              <Compass class="h-3.5 w-3.5 shrink-0 text-sky-600 dark:text-[#00E5FF]" />
+              <span class="whitespace-nowrap">พิกัด: {{ waypoint.latitude.toFixed(5) }}, {{ waypoint.longitude.toFixed(5) }}</span>
+              <span v-if="waypoint.gps_accuracy_meters" class="whitespace-nowrap text-[11px] text-emerald-600 dark:text-[#32D74B]">
                 (±{{ waypoint.gps_accuracy_meters }} ม.)
               </span>
             </p>
@@ -157,7 +153,7 @@ function handleFlyTo() {
             class="font-mono text-xl font-bold"
             :class="isDanger ? 'text-rose-600 dark:text-[#FF453A]' : isWatch ? 'text-amber-600 dark:text-[#FF9F0A]' : 'text-emerald-600 dark:text-[#32D74B]'"
           >
-            {{ ppb }} ppb
+            {{ formatPpb(ppb) }}
           </span>
         </div>
         <div class="rounded-xl border border-slate-200 bg-slate-50 p-3 text-center dark:border-[#2C2C2E] dark:bg-[#141416]">
@@ -268,7 +264,7 @@ function handleFlyTo() {
                 class="font-mono font-bold"
                 :class="item.arsenic_level_ppb > 10 ? 'text-rose-600 dark:text-[#FF453A]' : item.arsenic_level_ppb >= 5 ? 'text-amber-600 dark:text-[#FF9F0A]' : 'text-emerald-600 dark:text-[#32D74B]'"
               >
-                {{ item.arsenic_level_ppb }} ppb
+                {{ formatPpb(item.arsenic_level_ppb) }}
               </span>
               <span
                 class="rounded-md px-1.5 py-0.5 text-[10px] font-bold"

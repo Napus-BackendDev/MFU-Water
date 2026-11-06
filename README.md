@@ -35,6 +35,10 @@ Survey submissions generate atomic `KOK-YYYYMMDD-NNNN` sample codes in Bangkok t
 
 Set browser-safe `VITE_TURNSTILE_SITE_KEY`. Set server-only `ADMIN_PASSCODE` (there is no default; the admin login stays disabled until it and `SURVEY_SIGNING_SECRET` are set), `MONGODB_URI`, `MONGODB_DB`, `TURNSTILE_SECRET_KEY`, `TURNSTILE_ALLOWED_HOSTNAMES`, and a random `SURVEY_SIGNING_SECRET` of at least 32 bytes. Never prefix server secrets with `VITE_`. Configure Turnstile hostname restrictions for the intended domains. Production deployment is a separate, explicitly approved action.
 
+### Review alert email (R10)
+
+When a result is above 50 ppb it is held for review and the admins get an email. Set server-only `SMTP_USER` (the sending mailbox) and `SMTP_PASS` (for Gmail, an app password; spaces are ignored). Optional: `SMTP_HOST` (default `smtp.gmail.com`), `SMTP_PORT` (default `587`; Vercel blocks outbound port 25, so use 587 there), `SMTP_FROM_NAME` (default `kok-river-notification`), `ALERT_EMAIL_TO` (comma-separated recipients; default is `SMTP_USER` itself) and `PUBLIC_SITE_URL` (adds a link to the admin page). Without `SMTP_USER` and `SMTP_PASS` nothing is sent. Each alert in `kok_admin_alerts` records `email_status`: `sent`, `failed` (with `email_error`) or `not_configured`. A mail problem never blocks the survey.
+
 ## Admin review
 
 On a local development run the admin pages open without a login (set `ADMIN_BYPASS=off` to test the real login); this never applies on Vercel or with `APP_ENV=production`. Otherwise admins unlock the queue with `ADMIN_PASSCODE` and a reviewer name. The session token lasts 12 hours. Every approve/reject stores the decision time, the typed reviewer name and the reason on the sample, and private photos are served only with an admin token. Samples above 50 ppb stay out of the public map until approved.

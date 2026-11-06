@@ -1,0 +1,47 @@
+{
+ "question": "ระบบจะติดตั้งบนเซิร์ฟเวอร์ของมหาวิทยาลัยอย่างไร และสภาพแวดล้อมทดสอบอยู่ส่วนใด",
+ "audience": "เจ้าหน้าที่ศูนย์เทคโนโลยีดิจิทัลและสารสนเทศ",
+ "findings": [
+  "Nuxt middleware โหลด api/express-app.js จาก cwd จึงต้องวางโฟลเดอร์ api ไปกับผลการ build (server/middleware/express.ts:10)",
+  "หลัง reverse proxy ระบบอ่าน IP จาก socket ก่อน จึงต้องปรับ มิฉะนั้นโควตาต่อ IP จะรวมผู้ใช้ทั้งหมด (api/surveys/_shared.js:135)"
+ ],
+ "noExceptionsBecause": "ภาพแสดงการติดตั้ง ไม่ใช่ลำดับงาน",
+ "claims": {
+  "u": {
+   "status": "verified",
+   "evidence": "PRODUCT.md:15"
+  },
+  "dom": {
+   "status": "user-confirmed",
+   "evidence": "ผู้ใช้ 2026-11-03: โดเมนจัดหาเอง"
+  },
+  "px": {
+   "status": "assumption",
+   "evidence": "ข้อเสนอ ยังไม่มี config reverse proxy ใน repo"
+  },
+  "nd": {
+   "status": "verified",
+   "evidence": "server/middleware/express.ts:10"
+  },
+  "db": {
+   "status": "assumption",
+   "evidence": "ข้อเสนอ ต้องตกลงกับศูนย์ว่าติดตั้ง MongoDB ในเครื่องหรือเครื่องแยก"
+  },
+  "bk": {
+   "status": "assumption",
+   "evidence": "ข้อเสนอ ยังไม่มีสคริปต์สำรองข้อมูลใน repo"
+  },
+  "vc": {
+   "status": "user-confirmed",
+   "evidence": "ผู้ใช้ 2026-11-03: Vercel เป็นสภาพแวดล้อมทดสอบ"
+  },
+  "at": {
+   "status": "verified",
+   "evidence": "README.md:12"
+  },
+  "a5": {
+   "status": "user-confirmed",
+   "evidence": "ผู้ใช้ 2026-11-03: เซิร์ฟเวอร์ใช้ของมหาวิทยาลัย"
+  }
+ }
+}

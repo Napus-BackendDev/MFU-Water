@@ -1,0 +1,78 @@
+{
+ "question": "ข้อมูลแบบสำรวจถูกตรวจและตัดสินการเผยแพร่อย่างไร",
+ "audience": "เจ้าหน้าที่ศูนย์เทคโนโลยีดิจิทัลและสารสนเทศ",
+ "findings": [
+  "ค่าเกิน 50 ppb ไม่แสดงสาธารณะจนกว่าผู้ดูแลอนุมัติ (api/surveys/complete.js:52)",
+  "สถานะอีเมลแจ้งเตือนถูกบันทึกเป็น queued แต่ยังไม่พบโค้ดส่งอีเมล (api/surveys/complete.js:109)"
+ ],
+ "exceptions": [
+  "ข้อมูลไม่ถูกต้องหรือเกินโควตา",
+  "ticket หมดอายุหรือไฟล์ไม่ถูกต้อง"
+ ],
+ "claims": {
+  "f": {
+   "status": "verified",
+   "evidence": "api/surveys/_shared.js:67"
+  },
+  "d1": {
+   "status": "verified",
+   "evidence": "api/surveys/prepare.js:25"
+  },
+  "up": {
+   "status": "verified",
+   "evidence": "api/surveys/upload.js:17"
+  },
+  "d2": {
+   "status": "verified",
+   "evidence": "api/surveys/complete.js:27"
+  },
+  "sv": {
+   "status": "verified",
+   "evidence": "api/surveys/complete.js:61"
+  },
+  "d3": {
+   "status": "verified",
+   "evidence": "api/surveys/complete.js:52"
+  },
+  "pub": {
+   "status": "verified",
+   "evidence": "api/surveys/waypoints.js:31"
+  },
+  "pen": {
+   "status": "verified",
+   "evidence": "api/surveys/complete.js:104"
+  },
+  "e1": {
+   "status": "verified",
+   "evidence": "api/surveys/prepare.js:41"
+  },
+  "e2": {
+   "status": "verified",
+   "evidence": "api/surveys/complete.js:37"
+  },
+  "a2": {
+   "status": "verified",
+   "evidence": "api/surveys/prepare.js:38"
+  },
+  "a3": {
+   "status": "verified",
+   "evidence": "api/surveys/prepare.js:28"
+  },
+  "a5": {
+   "status": "verified",
+   "evidence": "api/surveys/complete.js:32"
+  },
+  "a6": {
+   "status": "verified",
+   "evidence": "api/surveys/complete.js:27"
+  },
+  "a8": {
+   "status": "verified",
+   "evidence": "api/surveys/complete.js:52"
+  },
+  "a9": {
+   "status": "verified",
+   "evidence": "api/surveys/complete.js:52"
+  }
+ }
+}

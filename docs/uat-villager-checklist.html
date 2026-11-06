@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<title>แบบสอบถามชาวบ้าน — ลองใช้แอปตรวจน้ำ</title>
+<style>
+  @page { size: A4; margin: 16mm 17mm 16mm 17mm; }
+  * { box-sizing: border-box; }
+  body { font-family: 'Leelawadee UI', 'Leelawadee', Tahoma, sans-serif; font-size: 14pt; line-height: 1.55; color: #111; margin: 0; }
+  header { border-bottom: 2px solid #111; padding-bottom: 10px; margin-bottom: 6px; }
+  h1 { font-size: 21pt; margin: 0 0 2px; }
+  .sub { font-size: 12pt; color: #333; }
+  .meta { display: grid; grid-template-columns: 1.2fr 1fr 1fr; gap: 8px 18px; font-size: 12.5pt; margin: 14px 0 8px; }
+  .line { border-bottom: 1px dotted #444; display: inline-block; width: 62%; height: 1.2em; vertical-align: bottom; }
+  .help { font-size: 12pt; background: #f1f1f1; border-radius: 8px; padding: 9px 13px; margin-top: 8px; line-height: 1.7; }
+  .help .ci, .help .sq { margin: 0 3px; }
+  h2 { font-size: 14pt; margin: 22px 0 10px; padding: 6px 12px; background: #111; color: #fff; border-radius: 6px; break-after: avoid; }
+  .q { break-inside: avoid; margin: 0 0 13px; padding-bottom: 10px; border-bottom: 1px solid #e3e3e3; }
+  .q:last-child { border-bottom: none; }
+  .qt { font-weight: 700; margin-bottom: 4px; }
+  .note { font-size: 11.5pt; color: #444; margin: -2px 0 6px; }
+  .opts { display: flex; flex-wrap: wrap; gap: 8px 30px; padding-left: 18px; margin-top: 4px; }
+  .opts span { white-space: nowrap; }
+  .opts.col { flex-direction: column; gap: 7px; }
+  .box { display: inline-block; width: 17px; height: 17px; border: 1.8px solid #111; margin-right: 9px; vertical-align: -3px; }
+  .ci { border-radius: 50%; }
+  .sq { border-radius: 2px; }
+  .write { border: 1.3px solid #777; border-radius: 8px; height: 40mm; margin: 6px 0 0 18px; }
+  .thanks { text-align: center; font-weight: 700; margin: 18px 0 10px; font-size: 13.5pt; }
+  footer { border-top: 1px solid #999; padding-top: 8px; font-size: 11.5pt; display: flex; justify-content: space-between; }
+</style>
+</head>
+<body>
+<header>
+  <h1>ลองใช้แอปตรวจน้ำแล้ว เป็นอย่างไรบ้าง</h1>
+  <div class="sub">แบบสอบถามหลังลองใช้แอป MFU Kok Water Watch (แอปตรวจน้ำแม่น้ำกก) · 22 ข้อ · ใช้เวลาประมาณ 5 นาที</div>
+  <div class="meta">
+    <div>วันที่ <span class="line"></span></div>
+    <div>เลขที่แบบ <span class="line"></span></div>
+    <div>ผู้จด <span class="line"></span></div>
+  </div>
+  <div class="help"><b>วิธีตอบ</b> · ข้อที่มีวงกลม <i class="box ci"></i> ให้ทำเครื่องหมาย ✓ <b>ข้อละ 1 ช่อง</b> · ข้อที่มีสี่เหลี่ยม <i class="box sq"></i> เลือกได้หลายช่อง<br>ตอบตามที่รู้สึกจริง ไม่มีคำตอบถูกหรือผิด ถ้าอ่านไม่สะดวก ให้ทีมงานอ่านและจดแทนได้</div>
+</header>
+<h2>ตอนที่ 1 · เกี่ยวกับคุณ</h2><div class="q"><div class="qt">1. คุณอยู่บ้านไหน</div><div class="opts col"><span><i class="box ci"></i>บ้านท่าตอน</span><span><i class="box ci"></i>บ้านกะเหรี่ยงรวมมิตร</span><span><i class="box ci"></i>บ้านปงของ</span><span><i class="box ci"></i>บ้านปากอิงใต้</span><span><i class="box ci"></i>ที่อื่น ........................</span></div></div><div class="q"><div class="qt">2. อายุเท่าไร</div><div class="opts"><span><i class="box ci"></i>ต่ำกว่า 30 ปี</span><span><i class="box ci"></i>30 – 50 ปี</span><span><i class="box ci"></i>51 – 60 ปี</span><span><i class="box ci"></i>มากกว่า 60 ปี</span></div></div><div class="q"><div class="qt">3. ปกติใช้มือถือเป็นอย่างไร</div><div class="opts col"><span><i class="box ci"></i>ใช้คล่อง เล่นไลน์ เฟซบุ๊ก ได้เอง</span><span><i class="box ci"></i>ใช้ได้บ้าง โทรและดูไลน์ได้</span><span><i class="box ci"></i>ใช้ไม่ค่อยเป็น ต้องให้ลูกหลานช่วย</span></div></div><h2>ตอนที่ 2 · ดูแผนที่</h2><div class="q"><div class="qt">4. เปิดแอปแล้ว หาหมู่บ้านของตัวเองบนแผนที่เจอไหม</div><div class="opts"><span><i class="box ci"></i>เจอเลย</span><span><i class="box ci"></i>เจอ แต่ต้องหานาน</span><span><i class="box ci"></i>หาไม่เจอ</span></div></div><div class="q"><div class="qt">5. จุดสีแดงบนแผนที่ คุณคิดว่าหมายความว่าอะไร</div><div class="note">(ถ้าไม่รู้ ให้เลือก &quot;ไม่รู้&quot; ไม่ต้องเดา)</div><div class="opts col"><span><i class="box ci"></i>น้ำตรงนั้นมีสารหนูเกินเกณฑ์ ควรระวัง</span><span><i class="box ci"></i>น้ำตรงนั้นสะอาด ดื่มได้</span><span><i class="box ci"></i>ไม่รู้</span></div></div><div class="q"><div class="qt">6. จุดสีเขียวบนแผนที่ คุณคิดว่าหมายความว่าอะไร</div><div class="note">(ถ้าไม่รู้ ให้เลือก &quot;ไม่รู้&quot; ไม่ต้องเดา)</div><div class="opts col"><span><i class="box ci"></i>น้ำตรงนั้นมีสารหนูน้อย อยู่ในเกณฑ์ปกติ</span><span><i class="box ci"></i>น้ำตรงนั้นมีสารหนูสูง อันตราย</span><span><i class="box ci"></i>ไม่รู้</span></div></div><div class="q"><div class="qt">7. ดูแผนที่แล้ว รู้ไหมว่าน้ำตรงไหนน่าเป็นห่วง</div><div class="opts"><span><i class="box ci"></i>รู้ ดูง่าย</span><span><i class="box ci"></i>พอรู้ แต่ไม่แน่ใจ</span><span><i class="box ci"></i>ไม่รู้ ดูไม่เข้าใจ</span></div></div><div class="q"><div class="qt">8. กดที่จุดบนแผนที่แล้ว อ่านผลตรวจเข้าใจไหม</div><div class="opts"><span><i class="box ci"></i>เข้าใจ</span><span><i class="box ci"></i>พอเข้าใจ</span><span><i class="box ci"></i>ไม่เข้าใจ</span><span><i class="box ci"></i>ยังไม่ได้ลองกด</span></div></div><h2>ตอนที่ 3 · ส่งผลตรวจน้ำ</h2><div class="q"><div class="qt">9. ส่งผลตรวจน้ำในแอปด้วยตัวเองได้ไหม</div><div class="opts col"><span><i class="box ci"></i>ได้เอง ไม่ต้องมีคนช่วย</span><span><i class="box ci"></i>ได้ แต่ต้องมีคนช่วยบางขั้น</span><span><i class="box ci"></i>ทำไม่ได้</span><span><i class="box ci"></i>ยังไม่ได้ลองส่ง</span></div></div><div class="q"><div class="qt">10. เทียบสีแถบตรวจกับสีในแอป ง่ายไหม</div><div class="opts"><span><i class="box ci"></i>ง่าย</span><span><i class="box ci"></i>พอได้</span><span><i class="box ci"></i>ยาก สีดูคล้ายกัน</span></div></div><div class="q"><div class="qt">11. ขั้นไหนยากที่สุด</div><div class="note">(เลือกได้หลายช่อง)</div><div class="opts col"><span><i class="box sq"></i>เทียบสีแถบตรวจกับสีในแอป</span><span><i class="box sq"></i>กดปุ่มหาตำแหน่ง (GPS)</span><span><i class="box sq"></i>ถ่ายรูปหรือแนบรูป</span><span><i class="box sq"></i>พิมพ์ชื่อและเบอร์โทร</span><span><i class="box sq"></i>หาปุ่มส่ง</span><span><i class="box sq"></i>ไม่มีขั้นไหนยาก</span></div></div><div class="q"><div class="qt">12. ส่งผลแล้ว รู้ไหมว่าผลของคุณไปขึ้นที่ไหน</div><div class="opts col"><span><i class="box ci"></i>รู้ ขึ้นเป็นจุดบนแผนที่</span><span><i class="box ci"></i>ไม่แน่ใจ</span><span><i class="box ci"></i>ไม่รู้</span></div></div><h2>ตอนที่ 4 · น้ำท่วมและความปลอดภัย</h2><div class="q"><div class="qt">13. ในแอป หาศูนย์พักพิงหรือจุดรวมพลเจอไหม</div><div class="opts"><span><i class="box ci"></i>เจอเลย</span><span><i class="box ci"></i>เจอ แต่ต้องหานาน</span><span><i class="box ci"></i>หาไม่เจอ</span><span><i class="box ci"></i>ยังไม่ได้ลองหา</span></div></div><div class="q"><div class="qt">14. ถ้าน้ำท่วม คิดว่าแอปช่วยให้รู้ว่าต้องไปทางไหนไหม</div><div class="opts"><span><i class="box ci"></i>ช่วยได้มาก</span><span><i class="box ci"></i>ช่วยได้บ้าง</span><span><i class="box ci"></i>ไม่ช่วย</span></div></div><div class="q"><div class="qt">15. ถ้ารู้ว่าน้ำที่บ้านมีสารหนูเกินเกณฑ์ จะทำอะไรต่อ</div><div class="note">(เลือกได้หลายช่อง)</div><div class="opts col"><span><i class="box sq"></i>หยุดดื่มหรือหยุดใช้น้ำนั้น</span><span><i class="box sq"></i>บอก อสม. หรือ รพ.สต.</span><span><i class="box sq"></i>บอกผู้ใหญ่บ้าน</span><span><i class="box sq"></i>ตรวจซ้ำอีกครั้ง</span><span><i class="box sq"></i>ไม่แน่ใจว่าต้องทำอะไร</span></div></div><h2>ตอนที่ 5 · ความรู้สึกโดยรวม</h2><div class="q"><div class="qt">16. ตัวหนังสือในแอปอ่านง่ายไหม</div><div class="opts"><span><i class="box ci"></i>อ่านง่าย</span><span><i class="box ci"></i>ต้องเพ่ง ตัวเล็กไป</span><span><i class="box ci"></i>อ่านไม่ออก</span></div></div><div class="q"><div class="qt">17. ปุ่มในแอปใหญ่พอให้นิ้วกดไหม</div><div class="opts"><span><i class="box ci"></i>กดง่าย</span><span><i class="box ci"></i>บางปุ่มกดยาก</span><span><i class="box ci"></i>กดยาก</span></div></div><div class="q"><div class="qt">18. กังวลไหมที่ต้องใส่ชื่อและเบอร์โทร</div><div class="note">(ชื่อและเบอร์เก็บเป็นความลับ ไม่ขึ้นบนแผนที่ ทีมงานใช้ติดต่อกลับเท่านั้น)</div><div class="opts col"><span><i class="box ci"></i>ไม่กังวล</span><span><i class="box ci"></i>กังวลนิดหน่อย</span><span><i class="box ci"></i>กังวลมาก ไม่อยากใส่</span></div></div><div class="q"><div class="qt">19. ครั้งหน้าตรวจน้ำ จะใช้แอปนี้ส่งผลอีกไหม</div><div class="opts"><span><i class="box ci"></i>ใช้แน่นอน</span><span><i class="box ci"></i>อาจจะใช้</span><span><i class="box ci"></i>ไม่ใช้</span></div></div><div class="q"><div class="qt">20. จะบอกเพื่อนบ้านให้ใช้แอปนี้ไหม</div><div class="opts"><span><i class="box ci"></i>บอกแน่นอน</span><span><i class="box ci"></i>อาจจะบอก</span><span><i class="box ci"></i>ไม่บอก</span></div></div><div class="q"><div class="qt">21. โดยรวม ชอบแอปนี้แค่ไหน</div><div class="opts"><span><i class="box ci"></i>ชอบมาก</span><span><i class="box ci"></i>ชอบ</span><span><i class="box ci"></i>เฉย ๆ</span><span><i class="box ci"></i>ไม่ชอบ</span></div></div><div class="q"><div class="qt">22. อยากบอกอะไรทีมงานเพิ่มไหม</div><div class="note">(ไม่บังคับ · เขียนเอง หรือพูดให้ทีมงานจดแทน เช่น ตรงไหนงง อยากให้เพิ่มอะไร)</div><div class="write"></div></div>
+<div class="thanks">ขอบคุณมาก ความเห็นของคุณช่วยให้แอปใช้ง่ายขึ้นสำหรับทุกคนในหมู่บ้าน</div>
+<footer><span>MFU Kok Water Watch · มหาวิทยาลัยแม่ฟ้าหลวง</span><span>ไม่ต้องเขียนชื่อผู้ตอบ</span></footer>
+</body>
+</html>

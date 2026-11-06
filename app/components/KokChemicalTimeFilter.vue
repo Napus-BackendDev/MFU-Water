@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Clock } from 'lucide-vue-next'
 
-export type ChemicalTimeRange = 'today' | '7d' | '30d' | 'none'
+export type ChemicalTimeRange = '24h' | '7d' | '30d' | 'all'
 
 const props = withDefaults(
   defineProps<{
@@ -14,17 +14,18 @@ const props = withDefaults(
   },
 )
 
-const model = defineModel<ChemicalTimeRange>({ default: 'today' })
+const model = defineModel<ChemicalTimeRange>({ default: 'all' })
 
-const options: Array<{ id: Exclude<ChemicalTimeRange, 'none'>; label: string; shortLabel: string; hint: string }> = [
-  { id: 'today', label: 'วันนี้', shortLabel: 'วันนี้', hint: 'ข้อมูลภายใน 24 ชม. ล่าสุด' },
-  { id: '7d', label: '7 วันที่ผ่านมา', shortLabel: '7 วัน', hint: 'ข้อมูลย้อนหลัง 7 วัน' },
-  { id: '30d', label: '1 เดือนที่ผ่านมา', shortLabel: '1 เดือน', hint: 'ข้อมูลย้อนหลัง 30 วัน' },
+const options: Array<{ id: ChemicalTimeRange; label: string; shortLabel: string; hint: string }> = [
+  { id: '24h', label: '24 ชั่วโมง', shortLabel: '24 ชม.', hint: 'ผลตรวจภายใน 24 ชั่วโมงล่าสุด' },
+  { id: '7d', label: '7 วันที่ผ่านมา', shortLabel: '7 วัน', hint: 'ผลตรวจย้อนหลัง 7 วัน' },
+  { id: '30d', label: '30 วันที่ผ่านมา', shortLabel: '30 วัน', hint: 'ผลตรวจย้อนหลัง 30 วัน' },
+  { id: 'all', label: 'ทั้งหมด', shortLabel: 'ทั้งหมด', hint: 'ผลตรวจที่เผยแพร่แล้วทุกช่วงเวลา' },
 ]
 
-// Default is today; clicking the selected range again cancels the filter (no points until one is chosen).
-function selectRange(id: Exclude<ChemicalTimeRange, 'none'>) {
-  model.value = model.value === id ? 'none' : id
+// The map opens on "ทั้งหมด" so a visitor never lands on an empty map, and a range always stays selected.
+function selectRange(id: ChemicalTimeRange) {
+  model.value = id
 }
 </script>
 
@@ -41,7 +42,7 @@ function selectRange(id: Exclude<ChemicalTimeRange, 'none'>) {
     </div>
 
     <!-- 3 Segmented Filter Buttons (full row under the label on phones) -->
-    <div class="order-3 sm:order-2 basis-full sm:basis-auto grid grid-cols-3 sm:flex items-center gap-1 w-full sm:w-auto" role="group" aria-label="เลือกช่วงเวลาย้อนหลัง">
+    <div class="order-3 sm:order-2 basis-full sm:basis-auto grid grid-cols-4 sm:flex items-center gap-1 w-full sm:w-auto" role="group" aria-label="เลือกช่วงเวลาย้อนหลัง">
       <button
         v-for="opt in options"
         :key="opt.id"
@@ -64,11 +65,14 @@ function selectRange(id: Exclude<ChemicalTimeRange, 'none'>) {
     <div class="order-2 sm:order-3 flex items-center gap-1.5 pl-0.5 sm:pl-1 sm:border-l border-slate-200/80 dark:border-zinc-800 text-[11px] font-medium">
       <div
         v-if="pointCount !== undefined"
-        class="flex items-center gap-1 px-2 py-0.5 rounded-full bg-sky-50 dark:bg-sky-950/60 text-[#0284C7] dark:text-[#38BDF8] border border-sky-200/60 dark:border-sky-800/60 whitespace-nowrap"
-        :title="`พบ ${pointCount} จุดสำรวจในช่วงที่เลือก`"
+        class="flex items-center gap-1 whitespace-nowrap rounded-full border px-2 py-0.5"
+        :class="pointCount === 0
+          ? 'border-amber-300/70 bg-amber-50 text-amber-800 dark:border-amber-800/60 dark:bg-amber-950/50 dark:text-amber-200'
+          : 'border-sky-200/60 bg-sky-50 text-[#0284C7] dark:border-sky-800/60 dark:bg-sky-950/60 dark:text-[#38BDF8]'"
+        :title="pointCount === 0 ? 'ไม่มีผลตรวจในช่วงเวลาที่เลือก ลองเลือกช่วงที่กว้างขึ้น' : `พบผลตรวจ ${pointCount} รายการในช่วงที่เลือก`"
       >
-        <span class="h-1.5 w-1.5 rounded-full bg-[#0284C7] dark:bg-[#38BDF8]" />
-        <span>{{ pointCount }} จุด</span>
+        <span class="h-1.5 w-1.5 rounded-full" :class="pointCount === 0 ? 'bg-amber-500' : 'bg-[#0284C7] dark:bg-[#38BDF8]'" />
+        <span>{{ pointCount === 0 ? 'ไม่มีผลตรวจช่วงนี้' : `${pointCount} ผลตรวจ` }}</span>
       </div>
     </div>
   </div>

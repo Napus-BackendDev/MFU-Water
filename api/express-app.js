@@ -23,6 +23,31 @@ import {
   uploadAdminNewsPhotoHandler,
 } from './news/_admin.js'
 import { seedDefaultNewsPhotosToGridFs } from './news/_news_photos.js'
+import {
+  getEvacuationHandler,
+  startEvacuationHandler,
+  updateEvacuationCaseHandler,
+  reorderEvacuationHandler,
+  closeEvacuationHandler,
+} from './evacuation/_evacuation.js'
+import { adminMapDataHandler, publicMapDataHandler, routeFromPath } from './mapdata/_mapdata.js'
+import {
+  getReportersHandler,
+  createReporterHandler,
+  updateReporterHandler,
+  deleteReporterHandler,
+} from './admin/_reporters.js'
+import { getReportsAnalyticsHandler } from './admin/_reports.js'
+import {
+  getResearchHubHandler,
+  updateResearchTeamHandler,
+  downloadResearchDocHandler,
+} from './admin/_research.js'
+import {
+  getProjectSettingsHandler,
+  updateSponsorsHandler,
+  updateContactsHandler,
+} from './admin/_settings.js'
 
 const serverEnvKeys = [
   'ADMIN_PASSCODE',
@@ -137,6 +162,39 @@ export function createExpressApp(rootDir = process.cwd()) {
   app.post('/api/admin/news/:id/pin', (req, res) => {
     return toggleAdminPinHandler(req, res)
   })
+
+  // Admin Evacuation Mode API
+  app.get('/api/admin/evacuation', getEvacuationHandler)
+  app.post('/api/admin/evacuation/start', startEvacuationHandler)
+  app.patch('/api/admin/evacuation/cases/:householdId', updateEvacuationCaseHandler)
+  app.put('/api/admin/evacuation/order', reorderEvacuationHandler)
+  app.post('/api/admin/evacuation/close', closeEvacuationHandler)
+
+  // Map data: hamlets, community survey, evacuation group and important places (public read, admin edit)
+  app.get('/api/map-data/:target', (req, res) => publicMapDataHandler(req, res, req.params.target))
+  app.use('/api/admin/map-data', (req, res) => adminMapDataHandler(req, res, routeFromPath(req.path)))
+
+  // Admin Reporters & Follow-up API
+  app.get('/api/admin/reporters', getReportersHandler)
+  app.post('/api/admin/reporters', createReporterHandler)
+  app.put('/api/admin/reporters/:id', updateReporterHandler)
+  app.put('/api/admin/reporters', updateReporterHandler)
+  app.delete('/api/admin/reporters/:id', deleteReporterHandler)
+  app.delete('/api/admin/reporters', deleteReporterHandler)
+
+  // Admin Reports & Real-time Analytics API
+  app.get('/api/admin/reports/analytics', getReportsAnalyticsHandler)
+
+  // Admin Research Hub (SWG 1-7) API
+  app.get('/api/admin/research', getResearchHubHandler)
+  app.put('/api/admin/research/:id', updateResearchTeamHandler)
+  app.put('/api/admin/research', updateResearchTeamHandler)
+  app.post('/api/admin/research/:id/download', downloadResearchDocHandler)
+
+  // Admin Project Settings (Sponsors, Contacts, Audit) API
+  app.get('/api/admin/settings', getProjectSettingsHandler)
+  app.put('/api/admin/settings/sponsors', updateSponsorsHandler)
+  app.put('/api/admin/settings/contacts', updateContactsHandler)
 
   app.get('/api/contract', (_req, res) => {
     try {

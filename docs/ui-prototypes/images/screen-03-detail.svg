@@ -1,0 +1,159 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 960" width="1200" height="960">
+  <defs>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@300;400;500;600;700;800&amp;display=swap');
+      * { font-family: 'Noto Sans Thai', 'Segoe UI', sans-serif; }
+      .bold { font-weight: 700; }
+      .semibold { font-weight: 600; }
+      .medium { font-weight: 500; }
+      .regular { font-weight: 400; }
+      .shadow { filter: drop-shadow(0px 4px 12px rgba(0,0,0,0.08)); }
+      .shadow-lg { filter: drop-shadow(0px 8px 24px rgba(0,0,0,0.14)); }
+      .btn-pulse { animation: pulse 2s infinite; }
+    </style>
+    <linearGradient id="grad-green" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#195640"/>
+      <stop offset="100%" stop-color="#113D2E"/>
+    </linearGradient>
+    <linearGradient id="grad-safe" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#E8F5E9"/>
+      <stop offset="100%" stop-color="#C8E6C9"/>
+    </linearGradient>
+    <linearGradient id="grad-danger" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#FFEBEE"/>
+      <stop offset="100%" stop-color="#FFCDD2"/>
+    </linearGradient>
+    <linearGradient id="river-grad" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#72B5CC"/>
+      <stop offset="50%" stop-color="#4A9BB8"/>
+      <stop offset="100%" stop-color="#3182A0"/>
+    </linearGradient>
+    <linearGradient id="flood-water" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#1976D2" stop-opacity="0.6"/>
+      <stop offset="100%" stop-color="#0D47A1" stop-opacity="0.8"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="960" fill="#F5F4ED"/>
+  
+    <rect x="0" y="0" width="1200" height="960" fill="#EBE9DF"/>
+    
+    <text x="60" y="56" fill="#195640" font-size="28" font-weight="800">🔍 รายละเอียดจุดตรวจ — แนะนำการใช้น้ำชัดเจน</text>
+    <text x="60" y="90" fill="#556B60" font-size="16" font-weight="500">ชาวบ้านรู้ทันทีว่าน้ำนี้ใช้รดผัก เลี้ยงสัตว์ หรือต้มดื่มได้หรือไม่ พร้อมประวัติที่ตรวจมา</text>
+
+    <g transform="translate(380, 110)">
+      <rect x="-6" y="-6" width="452" height="832" rx="42" fill="#2D3732" opacity="0.15" class="shadow-lg"/>
+      <rect x="0" y="0" width="440" height="820" rx="36" fill="#FFFFFF" stroke="#D0D7D0" stroke-width="3"/>
+      <rect x="150" y="10" width="140" height="22" rx="11" fill="#213E32"/>
+
+      <!-- Header -->
+      <rect x="0" y="38" width="440" height="66" fill="#FFFFFF" stroke="#E0E6E0" stroke-width="1"/>
+      <circle cx="36" cy="71" r="20" fill="#F0F4F1"/>
+      <text x="28" y="77" fill="#195640" font-size="18" font-weight="700">‹</text>
+      <text x="70" y="76" fill="#213E32" font-size="19" font-weight="800">ผลตรวจจุด: ท่าน้ำวัดท่าตอน</text>
+
+      <g transform="translate(18, 116)">
+        <!-- 1. BIG STATUS BADGE -->
+        <rect x="0" y="0" width="404" height="110" rx="16" fill="#E8F5E9" stroke="#81C784" stroke-width="2"/>
+        <circle cx="48" cy="48" r="28" fill="#2E7D32"/>
+        <text x="35" y="57" fill="#FFFFFF" font-size="28">✓</text>
+        <text x="88" y="42" fill="#1B5E20" font-size="20" font-weight="800">น้ำสะอาด อยู่ในเกณฑ์ปกติ</text>
+        <text x="88" y="66" fill="#2E7D32" font-size="14" font-weight="600">รหัสจุด: W-042 (บ้านท่าตอน หมู่ 3)</text>
+        <text x="88" y="90" fill="#556B60" font-size="12">ตรวจเมื่อ: 15 ต.ค. 2569 เวลา 08:30 น. (โดย อสม.)</text>
+
+        <!-- 2. "WHAT CAN I USE THIS WATER FOR?" (ACTIONABLE TABLE FOR FARMERS) -->
+        <g transform="translate(0, 124)">
+          <rect x="0" y="0" width="404" height="216" rx="16" fill="#FAFAFA" stroke="#D8DFD5" stroke-width="1.5"/>
+          <text x="16" y="28" fill="#195640" font-size="15" font-weight="700">💡 น้ำจากจุดนี้ ใช้ทำอะไรได้บ้าง?</text>
+
+          <!-- Row 1: Drinking -->
+          <g transform="translate(14, 42)">
+            <rect x="0" y="0" width="376" height="48" rx="10" fill="#FFFFFF" stroke="#E0E6E0"/>
+            <text x="14" y="31" font-size="20">☕</text>
+            <text x="44" y="24" fill="#213E32" font-size="13" font-weight="700">ดื่มกิน ชงชา</text>
+            <text x="44" y="40" fill="#556B60" font-size="11">ดื่มได้ แต่ต้องต้มสุกหรือผ่านเครื่องกรองก่อน</text>
+            <rect x="306" y="10" width="58" height="28" rx="14" fill="#E8F5E9"/>
+            <text x="335" y="28" fill="#2E7D32" font-size="11" font-weight="700" text-anchor="middle">ดื่มได้ (ต้ม)</text>
+          </g>
+
+          <!-- Row 2: Bathing / Washing -->
+          <g transform="translate(14, 96)">
+            <rect x="0" y="0" width="376" height="48" rx="10" fill="#FFFFFF" stroke="#E0E6E0"/>
+            <text x="14" y="31" font-size="20">🚿</text>
+            <text x="44" y="24" fill="#213E32" font-size="13" font-weight="700">อาบน้ำ ซักผ้า ล้างจาน</text>
+            <text x="44" y="40" fill="#556B60" font-size="11">ใช้ได้ตามปกติ ไม่ระคายเคืองผิวหนัง</text>
+            <rect x="306" y="10" width="58" height="28" rx="14" fill="#E8F5E9"/>
+            <text x="335" y="28" fill="#2E7D32" font-size="11" font-weight="700" text-anchor="middle">ใช้ได้ปกติ</text>
+          </g>
+
+          <!-- Row 3: Farming / Fish -->
+          <g transform="translate(14, 150)">
+            <rect x="0" y="0" width="376" height="48" rx="10" fill="#FFFFFF" stroke="#E0E6E0"/>
+            <text x="14" y="31" font-size="20">🥬</text>
+            <text x="44" y="24" fill="#213E32" font-size="13" font-weight="700">รดแปลงผัก เลี้ยงปลาในกระชัง</text>
+            <text x="44" y="40" fill="#556B60" font-size="11">ปลอดภัยดี ไม่มีสารเคมีสะสมในพืชผล</text>
+            <rect x="306" y="10" width="58" height="28" rx="14" fill="#E8F5E9"/>
+            <text x="335" y="28" fill="#2E7D32" font-size="11" font-weight="700" text-anchor="middle">ปลอดภัย</text>
+          </g>
+        </g>
+
+        <!-- 3. TREND OVER TIME (Explained in plain Thai: "4 months of steady improvement") -->
+        <g transform="translate(0, 354)">
+          <rect x="0" y="0" width="404" height="160" rx="16" fill="#FFFFFF" stroke="#D8DFD5" stroke-width="1.5"/>
+          <text x="16" y="28" fill="#195640" font-size="15" font-weight="700">📈 ประวัติความสะอาด 4 เดือนย้อนหลัง</text>
+          <text x="16" y="48" fill="#2E7D32" font-size="12" font-weight="600">✓ คุณภาพน้ำดีขึ้นอย่างต่อเนื่อง ไม่พบสารหนูสะสม</text>
+
+          <!-- Friendly Trend Visual: 4 monthly circles with connecting lines -->
+          <g transform="translate(20, 68)">
+            <!-- Line -->
+            <line x1="30" y1="20" x2="330" y2="20" stroke="#C8E6C9" stroke-width="6"/>
+            <line x1="30" y1="20" x2="330" y2="20" stroke="#2E7D32" stroke-width="3" stroke-dasharray="6 6"/>
+
+            <!-- Month 1: Jan -->
+            <circle cx="30" cy="20" r="16" fill="#FFF3E0" stroke="#DE9922" stroke-width="2"/>
+            <text x="30" y="24" fill="#DE9922" font-size="10" font-weight="700" text-anchor="middle">ระวัง</text>
+            <text x="30" y="52" fill="#556B60" font-size="11" text-anchor="middle">ม.ค.</text>
+
+            <!-- Month 2: Mar -->
+            <circle cx="130" cy="20" r="16" fill="#E8F5E9" stroke="#2E7D32" stroke-width="2"/>
+            <text x="130" y="24" fill="#2E7D32" font-size="10" font-weight="700" text-anchor="middle">ปกติ</text>
+            <text x="130" y="52" fill="#556B60" font-size="11" text-anchor="middle">มี.ค.</text>
+
+            <!-- Month 3: May -->
+            <circle cx="230" cy="20" r="16" fill="#E8F5E9" stroke="#2E7D32" stroke-width="2"/>
+            <text x="230" y="24" fill="#2E7D32" font-size="10" font-weight="700" text-anchor="middle">ปกติ</text>
+            <text x="230" y="52" fill="#556B60" font-size="11" text-anchor="middle">พ.ค.</text>
+
+            <!-- Month 4: Jul / Today -->
+            <circle cx="330" cy="20" r="18" fill="#2E7D32" stroke="#FFFFFF" stroke-width="3" class="shadow"/>
+            <text x="330" y="25" fill="#FFFFFF" font-size="11" font-weight="800" text-anchor="middle">ดีมาก</text>
+            <text x="330" y="52" fill="#195640" font-size="11" font-weight="700" text-anchor="middle">ล่าสุด</text>
+          </g>
+        </g>
+
+        <!-- 4. BUTTONS: Call Leader / Request Re-test -->
+        <g transform="translate(0, 528)">
+          <rect x="0" y="0" width="195" height="58" rx="14" fill="#FFFFFF" stroke="#195640" stroke-width="2"/>
+          <text x="97" y="34" fill="#195640" font-size="14" font-weight="700" text-anchor="middle">🔄 ขอให้ อสม. ตรวจซ้ำ</text>
+
+          <rect x="209" y="0" width="195" height="58" rx="14" fill="#195640"/>
+          <text x="306" y="34" fill="#FFFFFF" font-size="14" font-weight="700" text-anchor="middle">📞 โทรสอบถาม อสม.</text>
+        </g>
+      </g>
+    </g>
+
+    <g transform="translate(860, 160)">
+      <rect x="0" y="0" width="280" height="340" rx="16" fill="#FFFFFF" stroke="#D8DFD5" class="shadow"/>
+      <rect x="0" y="0" width="280" height="44" rx="16" fill="#195640"/>
+      <text x="18" y="28" fill="#FFFFFF" font-size="15" font-weight="700">📌 จุดเด่นหน้าผลตรวจ (R04, D02)</text>
+      
+      <text x="18" y="75" fill="#213E32" font-size="13" font-weight="700">1. แปลงผลเป็นคำแนะนำการใช้งาน:</text>
+      <text x="18" y="95" fill="#556B60" font-size="12">บอกชัด ดื่มได้ไหม / ซักผ้าได้ไหม / รดผักได้ไหม</text>
+      
+      <text x="18" y="130" fill="#213E32" font-size="13" font-weight="700">2. กราฟเข้าใจง่ายแบบ Timeline:</text>
+      <text x="18" y="150" fill="#556B60" font-size="12">แสดงการดีขึ้นใน 4 เดือน ไม่ต้องดูกราฟแท่งซับซ้อน</text>
+
+      <text x="18" y="185" fill="#213E32" font-size="13" font-weight="700">3. เชื่อมต่อผู้ใหญ่บ้าน/อสม.:</text>
+      <text x="18" y="205" fill="#556B60" font-size="12">ปุ่มโทรติดต่อโดยตรงเมื่อมีข้อสงสัย</text>
+    </g>
+    
+</svg>
