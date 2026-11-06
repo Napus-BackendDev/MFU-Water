@@ -2944,4 +2944,6 @@
   2. ถ่ายโอนไฟล์ภาพ GridFS ทั้งหมด 129 ไฟล์ (รวมไฟล์ภาพปก/แกลเลอรีที่ข่าว 6 เรื่องเรียกใช้) เข้าสู่ `news_photos` bucket บน Production GridFS สำเร็จ
   3. นำเข้าบทความข่าวจริงทั้ง 6 รายการจาก Local เข้าสู่ `kok_news_articles` บน Production พร้อมสร้าง indexes (`id`, `is_pinned, published_at`, `status`, `category`, `community_id`)
   4. ตรวจสอบสถานะการเชื่อมโยงภาพปกของข่าวทุกรายการบน Production พบครบถ้วนทุกไฟล์ (`NW-2026-022`, `NW-2026-021`, `NW-2026-020`, `NW-2026-019`, `NW-2026-015`, `NW-2026-007`)
-- ค้าง: ยังไม่ commit/push ตามกฎ main deploy บน Vercel
+- (2026-11-06 ต่อ) ผู้ใช้สั่ง: "commit และ push ระบบนี้ขึ้น github ให้หน่อยครับ" -> ตรวจสอบ `git status`, `.gitignore` (กันไฟล์ `.env.*` และ `KokData/`), รัน `npm run typecheck` (ผ่าน 0 error), รัน `npm test` (ผ่านครบ 189/189 tests 26 files) และทำ commit + push สู่ `origin/main` (`5f8b94d`):
+  - Commit: `feat: admin territory nav, news polish, and sync`
+  - Push: `To https://github.com/Napus-BackendDev/MFU-Water.git (7cc321e..5f8b94d main -> main)` สำเร็จเรียบร้อย
