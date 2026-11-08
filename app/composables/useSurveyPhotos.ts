@@ -1,5 +1,5 @@
 import { onBeforeUnmount, ref } from 'vue'
-import { validateSurveyPhoto, type SurveyPhoto } from '../../src/lib/survey'
+import { holdSurveyPhoto, photoErrorMessage, validateSurveyPhoto, type SurveyPhoto } from '../../src/lib/survey'
 
 type Pair<T> = [T, T]
 type Slot = 0 | 1
@@ -24,9 +24,17 @@ export function useSurveyPhotos() {
 
   // Returns true when the file was accepted; a rejected file leaves the slot empty with an error message.
   async function select(slot: Slot, input: HTMLInputElement) {
-    const file = input.files?.[0]
-    if (!file) return false
-    const error = await validateSurveyPhoto(file)
+    const picked = input.files?.[0]
+    if (!picked) return false
+    let file: File | null = null
+    let error = await validateSurveyPhoto(picked)
+    if (!error) {
+      try {
+        file = await holdSurveyPhoto(picked)
+      } catch (caught) {
+        error = photoErrorMessage(caught)
+      }
+    }
     photos.value = patch(photos.value, slot, error ? null : file)
     errors.value = patch(errors.value, slot, error)
     setPreview(slot, error ? null : file)

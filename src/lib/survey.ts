@@ -59,10 +59,36 @@ export async function fetchSurveyWaypoints(): Promise<SurveyWaypoint[]> {
   return payload as SurveyWaypoint[]
 }
 
+// On Android a picked photo is only a handle to a camera or gallery file. Chrome can lose access to it
+// (temp file cleaned up, app was in the background) and reading it later fails with NotReadableError.
+// Say that in Thai instead of showing the browser's English message.
+export const unreadablePhotoMessage = 'อ่านไฟล์ภาพไม่ได้ อาจเพราะมือถือปิดสิทธิ์เข้าถึงไฟล์ กรุณากด "เปลี่ยนภาพใหม่" แล้วเลือกหรือถ่ายภาพอีกครั้ง'
+
+export function photoErrorMessage(error: unknown): string {
+  const name = (error as { name?: string } | null)?.name
+  if (name === 'NotReadableError' || name === 'NotFoundError' || name === 'SecurityError' || name === 'AbortError') return unreadablePhotoMessage
+  return error instanceof Error && error.message ? error.message : unreadablePhotoMessage
+}
+
+// Copy the picked photo into memory right away, while the browser still lets us read it,
+// so later steps (resize, upload) never touch the phone's file again.
+export async function holdSurveyPhoto(file: File): Promise<File> {
+  try {
+    return new File([await file.arrayBuffer()], file.name, { type: file.type, lastModified: file.lastModified })
+  } catch (error) {
+    throw new Error(photoErrorMessage(error))
+  }
+}
+
 export async function validateSurveyPhoto(file: File): Promise<string | null> {
   if (!(file.type in imageTypes)) return 'รองรับเฉพาะไฟล์ JPG, PNG หรือ WebP'
   if (file.size <= 0 || file.size > maxSurveyPhotoBytes) return 'รูปภาพต้องมีขนาดไม่เกิน 10 MB'
-  const bytes = new Uint8Array(await file.slice(0, 12).arrayBuffer())
+  let bytes: Uint8Array
+  try {
+    bytes = new Uint8Array(await file.slice(0, 12).arrayBuffer())
+  } catch (error) {
+    return photoErrorMessage(error)
+  }
   const signature = imageTypes[file.type as keyof typeof imageTypes]
   return signature.every((byte, index) => byte === null || bytes[index] === byte) ? null : 'เนื้อหาไฟล์ไม่ตรงกับชนิดรูปภาพที่เลือก'
 }
@@ -127,7 +153,7 @@ export async function submitWaterSurvey(input: WaterSurveyInput): Promise<Survey
       if (photoError) throw new Error(photoError)
     }
   }
-  const photos = await Promise.all(input.photos.map((photo) => (photo ? prepareSurveyPhoto(photo) : null)))
+  const photos = await Promise.all(input.photos.map((photo) => (photo ? prepareSurveyPhoto(photo).catch((error) => { throw new Error(photoErrorMessage(error)) }) : null)))
 
   const payload = {
     fullName: input.fullName.trim(),

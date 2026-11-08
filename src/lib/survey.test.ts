@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { arsenicLevels, fetchSurveyWaypoints, formatPpb, prepareSurveyPhoto, submitWaterSurvey, validateSurveyPhoto, type WaterSurveyInput } from './survey'
+import { arsenicLevels, fetchSurveyWaypoints, formatPpb, holdSurveyPhoto, prepareSurveyPhoto, submitWaterSurvey, unreadablePhotoMessage, validateSurveyPhoto, type WaterSurveyInput } from './survey'
 
 const coordinates = { latitude: 20.0451, longitude: 99.8912 }
 const waypoint = {
@@ -117,6 +117,35 @@ describe('water survey submission', () => {
     await expect(prepareSurveyPhoto(small)).resolves.toBe(small)
     const huge = new File([new Uint8Array(5 * 1024 * 1024)], 'b.jpg', { type: 'image/jpeg' })
     await expect(prepareSurveyPhoto(huge)).rejects.toThrow('รูปภาพใหญ่เกินไป')
+  })
+
+  // Android Chrome hands over a handle to the camera/gallery file and can revoke it before submit.
+  const unreadable = (bytes: number[] = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1]) => {
+    const file = new File([new Uint8Array(bytes)], 'camera.png', { type: 'image/png' })
+    const denied = () => Promise.reject(new DOMException('The requested file could not be read, typically due to permission problems that have occurred after a reference to a file was acquired.', 'NotReadableError'))
+    Object.defineProperty(file, 'arrayBuffer', { value: denied })
+    Object.defineProperty(file, 'slice', { value: () => ({ arrayBuffer: denied }) })
+    return file
+  }
+
+  it('turns a photo the phone no longer lets us read into a Thai message, not the browser English one', async () => {
+    const file = unreadable()
+    await expect(validateSurveyPhoto(file)).resolves.toBe(unreadablePhotoMessage)
+    await expect(holdSurveyPhoto(file)).rejects.toThrow(unreadablePhotoMessage)
+    const fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+    await expect(submitWaterSurvey(input({ photos: [file, null] }))).rejects.toThrow(unreadablePhotoMessage)
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('keeps an in-memory copy of the photo so a later read cannot fail', async () => {
+    const original = new File([new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3])], 'camera.png', { type: 'image/png' })
+    const held = await holdSurveyPhoto(original)
+    expect(held).not.toBe(original)
+    expect([held.name, held.type, held.size]).toEqual(['camera.png', 'image/png', original.size])
+    // Even if the phone later revokes the original, the copy still reads and validates.
+    Object.defineProperty(original, 'slice', { value: () => { throw new Error('original must not be read again') } })
+    await expect(validateSurveyPhoto(held)).resolves.toBeNull()
   })
 
   it('reads public waypoint data only through the API', async () => {
