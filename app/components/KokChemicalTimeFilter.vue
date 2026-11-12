@@ -36,8 +36,8 @@ function selectRange(id: ChemicalTimeRange) {
     aria-label="ตัวกรองเวลาสารเคมีปนเปื้อน"
   >
     <!-- Label Header for Desktop / Tablet -->
-    <div class="order-1 flex flex-1 sm:flex-none items-center gap-1.5 text-xs font-semibold text-slate-600 dark:text-zinc-300 pl-1 pr-1 sm:border-r border-slate-200/80 dark:border-zinc-800">
-      <Clock class="h-3.5 w-3.5 text-[#0284C7] dark:text-[#38BDF8]" />
+    <div class="order-1 flex flex-1 sm:flex-none items-center gap-1.5 text-[14px] font-semibold text-slate-700 dark:text-zinc-200 pl-1 pr-2 sm:border-r border-slate-200/80 dark:border-zinc-800 whitespace-nowrap shrink-0">
+      <Clock class="h-4 w-4 text-[#0284C7] dark:text-[#38BDF8]" />
       <span class="tracking-tight">ช่วงเวลาข้อมูลสารเคมี</span>
     </div>
 
@@ -62,7 +62,7 @@ function selectRange(id: ChemicalTimeRange) {
     </div>
 
     <!-- Point count for the chosen range -->
-    <div class="order-2 sm:order-3 flex items-center gap-1.5 pl-0.5 sm:pl-1 sm:border-l border-slate-200/80 dark:border-zinc-800 text-[11px] font-medium">
+    <div class="order-2 sm:order-3 flex items-center gap-1.5 pl-0.5 sm:pl-1.5 sm:border-l border-slate-200/80 dark:border-zinc-800 text-[13px] font-semibold">
       <div
         v-if="pointCount !== undefined"
         class="flex items-center gap-1 whitespace-nowrap rounded-full border px-2 py-0.5"
@@ -84,7 +84,7 @@ function selectRange(id: ChemicalTimeRange) {
   flex-wrap: wrap;
   align-items: center;
   gap: 6px;
-  padding: 5px 8px;
+  padding: 6px 10px;
   border-radius: 14px;
   background: var(--wv-card, rgba(255, 255, 255, 0.96));
   backdrop-filter: blur(16px);
@@ -92,6 +92,11 @@ function selectRange(id: ChemicalTimeRange) {
   border: 1px solid rgba(226, 232, 240, 0.9);
   box-shadow: 0 4px 18px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.05);
   max-width: calc(100vw - 24px);
+}
+@media (min-width: 768px) {
+  .kok-chemical-time-filter {
+    flex-wrap: nowrap;
+  }
 }
 
 :global(html.dark) .kok-chemical-time-filter {
@@ -104,9 +109,9 @@ function selectRange(id: ChemicalTimeRange) {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 5px 12px;
+  padding: 7px 14px;
   border-radius: 10px;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 600;
   white-space: nowrap;
   transition: all 0.15s ease-in-out;
@@ -150,13 +155,13 @@ function selectRange(id: ChemicalTimeRange) {
 
 @media (max-width: 639px) {
   .kok-chemical-time-filter {
-    padding: 4px 6px;
-    gap: 4px;
+    padding: 6px 8px;
+    gap: 5px;
     border-radius: 12px;
   }
   .time-option-btn {
-    padding: 6px 8px;
-    font-size: 11px;
+    padding: 7px 6px;
+    font-size: 13px;
     text-align: center;
   }
 }

@@ -107,15 +107,15 @@ const selectedPeriod = computed(() => {
       <div class="flex items-center gap-2">
         <BarChart3 class="h-4 w-4 text-sky-600 dark:text-[#00E5FF]" />
         <div>
-          <h4 class="text-sm font-bold text-slate-900 dark:text-white">กราฟสุขภาพน้ำรายวันและรายเดือน</h4>
-          <p class="text-xs text-slate-500 dark:text-[#98A2A8]">
+          <h4 class="text-base font-bold text-slate-900 dark:text-white">กราฟสุขภาพน้ำรายวันและรายเดือน</h4>
+          <p class="text-sm text-slate-500 dark:text-[#98A2A8]">
             สัดส่วนผลตรวจแยกตามระดับความเสี่ยง ({{ granularity === 'day' ? 'รายวัน' : 'รายเดือน' }})
           </p>
         </div>
       </div>
 
       <!-- Segmented Buttons: รายวัน / รายเดือน -->
-      <div class="inline-flex rounded-xl border border-slate-200 bg-white p-1 text-xs dark:border-[#2C2C2E] dark:bg-[#1E1E1E]">
+      <div class="inline-flex rounded-xl border border-slate-200 bg-white p-1 text-sm dark:border-[#2C2C2E] dark:bg-[#1E1E1E]">
         <button
           type="button"
           class="rounded-lg px-3 py-1 font-bold transition"
@@ -194,23 +194,23 @@ const selectedPeriod = computed(() => {
       </div>
 
       <!-- Legend -->
-      <div class="flex flex-wrap items-center justify-center gap-4 text-xs">
+      <div class="flex flex-wrap items-center justify-center gap-4 text-sm">
         <div class="flex items-center gap-1.5">
-          <span class="h-2.5 w-2.5 rounded-full bg-emerald-500 dark:bg-[#32D74B]" />
+          <span class="h-3 w-3 rounded-full bg-emerald-500 dark:bg-[#32D74B]" />
           <span class="text-slate-600 dark:text-[#98A2A8]">ปกติ (0–5 ppb)</span>
         </div>
         <div class="flex items-center gap-1.5">
-          <span class="h-2.5 w-2.5 rounded-full bg-amber-500 dark:bg-[#FF9F0A]" />
+          <span class="h-3 w-3 rounded-full bg-amber-500 dark:bg-[#FF9F0A]" />
           <span class="text-slate-600 dark:text-[#98A2A8]">เฝ้าระวัง (10 ppb)</span>
         </div>
         <div class="flex items-center gap-1.5">
-          <span class="h-2.5 w-2.5 rounded-full bg-rose-500 dark:bg-[#FF453A]" />
+          <span class="h-3 w-3 rounded-full bg-rose-500 dark:bg-[#FF453A]" />
           <span class="text-slate-600 dark:text-[#98A2A8]">เกินเกณฑ์ คพ. (&gt; 10 ppb)</span>
         </div>
       </div>
 
       <!-- Detail Box ของวัน/เดือนที่เลือก -->
-      <div v-if="selectedPeriod" class="rounded-xl border border-slate-200 bg-white p-3 text-xs shadow-sm dark:border-[#2C2C2E] dark:bg-[#1E1E1E]">
+      <div v-if="selectedPeriod" class="rounded-xl border border-slate-200 bg-white p-3.5 text-sm shadow-sm dark:border-[#2C2C2E] dark:bg-[#1E1E1E]">
         <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 dark:border-[#2C2C2E] pb-2 font-bold">
           <span class="text-sky-700 dark:text-[#00E5FF]">{{ selectedPeriod.fullLabel }}</span>
           <span class="font-mono text-slate-500 dark:text-[#98A2A8]">
@@ -218,17 +218,17 @@ const selectedPeriod = computed(() => {
           </span>
         </div>
         <div class="grid grid-cols-3 gap-2 pt-2 text-center">
-          <div class="rounded-lg bg-emerald-50 border border-emerald-200 p-1.5 text-emerald-700 dark:bg-[#142318] dark:border-transparent dark:text-[#32D74B]">
-            <span class="block text-[10px]">ปกติ</span>
-            <span class="font-mono text-sm font-bold">{{ selectedPeriod.normal }}</span>
+          <div class="rounded-lg bg-emerald-50 border border-emerald-200 p-2 text-emerald-700 dark:bg-[#142318] dark:border-transparent dark:text-[#32D74B]">
+            <span class="block text-xs">ปกติ</span>
+            <span class="font-mono text-base font-bold">{{ selectedPeriod.normal }}</span>
           </div>
-          <div class="rounded-lg bg-amber-50 border border-amber-200 p-1.5 text-amber-700 dark:bg-[#2A2216] dark:border-transparent dark:text-[#FF9F0A]">
-            <span class="block text-[10px]">เฝ้าระวัง</span>
-            <span class="font-mono text-sm font-bold">{{ selectedPeriod.watch }}</span>
+          <div class="rounded-lg bg-amber-50 border border-amber-200 p-2 text-amber-700 dark:bg-[#2A2216] dark:border-transparent dark:text-[#FF9F0A]">
+            <span class="block text-xs">เฝ้าระวัง</span>
+            <span class="font-mono text-base font-bold">{{ selectedPeriod.watch }}</span>
           </div>
-          <div class="rounded-lg bg-rose-50 border border-rose-200 p-1.5 text-rose-700 dark:bg-[#2A1616] dark:border-transparent dark:text-[#FF453A]">
-            <span class="block text-[10px]">เกินเกณฑ์</span>
-            <span class="font-mono text-sm font-bold">{{ selectedPeriod.critical }}</span>
+          <div class="rounded-lg bg-rose-50 border border-rose-200 p-2 text-rose-700 dark:bg-[#2A1616] dark:border-transparent dark:text-[#FF453A]">
+            <span class="block text-xs">เกินเกณฑ์</span>
+            <span class="font-mono text-base font-bold">{{ selectedPeriod.critical }}</span>
           </div>
         </div>
       </div>

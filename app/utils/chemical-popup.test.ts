@@ -65,4 +65,12 @@ describe('chemical point popup', () => {
     popupFor([waypoint('1', 5)], onDetail).querySelector('button')!.click()
     expect(onDetail).toHaveBeenCalledOnce()
   })
+
+  it('shows highlight badges for newly submitted and pending-review points', () => {
+    const saved = buildChemicalPopup(clusterSurveyWaypoints([waypoint('1', 10)])[0]!, '#E8BE36', vi.fn(), { justSubmitted: true })
+    expect(saved.querySelector('.kok-pop-badge-new')?.textContent).toContain('จุดที่คุณเพิ่งบันทึก')
+
+    const pending = buildChemicalPopup(clusterSurveyWaypoints([waypoint('2', 100)])[0]!, '#F97316', vi.fn(), { justSubmitted: true, pendingReview: true })
+    expect(pending.querySelector('.kok-pop-badge-pending')?.textContent).toContain('รอแอดมินตรวจ')
+  })
 })

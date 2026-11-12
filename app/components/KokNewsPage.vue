@@ -119,29 +119,29 @@ if (typeof window !== 'undefined') {
         <div class="flex items-center gap-3">
           <button
             type="button"
-            class="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 hover:text-slate-900 dark:border-[#2C2C2E] dark:bg-[#252525] dark:text-slate-200 dark:hover:bg-[#2E2E30] dark:hover:text-white transition cursor-pointer"
+            class="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 hover:text-slate-900 dark:border-[#2C2C2E] dark:bg-[#252525] dark:text-slate-200 dark:hover:bg-[#2E2E30] dark:hover:text-white transition cursor-pointer"
             @click="emit('backToMap')"
           >
-            <ArrowLeft class="h-4 w-4 text-[#0284C7] dark:text-[#00E5FF]" />
+            <ArrowLeft class="h-4.5 w-4.5 text-[#0284C7] dark:text-[#00E5FF]" />
             <span>กลับสู่แผนที่</span>
           </button>
 
           <div class="h-5 w-px bg-slate-200 dark:bg-[#2C2C2E] hidden sm:block" />
 
           <div class="flex items-center gap-2.5">
-            <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-sky-50 text-[#0284C7] border border-sky-200 dark:bg-sky-950/40 dark:text-[#00E5FF] dark:border-sky-900/50">
+            <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-sky-50 text-[#0284C7] border border-sky-200 dark:bg-sky-950/40 dark:text-[#00E5FF] dark:border-sky-900/50">
               <Newspaper class="h-5 w-5" />
             </div>
             <div>
               <div class="flex items-center gap-2">
-                <h1 class="text-sm font-bold text-slate-900 dark:text-white sm:text-base">
+                <h1 class="text-base font-bold text-slate-900 dark:text-white sm:text-lg">
                   ศูนย์ข่าวสารและประชาสัมพันธ์ลุ่มน้ำกก
                 </h1>
-                <span class="rounded-full bg-sky-100 px-2 py-0.5 text-[10px] font-bold text-[#0284C7] dark:bg-sky-950 dark:text-[#00E5FF] hidden md:inline-flex items-center gap-1">
+                <span class="rounded-full bg-sky-100 px-2.5 py-0.5 text-xs font-bold text-[#0284C7] dark:bg-sky-950 dark:text-[#00E5FF] hidden md:inline-flex items-center gap-1">
                   <Sparkles class="h-3 w-3" /> อัปเดตข้อมูลจริง
                 </span>
               </div>
-              <p class="text-[11px] text-slate-500 dark:text-[#98A2A8]">
+              <p class="text-xs sm:text-sm text-slate-500 dark:text-[#98A2A8]">
                 มหาวิทยาลัยแม่ฟ้าหลวง • ติดตามสถานการณ์น้ำ สารหนู และประกาศชุมชน
               </p>
             </div>
@@ -208,24 +208,24 @@ if (typeof window !== 'undefined') {
             <div class="flex flex-wrap items-center gap-2">
               <span
                 v-if="activeArticle.is_pinned"
-                class="inline-flex items-center gap-1 rounded-md bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-300 dark:border-amber-800 px-2 py-0.5 text-xs font-bold"
+                class="inline-flex items-center gap-1 rounded-md bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-300 dark:border-amber-800 px-2.5 py-0.5 text-sm font-bold"
               >
-                <Pin class="h-3 w-3 fill-amber-500 text-amber-600" />
+                <Pin class="h-3.5 w-3.5 fill-amber-500 text-amber-600" />
                 ปักหมุดสำคัญ
               </span>
               <span
-                class="rounded-md px-2.5 py-0.5 text-xs font-semibold"
+                class="rounded-md px-2.5 py-0.5 text-sm font-semibold"
                 :class="getCategoryBadge(activeArticle.category).badgeClass"
               >
                 {{ getCategoryBadge(activeArticle.category).label }}
               </span>
-              <span class="inline-flex items-center gap-1 text-xs text-slate-500 dark:text-[#98A2A8]">
-                <MapPin class="h-3.5 w-3.5 text-rose-500" />
+              <span class="inline-flex items-center gap-1 text-sm text-slate-500 dark:text-[#98A2A8]">
+                <MapPin class="h-4 w-4 text-rose-500" />
                 {{ activeArticle.community_name }}
               </span>
-              <span class="text-xs text-slate-400">•</span>
-              <span class="inline-flex items-center gap-1 text-xs text-slate-500 dark:text-[#98A2A8]">
-                <Clock class="h-3.5 w-3.5" />
+              <span class="text-sm text-slate-400">•</span>
+              <span class="inline-flex items-center gap-1 text-sm text-slate-500 dark:text-[#98A2A8]">
+                <Clock class="h-4 w-4" />
                 {{ formatDate(activeArticle.published_at) }}
               </span>
             </div>
@@ -234,8 +234,8 @@ if (typeof window !== 'undefined') {
               {{ activeArticle.title }}
             </h1>
 
-            <div class="flex items-center gap-2 pt-1 text-xs text-slate-500 dark:text-[#98A2A8]">
-              <User class="h-3.5 w-3.5 text-sky-500" />
+            <div class="flex items-center gap-2 pt-1 text-sm text-slate-600 dark:text-[#98A2A8]">
+              <User class="h-4 w-4 text-sky-500" />
               <span>ผู้เขียน/แหล่งข้อมูล: <strong class="text-slate-700 dark:text-slate-300">{{ activeArticle.author }}</strong></span>
             </div>
           </div>
@@ -258,14 +258,14 @@ if (typeof window !== 'undefined') {
 
           <!-- Summary Callout -->
           <div class="rounded-xl border border-sky-200 bg-sky-50/70 dark:border-sky-900/60 dark:bg-sky-950/30 p-4 sm:p-5 text-sky-950 dark:text-sky-200 leading-relaxed font-medium">
-            <div class="text-xs font-bold uppercase tracking-wider text-[#0284C7] dark:text-[#00E5FF] mb-1">
+            <div class="text-sm font-bold uppercase tracking-wider text-[#0284C7] dark:text-[#00E5FF] mb-1">
               สรุปใจความสำคัญ (Summary)
             </div>
-            <p class="text-sm sm:text-base">{{ activeArticle.summary }}</p>
+            <p class="text-base sm:text-lg">{{ activeArticle.summary }}</p>
           </div>
 
           <!-- Body Content (Parsed into readable paragraphs) -->
-          <div class="space-y-4 text-slate-800 dark:text-slate-200 text-sm sm:text-base leading-relaxed whitespace-pre-line py-2">
+          <div class="space-y-4 text-slate-800 dark:text-slate-200 text-base sm:text-lg leading-relaxed whitespace-pre-line py-2">
             {{ activeArticle.content }}
           </div>
 
@@ -344,17 +344,17 @@ if (typeof window !== 'undefined') {
             <div class="lg:col-span-7 space-y-3">
               <div class="flex flex-wrap items-center gap-2">
                 <span
-                  class="rounded-md px-2.5 py-0.5 text-xs font-semibold"
+                  class="rounded-md px-2.5 py-0.5 text-sm font-semibold"
                   :class="getCategoryBadge(heroPinnedArticle.category).badgeClass"
                 >
                   {{ getCategoryBadge(heroPinnedArticle.category).label }}
                 </span>
-                <span class="inline-flex items-center gap-1 text-xs text-slate-500 dark:text-[#98A2A8]">
-                  <MapPin class="h-3.5 w-3.5 text-rose-500" />
+                <span class="inline-flex items-center gap-1 text-sm text-slate-500 dark:text-[#98A2A8]">
+                  <MapPin class="h-4 w-4 text-rose-500" />
                   {{ heroPinnedArticle.community_name }}
                 </span>
-                <span class="text-xs text-slate-400">•</span>
-                <span class="text-xs text-slate-500 dark:text-[#98A2A8]">
+                <span class="text-sm text-slate-400">•</span>
+                <span class="text-sm text-slate-500 dark:text-[#98A2A8]">
                   {{ formatDate(heroPinnedArticle.published_at) }}
                 </span>
               </div>
@@ -363,15 +363,15 @@ if (typeof window !== 'undefined') {
                 {{ heroPinnedArticle.title }}
               </h2>
 
-              <p class="text-sm text-slate-600 dark:text-slate-300 line-clamp-3 leading-relaxed">
+              <p class="text-base text-slate-600 dark:text-slate-300 line-clamp-3 leading-relaxed">
                 {{ heroPinnedArticle.summary }}
               </p>
 
               <div class="pt-2 flex items-center justify-between">
-                <span class="text-xs text-slate-500 dark:text-[#98A2A8]">
+                <span class="text-sm text-slate-500 dark:text-[#98A2A8]">
                   โดย {{ heroPinnedArticle.author }}
                 </span>
-                <span class="inline-flex items-center gap-1 text-xs font-bold text-[#0284C7] dark:text-[#00E5FF]">
+                <span class="inline-flex items-center gap-1 text-sm font-bold text-[#0284C7] dark:text-[#00E5FF]">
                   อ่านรายละเอียดบทความ →
                 </span>
               </div>
@@ -388,7 +388,7 @@ if (typeof window !== 'undefined') {
                 v-for="cat in NEWS_CATEGORIES"
                 :key="cat.value"
                 type="button"
-                class="min-h-9 rounded-xl px-3 py-2 text-xs font-semibold whitespace-nowrap transition cursor-pointer"
+                class="min-h-10 rounded-xl px-3.5 py-2 text-sm font-semibold whitespace-nowrap transition cursor-pointer"
                 :class="
                   selectedCategory === cat.value
                     ? 'bg-[#0284C7] text-white shadow-xs dark:bg-[#00E5FF] dark:text-slate-900'
@@ -404,20 +404,20 @@ if (typeof window !== 'undefined') {
             <div class="flex items-center gap-2 shrink-0">
               <select
                 v-model="selectedCommunity"
-                class="min-h-9 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 dark:border-[#2C2C2E] dark:bg-[#1E1E1E] dark:text-slate-200 outline-none focus:border-[#0284C7] dark:focus:border-[#00E5FF] cursor-pointer"
+                class="min-h-10 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm font-medium text-slate-700 dark:border-[#2C2C2E] dark:bg-[#1E1E1E] dark:text-slate-200 outline-none focus:border-[#0284C7] dark:focus:border-[#00E5FF] cursor-pointer"
               >
                 <option v-for="c in COMMUNITY_OPTIONS" :key="c.value" :value="c.value">
                   {{ c.label }}
                 </option>
               </select>
 
-              <div class="relative w-full sm:w-60">
-                <Search class="h-3.5 w-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <div class="relative w-full sm:w-64">
+                <Search class="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input
                   v-model="searchQuery"
                   type="text"
                   placeholder="ค้นหาข่าวหรือหัวข้อ..."
-                  class="w-full min-h-9 rounded-xl border border-slate-200 bg-white pl-8 pr-3 py-2 text-xs text-slate-700 dark:border-[#2C2C2E] dark:bg-[#1E1E1E] dark:text-slate-200 placeholder-slate-400 outline-none focus:border-[#0284C7] dark:focus:border-[#00E5FF]"
+                  class="w-full min-h-10 rounded-xl border border-slate-200 bg-white pl-9 pr-3 py-2 text-sm text-slate-700 dark:border-[#2C2C2E] dark:bg-[#1E1E1E] dark:text-slate-200 placeholder-slate-400 outline-none focus:border-[#0284C7] dark:focus:border-[#00E5FF]"
                 />
               </div>
             </div>
@@ -481,26 +481,26 @@ if (typeof window !== 'undefined') {
             <!-- Card Body -->
             <div class="p-4 sm:p-5 flex-1 flex flex-col justify-between space-y-3">
               <div class="space-y-2">
-                <div class="flex items-center gap-2 text-[11px] text-slate-500 dark:text-[#98A2A8]">
+                <div class="flex items-center gap-2 text-xs sm:text-sm text-slate-500 dark:text-[#98A2A8]">
                   <span class="inline-flex items-center gap-1">
-                    <MapPin class="h-3 w-3 text-rose-500" />
+                    <MapPin class="h-3.5 w-3.5 text-rose-500" />
                     {{ item.community_name }}
                   </span>
                   <span>•</span>
                   <span>{{ formatDate(item.published_at) }}</span>
                 </div>
 
-                <h3 class="text-sm sm:text-base font-bold text-slate-900 dark:text-white line-clamp-2 leading-snug group-hover:text-[#0284C7] dark:group-hover:text-[#00E5FF] transition">
+                <h3 class="text-base sm:text-lg font-bold text-slate-900 dark:text-white line-clamp-2 leading-snug group-hover:text-[#0284C7] dark:group-hover:text-[#00E5FF] transition">
                   {{ item.title }}
                 </h3>
 
-                <p class="text-xs text-slate-600 dark:text-[#98A2A8] line-clamp-2 leading-relaxed">
+                <p class="text-sm text-slate-600 dark:text-[#98A2A8] line-clamp-2 leading-relaxed">
                   {{ item.summary }}
                 </p>
               </div>
 
               <!-- Card Footer -->
-              <div class="pt-3 border-t border-slate-100 dark:border-[#2C2C2E] flex items-center justify-between text-xs">
+              <div class="pt-3 border-t border-slate-100 dark:border-[#2C2C2E] flex items-center justify-between text-sm">
                 <span class="text-slate-500 dark:text-slate-400 truncate max-w-[60%]">
                   {{ item.author }}
                 </span>

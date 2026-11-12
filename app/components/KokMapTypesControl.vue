@@ -75,8 +75,8 @@ function label(id: CommunityMapType, name: string) {
         :title="label(type.id, type.label)"
         @click="selectType(type.id)"
       >
-        <component :is="type.icon" :size="20" class="mb-0.5" />
-        <span class="text-[11px] leading-tight font-medium">{{ type.shortLabel }}</span>
+        <component :is="type.icon" :size="22" class="mb-0.5" />
+        <span class="text-[13px] leading-tight font-semibold">{{ type.shortLabel }}</span>
       </button>
     </div>
   </nav>
@@ -91,7 +91,7 @@ function label(id: CommunityMapType, name: string) {
       :aria-pressed="selectedId === type.id" :aria-label="label(type.id, type.label)" :title="label(type.id, type.label)"
       @click="selectType(type.id)"
     >
-      <component :is="type.icon" :size="16" class="map-type-icon" aria-hidden="true" />
+      <component :is="type.icon" :size="18" class="map-type-icon" aria-hidden="true" />
       <span class="hidden sm:inline">{{ type.label }}</span>
       <span class="sm:hidden">{{ type.shortLabel }}</span>
     </button>
@@ -121,15 +121,15 @@ function label(id: CommunityMapType, name: string) {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  min-height: 40px;
-  padding: 6px 12px;
+  gap: 7px;
+  min-height: 44px;
+  padding: 8px 14px;
   border-radius: 10px;
   border: 2px solid transparent;
   color: var(--type-color);
   background: color-mix(in srgb, var(--type-color) 6%, transparent);
   cursor: pointer;
-  font-size: 12px;
+  font-size: 15px;
   font-weight: 600;
   white-space: nowrap;
   flex-shrink: 0;

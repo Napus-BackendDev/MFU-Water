@@ -31,17 +31,17 @@ const hamletNotice = computed(() => {
   >
     <div class="flex items-start justify-between gap-2">
       <div class="min-w-0">
-        <h2 class="text-base font-bold leading-snug">รู้จักชุมชน · {{ profile.title }}</h2>
-        <p class="mt-0.5 text-xs text-slate-500 dark:text-[#98A2A8]">{{ community.subdistrict }} {{ community.district }} {{ community.province }}</p>
+        <h2 class="text-lg font-bold leading-snug">รู้จักชุมชน · {{ profile.title }}</h2>
+        <p class="mt-0.5 text-sm text-slate-600 dark:text-[#98A2A8]">{{ community.subdistrict }} {{ community.district }} {{ community.province }}</p>
       </div>
       <button type="button" aria-label="ซ่อนการ์ดรู้จักชุมชน" class="-mr-2 -mt-2 shrink-0 cursor-pointer rounded-lg p-2.5 text-slate-500 hover:bg-slate-100 hover:text-slate-800 dark:text-[#98A2A8] dark:hover:bg-[#252525] dark:hover:text-white" @click="dismissed = true">
-        <X class="h-4 w-4" />
+        <X class="h-4.5 w-4.5" />
       </button>
     </div>
 
     <KokCommunityProfileBody :profile="profile" />
 
-    <p class="mt-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-200">
+    <p class="mt-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-200">
       {{ hamletNotice }}
     </p>
   </aside>

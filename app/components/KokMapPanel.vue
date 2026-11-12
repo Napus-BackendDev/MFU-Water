@@ -35,6 +35,10 @@ const props = withDefaults(
     evacuationQueue?: any[]
     selectedEvacuationCase?: any | null
     evacuationDestinations?: any[]
+    userLocation?: { latitude: number; longitude: number; accuracy: number | null } | null
+    focusRequest?: { latitude: number; longitude: number; zoom: number; sampleCode?: string; nonce: number } | null
+    highlightedSampleCode?: string | null
+    pendingSubmission?: SurveyWaypoint | null
   }>(),
   {
     isFullScreen: false,
@@ -42,6 +46,10 @@ const props = withDefaults(
     evacuationQueue: () => [],
     selectedEvacuationCase: null,
     evacuationDestinations: () => [],
+    userLocation: null,
+    focusRequest: null,
+    highlightedSampleCode: null,
+    pendingSubmission: null,
   },
 )
 
@@ -109,6 +117,10 @@ let floodRenderer: import('leaflet').Canvas | null = null
 let waterwayGroup: import('leaflet').LayerGroup | null = null
 let virtualPolygonLayer: import('leaflet').Polygon | null = null
 let communityOverviewGroup: import('leaflet').LayerGroup | null = null
+let userLocationGroup: import('leaflet').LayerGroup | null = null
+const markerBySampleCode = new Map<string, import('leaflet').CircleMarker>()
+let lastFocusNonce = 0
+let handledFocusInCurrentFlush = false
 
 function levelColor(ppb: number): string {
   return arsenicLevelMeta[arsenicLevel(ppb)].hex
@@ -435,9 +447,105 @@ function inspectFloodPoint(event: import('leaflet').LeafletMouseEvent) {
   L.popup({autoPan:false,maxWidth:280}).setLatLng(event.latlng).setContent(content).openOn(mapInstance)
 }
 
+function renderUserLocation() {
+  if (!L || !mapInstance || !userLocationGroup) return
+  userLocationGroup.clearLayers()
+  const loc = props.userLocation
+  if (!loc) return
+
+  const html = `
+    <div class="kok-user-beacon">
+      <span class="kok-user-pulse"></span>
+      <span class="kok-user-dot"></span>
+      <span class="kok-user-label">คุณอยู่ที่นี่</span>
+    </div>
+  `
+  const popup = document.createElement('div')
+  popup.className = 'kok-pop'
+  const heading = document.createElement('h3')
+  heading.textContent = 'ตำแหน่งปัจจุบันของคุณ'
+  const coordsText = document.createElement('p')
+  coordsText.className = 'kok-pop-sub'
+  coordsText.textContent = `พิกัด: ${loc.latitude.toFixed(5)}, ${loc.longitude.toFixed(5)}${loc.accuracy ? ` (±${loc.accuracy} ม.)` : ''}`
+  popup.append(heading, coordsText)
+
+  L.marker([loc.latitude, loc.longitude], {
+    pane: 'user-location',
+    icon: L.divIcon({ html, className: '', iconSize: [24, 24], iconAnchor: [12, 12] }),
+    title: 'คุณอยู่ที่นี่ (ตำแหน่ง GPS ปัจจุบัน)',
+    alt: 'คุณอยู่ที่นี่',
+    zIndexOffset: 2500,
+  })
+    .bindPopup(popup, { className: 'kok-popup', autoPan: false })
+    .addTo(userLocationGroup)
+}
+
+function addSurveyClusterPin(
+  cluster: ReturnType<typeof clusterSurveyWaypoints>[number],
+  options: { isHighlighted: boolean; pendingReview: boolean },
+) {
+  if (!L || !thematicGroup) return
+  if (!Number.isFinite(cluster.latitude) || !Number.isFinite(cluster.longitude)) return
+  const color = levelColor(cluster.maxPpb)
+  const { isHighlighted, pendingReview } = options
+  const badgeText = pendingReview
+    ? 'จุดที่คุณส่ง • รอแอดมินตรวจ'
+    : isHighlighted
+      ? 'จุดที่บันทึกใหม่'
+      : ''
+
+  const haloHtml = `
+    <div class="kok-pin-pulse-wrap ${isHighlighted ? 'is-featured' : ''}" style="--pin-color: ${color}">
+      <span class="kok-pin-pulse"></span>
+      ${isHighlighted ? '<span class="kok-pin-pulse-outer"></span>' : ''}
+      ${cluster.sampleCount > 1 ? `<span class="kok-cluster-count">${cluster.sampleCount}</span>` : ''}
+      ${badgeText ? `<span class="kok-pin-tag ${pendingReview ? 'is-pending' : ''}">${badgeText}</span>` : ''}
+    </div>
+  `
+
+  L.marker([cluster.latitude, cluster.longitude], {
+    icon: L.divIcon({ html: haloHtml, className: '', iconSize: [34, 34], iconAnchor: [17, 17] }),
+    interactive: false,
+    keyboard: false,
+    zIndexOffset: isHighlighted ? 1800 : 300,
+  }).addTo(thematicGroup)
+
+  const circle = L.circleMarker([cluster.latitude, cluster.longitude], {
+    radius: isHighlighted ? 15 : cluster.sampleCount > 1 ? 13 : 11,
+    color: pendingReview ? '#FDE047' : '#FFFFFF',
+    weight: isHighlighted ? 3.5 : 3,
+    fillColor: color,
+    fillOpacity: 0.96,
+    className: isHighlighted ? 'kok-arsenic-dot is-featured' : 'kok-arsenic-dot',
+  })
+
+  circle.bindPopup(
+    buildChemicalPopup(
+      cluster,
+      color,
+      () => emit('selectWaypoint', cluster.latest),
+      { justSubmitted: isHighlighted, pendingReview },
+    ),
+    {
+      className: 'kok-popup',
+      minWidth: 280,
+      maxWidth: 340,
+      autoPanPaddingTopLeft: [12, window.innerWidth < 640 ? 220 : 80],
+      autoPanPaddingBottomRight: [12, 160],
+    },
+  )
+  circle.addTo(thematicGroup)
+  if (isHighlighted) circle.bringToFront()
+
+  for (const member of cluster.members) {
+    markerBySampleCode.set(member.sample_code, circle)
+  }
+}
+
 function renderThematicLayers() {
   if (!L || !mapInstance || !thematicGroup) return
   thematicGroup.clearLayers()
+  markerBySampleCode.clear()
 
   // ซ่อนจุดตรวจสารเคมีเมื่อผู้ใช้เลือกแท็บอื่น (หย่อมบ้าน, สถานที่สำคัญ, อพยพกลุ่มเปราะบาง)
   if (props.communityMapType && props.communityMapType !== 'chemical') {
@@ -469,17 +577,19 @@ function renderThematicLayers() {
 
   const clusters = clusterSurveyWaypoints(props.waypoints)
   for (const cluster of clusters) {
-    const color = levelColor(cluster.maxPpb)
-    const circle = L.circleMarker([cluster.latitude, cluster.longitude], {
-      radius: cluster.sampleCount > 1 ? 7 : 5,
-      color: '#121212',
-      weight: 1.5,
-      fillColor: color,
-      fillOpacity: 0.92,
-    })
+    const isHighlighted = Boolean(
+      props.highlightedSampleCode &&
+      cluster.members.some((m) => m.sample_code === props.highlightedSampleCode),
+    )
+    addSurveyClusterPin(cluster, { isHighlighted, pendingReview: false })
+  }
 
-    circle.bindPopup(buildChemicalPopup(cluster, color, () => emit('selectWaypoint', cluster.latest)), { className: 'kok-popup', minWidth: 260, maxWidth: 320, autoPanPaddingTopLeft: [12, window.innerWidth < 640 ? 220 : 76], autoPanPaddingBottomRight: [12, 150] })
-    circle.addTo(thematicGroup)
+  // Temporary local-only pin for a >50 ppb submission waiting on admin review (R10)
+  if (props.pendingSubmission) {
+    const pendingCluster = clusterSurveyWaypoints([props.pendingSubmission])[0]
+    if (pendingCluster) {
+      addSurveyClusterPin(pendingCluster, { isHighlighted: true, pendingReview: true })
+    }
   }
 }
 
@@ -566,10 +676,18 @@ function renderCommunityOverview() {
 
 function moveMap(center: [number, number], zoom: number) {
   if (!mapInstance) return
+  if (!Number.isFinite(center[0]) || !Number.isFinite(center[1]) || !Number.isFinite(zoom)) return
+  const cur = mapInstance.getCenter()
+  const curZoom = mapInstance.getZoom()
+  if (Math.abs(cur.lat - center[0]) < 1e-6 && Math.abs(cur.lng - center[1]) < 1e-6 && curZoom === zoom) return
   const { x, y } = mapInstance.invalidateSize({ pan: false }).getSize()
-  // flyTo computes NaN on a zero-size map (hidden tab or pane), so jump there instead.
-  if (x && y) mapInstance.flyTo(center, zoom, { duration: 0.6 })
-  else mapInstance.setView(center, zoom, { animate: false })
+  // flyTo computes NaN on a zero-size map or redundant same-target calls, so guard both.
+  if (x && y) {
+    mapInstance.stop()
+    mapInstance.flyTo(center, zoom, { duration: 0.6 })
+  } else {
+    mapInstance.setView(center, zoom, { animate: false })
+  }
 }
 
 function applyScopeAndCommunity() {
@@ -582,6 +700,26 @@ function applyScopeAndCommunity() {
     communityTargets.find((item) => item.id === props.selectedCommunityId) ?? communityTargets[0]
   if (!target) return
   moveMap(target.center, target.zoomInner)
+}
+
+function openMarkerPopupWhenReady(sampleCode?: string) {
+  if (!sampleCode || !mapInstance) return
+  const tryOpen = () => {
+    const marker = markerBySampleCode.get(sampleCode)
+    if (marker && mapInstance?.hasLayer(marker)) {
+      marker.openPopup()
+    }
+  }
+  mapInstance.once('moveend', () => setTimeout(tryOpen, 80))
+  setTimeout(tryOpen, 750)
+}
+
+function applyFocusRequest(req: NonNullable<typeof props.focusRequest>) {
+  if (!mapInstance) return
+  handledFocusInCurrentFlush = true
+  queueMicrotask(() => { handledFocusInCurrentFlush = false })
+  moveMap([req.latitude, req.longitude], req.zoom)
+  if (req.sampleCode) openMarkerPopupWhenReady(req.sampleCode)
 }
 
 onMounted(async () => {
@@ -621,13 +759,19 @@ onMounted(async () => {
   observationMapGroup = L.layerGroup().addTo(mapInstance)
   waterwayGroup = L.layerGroup().addTo(mapInstance)
   communityOverviewGroup = L.layerGroup().addTo(mapInstance)
+  mapInstance.createPane('user-location').style.zIndex = '620'
+  userLocationGroup = L.layerGroup().addTo(mapInstance)
   mapInstance.on('zoomend', renderCommunityOverview)
 
   updateBaseLayer()
   renderCommunityOverview()
   renderThematicLayers()
   renderCommunityMapLayer()
-  applyScopeAndCommunity()
+  renderUserLocation()
+  if (props.focusRequest) {
+    lastFocusNonce = props.focusRequest.nonce
+    applyFocusRequest(props.focusRequest)
+  }
 
   void loadMyMapsData().then((data) => {
     myMapsData.value = data
@@ -657,7 +801,11 @@ onMounted(async () => {
   }
   setTimeout(() => {
     mapInstance?.invalidateSize()
-    applyScopeAndCommunity()
+    if (props.focusRequest && props.focusRequest.nonce === lastFocusNonce) {
+      moveMap([props.focusRequest.latitude, props.focusRequest.longitude], props.focusRequest.zoom)
+    } else {
+      applyScopeAndCommunity()
+    }
   }, 100)
 })
 
@@ -683,14 +831,29 @@ watch(
 )
 
 watch(
-  () => [props.waypoints, props.activeThematicLayer, props.selectedCommunityId, props.communityMapType],
+  () => [props.waypoints, props.activeThematicLayer, props.selectedCommunityId, props.communityMapType, props.highlightedSampleCode, props.pendingSubmission],
   () => {
     renderThematicLayers()
   },
   { deep: true },
 )
 
-watch(() => props.selectedCommunityId, applyScopeAndCommunity)
+watch(() => props.userLocation, renderUserLocation, { deep: true })
+
+watch(
+  () => props.focusRequest,
+  (req) => {
+    if (!req || req.nonce === lastFocusNonce) return
+    lastFocusNonce = req.nonce
+    applyFocusRequest(req)
+  },
+  { deep: true },
+)
+
+watch(() => props.selectedCommunityId, () => {
+  if (handledFocusInCurrentFlush) return
+  applyScopeAndCommunity()
+})
 
 watch(
   () => props.waterwayRequestTrigger,
@@ -777,26 +940,26 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
-.evacuation-legend { position:absolute; right:16px; bottom:96px; z-index:1000; width:max-content; max-width:calc(100vw - 32px); padding:10px 12px; border-radius:12px; background:var(--wv-card,white); color:var(--wv-text,#0f172a); box-shadow:0 4px 18px #0002; font-size:11px; line-height:1.5; pointer-events:none; }
-.evacuation-legend strong { display:block; margin-bottom:6px; font-size:12px; }
-.evacuation-legend div { display:flex; align-items:center; gap:7px; margin-top:4px; }
-.evacuation-legend span { width:10px; height:10px; flex-shrink:0; border-radius:50%; }
+.evacuation-legend { position:absolute; right:16px; bottom:96px; z-index:1000; width:max-content; max-width:calc(100vw - 32px); padding:12px 14px; border-radius:12px; background:var(--wv-card,white); color:var(--wv-text,#0f172a); box-shadow:0 4px 18px #0002; font-size:13.5px; line-height:1.5; pointer-events:none; }
+.evacuation-legend strong { display:block; margin-bottom:6px; font-size:15px; }
+.evacuation-legend div { display:flex; align-items:center; gap:8px; margin-top:5px; }
+.evacuation-legend span { width:11px; height:11px; flex-shrink:0; border-radius:50%; }
 .water-legend { margin-top:8px; padding-top:8px; border-top:1px solid #94a3b844; }
 .evacuation-legend .route-swatch { height:0; border-top:2px dashed #D97706; border-radius:0; }
-.active-toggle { display:flex; align-items:center; gap:7px; font-weight:700; font-size:12px; pointer-events:auto; cursor:pointer; margin-bottom:4px; }
+.active-toggle { display:flex; align-items:center; gap:8px; font-weight:700; font-size:14px; pointer-events:auto; cursor:pointer; margin-bottom:4px; }
 .active-toggle.disabled { opacity:.5; cursor:not-allowed; }
 .active-toggle input { pointer-events:auto; }
-.active-hint { display:block; color:#64748b; margin-bottom:6px; }
-.priority-list { pointer-events:auto; margin:6px 0 8px; padding-top:6px; border-top:1px solid #94a3b844; max-width:280px; }
+.active-hint { display:block; color:#64748b; margin-bottom:6px; font-size:13px; }
+.priority-list { pointer-events:auto; margin:6px 0 8px; padding-top:6px; border-top:1px solid #94a3b844; max-width:300px; }
 .priority-list ol { list-style:none; margin:6px 0 0; padding:0; max-height:220px; overflow-y:auto; }
-.priority-list li { display:flex; align-items:center; gap:7px; margin-top:5px; min-width:0; }
-.priority-list .rank { width:16px; height:16px; border-radius:5px; flex-shrink:0; display:flex; align-items:center; justify-content:center; color:#fff; font-size:9px; font-weight:800; }
+.priority-list li { display:flex; align-items:center; gap:8px; margin-top:6px; min-width:0; }
+.priority-list .rank { width:20px; height:20px; border-radius:6px; flex-shrink:0; display:flex; align-items:center; justify-content:center; color:#fff; font-size:11px; font-weight:800; }
 .priority-list .row-label { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.priority-list .tier-dot { width:9px; height:9px; border-radius:50%; flex-shrink:0; }
+.priority-list .tier-dot { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
 /* On a phone the legend folds to one button so it does not cover the pins; it opens on tap. */
-.legend-toggle { display:none; pointer-events:auto; font-weight:700; font-size:12px; padding:4px 2px; min-height:32px; }
+.legend-toggle { display:none; pointer-events:auto; font-weight:700; font-size:14px; padding:4px 2px; min-height:36px; }
 @media (max-width:767px) {
-  .evacuation-legend { bottom:208px; right:12px; padding:6px 10px; font-size:11px; max-height:calc(100dvh - 300px); overflow-y:auto; pointer-events:auto; }
+  .evacuation-legend { bottom:214px; right:12px; padding:8px 12px; font-size:13px; max-height:calc(100dvh - 300px); overflow-y:auto; pointer-events:auto; }
   .legend-toggle { display:block; }
 }
 
@@ -869,15 +1032,151 @@ html.dark .leaflet-control-zoom a { border-color: #2c2c2e; }
 .kok-community-pin {
   display: inline-block;
   transform: translate(-50%, -50%);
-  padding: 4px 10px;
+  padding: 6px 12px;
   border-radius: 999px;
   background: var(--wv-card, #fff);
   color: var(--wv-text, #0f172a);
-  border: 1.5px solid #0284c7;
-  box-shadow: 0 2px 10px rgba(15, 23, 42, 0.25);
-  font: 700 12px 'Noto Sans Thai', sans-serif;
+  border: 2px solid #0284c7;
+  box-shadow: 0 3px 12px rgba(15, 23, 42, 0.28);
+  font: 700 14px 'Noto Sans Thai', sans-serif;
   white-space: nowrap;
   cursor: pointer;
 }
 .kok-community-pin.current { background: #0284c7; color: #fff; }
+
+/* Pulsing / blinking survey markers (both existing and newly submitted points) */
+.kok-pin-pulse-wrap {
+  position: relative;
+  width: 34px;
+  height: 34px;
+  pointer-events: none;
+}
+.kok-pin-pulse,
+.kok-pin-pulse-outer {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 34px;
+  height: 34px;
+  border-radius: 9999px;
+  background: var(--pin-color, #0284c7);
+  opacity: 0.65;
+  transform: translate(-50%, -50%) scale(0.7);
+  animation: kok-pin-pulse-anim 1.9s ease-out infinite;
+  will-change: transform, opacity;
+}
+.kok-pin-pulse-wrap.is-featured .kok-pin-pulse {
+  width: 48px;
+  height: 48px;
+  animation-duration: 1.3s;
+}
+.kok-pin-pulse-outer {
+  width: 62px;
+  height: 62px;
+  border: 2.5px solid var(--pin-color, #0284c7);
+  background: transparent;
+  animation: kok-pin-pulse-anim 1.3s ease-out 0.4s infinite;
+}
+.kok-cluster-count {
+  position: absolute;
+  left: calc(50% + 10px);
+  top: calc(50% - 17px);
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  border-radius: 9999px;
+  background: #0F172A;
+  color: #FFFFFF;
+  border: 2px solid #FFFFFF;
+  font: 800 11px/16px 'JetBrains Mono', monospace;
+  text-align: center;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+}
+.kok-pin-tag {
+  position: absolute;
+  left: 50%;
+  top: calc(50% - 26px);
+  transform: translate(-50%, -100%);
+  padding: 4px 10px;
+  border-radius: 9999px;
+  background: #0284C7;
+  color: #FFFFFF;
+  border: 2px solid #FFFFFF;
+  font: 700 13px/1.2 'Noto Sans Thai', sans-serif;
+  white-space: nowrap;
+  box-shadow: 0 4px 14px rgba(2, 132, 199, 0.45);
+  animation: kok-tag-bob 1.5s ease-in-out infinite;
+}
+.kok-pin-tag.is-pending {
+  background: #D97706;
+  box-shadow: 0 4px 14px rgba(217, 119, 6, 0.45);
+}
+path.kok-arsenic-dot {
+  filter: drop-shadow(0 2px 6px rgba(15, 23, 42, 0.45));
+  animation: kok-dot-blink 2.2s ease-in-out infinite;
+}
+path.kok-arsenic-dot.is-featured {
+  filter: drop-shadow(0 0 10px rgba(2, 132, 199, 0.7));
+  animation: kok-dot-blink 1.2s ease-in-out infinite;
+}
+
+/* Current user GPS location marker ("คุณอยู่ที่นี่") */
+.kok-user-beacon {
+  position: relative;
+  width: 24px;
+  height: 24px;
+  cursor: pointer;
+}
+.kok-user-pulse {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 44px;
+  height: 44px;
+  border-radius: 9999px;
+  background: rgba(37, 99, 235, 0.38);
+  transform: translate(-50%, -50%) scale(0.5);
+  animation: kok-pin-pulse-anim 1.8s ease-out infinite;
+  pointer-events: none;
+}
+.kok-user-dot {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 18px;
+  height: 18px;
+  border-radius: 9999px;
+  background: #2563EB;
+  border: 3px solid #FFFFFF;
+  transform: translate(-50%, -50%);
+  box-shadow: 0 2px 10px rgba(37, 99, 235, 0.6);
+}
+.kok-user-label {
+  position: absolute;
+  left: 50%;
+  top: calc(50% - 16px);
+  transform: translate(-50%, -100%);
+  padding: 4px 10px;
+  border-radius: 9999px;
+  background: #1D4ED8;
+  color: #FFFFFF;
+  border: 2px solid #FFFFFF;
+  font: 700 13px/1.2 'Noto Sans Thai', sans-serif;
+  white-space: nowrap;
+  box-shadow: 0 3px 12px rgba(29, 78, 216, 0.45);
+}
+
+@keyframes kok-pin-pulse-anim {
+  0% { transform: translate(-50%, -50%) scale(0.65); opacity: 0.85; }
+  75% { transform: translate(-50%, -50%) scale(1.9); opacity: 0; }
+  100% { transform: translate(-50%, -50%) scale(1.9); opacity: 0; }
+}
+@keyframes kok-dot-blink {
+  0%, 100% { fill-opacity: 0.98; stroke-opacity: 1; }
+  50% { fill-opacity: 0.68; stroke-opacity: 0.85; }
+}
+@keyframes kok-tag-bob {
+  0%, 100% { transform: translate(-50%, -100%) translateY(0); }
+  50% { transform: translate(-50%, -100%) translateY(-4px); }
+}
 </style>

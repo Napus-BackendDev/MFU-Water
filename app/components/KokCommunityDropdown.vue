@@ -69,22 +69,22 @@ onBeforeUnmount(() => {
       @click="toggleDropdown"
     >
       <!-- Icon with soft brand accent background -->
-      <div class="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[#0284C7]/15 text-[#0284C7] dark:bg-[#00E5FF]/20 dark:text-[#00E5FF]">
-        <MapPin class="h-4 w-4" />
+      <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#0284C7]/15 text-[#0284C7] dark:bg-[#00E5FF]/20 dark:text-[#00E5FF]">
+        <MapPin class="h-4.5 w-4.5" />
       </div>
 
       <!-- Current Community Details (3 Rows: Overline, Main Name, Subtitle) -->
-      <div class="flex flex-col text-left leading-none">
+      <div class="flex flex-col text-left leading-tight">
         <!-- Row 1: ลักษณะเล็กๆ บอก 'เลือกพื้นที่' -->
-        <span class="text-[9px] sm:text-[10px] font-medium text-slate-500 dark:text-zinc-400">
+        <span class="text-xs sm:text-[13px] font-medium text-slate-500 dark:text-zinc-400">
           เลือกพื้นที่
         </span>
         <!-- Row 2: ชื่อชุมชนหลัก เช่น 'บ้านท่าตอน' -->
-        <span class="text-xs sm:text-sm font-bold text-slate-900 dark:text-white my-0.5 tracking-tight">
+        <span class="text-base sm:text-[17px] font-bold text-slate-900 dark:text-white my-0.5 tracking-tight">
           {{ communityDisplayName(currentTarget) }}
         </span>
         <!-- Row 3: ลักษณะเล็กๆ บอก ตำบล อำเภอ จังหวัด -->
-        <span class="text-[9px] sm:text-[10px] text-slate-500 dark:text-zinc-400">
+        <span class="text-xs sm:text-[13px] text-slate-500 dark:text-zinc-400">
           {{ currentTarget.subdistrict }} {{ currentTarget.district }} {{ currentTarget.province }}
         </span>
       </div>
@@ -107,12 +107,12 @@ onBeforeUnmount(() => {
     >
       <div
         v-if="isOpen"
-        class="absolute left-0 top-full mt-1.5 w-64 sm:w-72 rounded-2xl border border-slate-200/90 bg-white/98 p-1.5 shadow-2xl backdrop-blur-xl z-50 dark:border-[#2C2C2E] dark:bg-[#1C1C1E]/98"
+        class="absolute left-0 top-full mt-1.5 w-72 sm:w-80 rounded-2xl border border-slate-200/90 bg-white/98 p-2 shadow-2xl backdrop-blur-xl z-50 dark:border-[#2C2C2E] dark:bg-[#1C1C1E]/98"
         role="listbox"
         aria-label="รายชื่อ 4 ชุมชนเป้าหมาย"
       >
         <div class="px-2.5 py-1.5 border-b border-slate-100 dark:border-zinc-800 mb-1">
-          <span class="text-[11px] font-semibold text-slate-400 dark:text-zinc-500 uppercase tracking-wider">
+          <span class="text-[13px] font-semibold text-slate-500 dark:text-zinc-400">
             เลือกพื้นที่ดูสถานะ (4 ชุมชนเป้าหมาย)
           </span>
         </div>
@@ -121,7 +121,7 @@ onBeforeUnmount(() => {
           v-for="community in focusCommunities"
           :key="community.id"
           type="button"
-          class="w-full flex items-center justify-between gap-2.5 rounded-xl px-2.5 py-2 text-left transition-all cursor-pointer"
+          class="w-full flex items-center justify-between gap-2.5 rounded-xl px-2.5 py-2.5 text-left transition-all cursor-pointer"
           :class="[
             modelValue === community.id
               ? 'bg-sky-50 dark:bg-sky-950/50 text-[#0284C7] dark:text-[#00E5FF] font-semibold'
@@ -133,20 +133,20 @@ onBeforeUnmount(() => {
         >
           <div class="flex items-center gap-2.5 min-w-0">
             <span
-              class="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg transition"
+              class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition"
               :class="[
                 modelValue === community.id
                   ? 'bg-[#0284C7]/20 text-[#0284C7] dark:bg-[#00E5FF]/20 dark:text-[#00E5FF]'
                   : 'bg-slate-100 text-slate-500 dark:bg-zinc-800 dark:text-zinc-400'
               ]"
             >
-              <MapPin class="h-3.5 w-3.5" />
+              <MapPin class="h-4 w-4" />
             </span>
             <div class="flex flex-col min-w-0">
-              <span class="text-xs truncate" :class="{ 'font-bold': modelValue === community.id }">
+              <span class="text-[15px] truncate" :class="{ 'font-bold': modelValue === community.id }">
                 {{ communityDisplayName(community) }}
               </span>
-              <span class="text-[10px] text-slate-500 dark:text-zinc-400 truncate">
+              <span class="text-[13px] text-slate-500 dark:text-zinc-400 truncate">
                 {{ community.subdistrict }} {{ community.district }} {{ community.province }}
               </span>
             </div>

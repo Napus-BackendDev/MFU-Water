@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import type { ObservationDate } from './utils/flood-observations'
-import { Activity, BookOpen, CheckCircle2, ClipboardList, Newspaper, ShieldAlert } from 'lucide-vue-next'
+import { Activity, BookOpen, CheckCircle2, ClipboardList, LocateFixed, Newspaper, ShieldAlert } from 'lucide-vue-next'
 import KokLandingHero from './components/KokLandingHero.vue'
 import KokKpiCard from './components/KokKpiCard.vue'
 import KokLoadingScreen from './components/KokLoadingScreen.vue'
@@ -17,6 +17,7 @@ import KokEvacuationMode from './components/KokEvacuationMode.vue'
 import KokAdminLogin from './components/KokAdminLogin.vue'
 import { getAdminToken, requestAdminBypass } from './utils/admin-session'
 import { useAdminQueue } from './composables/useAdminQueue'
+import { useGpsLocation } from './composables/useGpsLocation'
 
 import type { CommunityMapType } from './utils/community-map-layers'
 import { isPublicSample } from '../src/lib/arsenic'
@@ -140,6 +141,48 @@ async function handleEvacuationLoginSubmit() {
 const selectedWaypoint = ref<SurveyWaypoint | null>(null)
 const showPointDetailModal = ref(false)
 
+const userGps = useGpsLocation()
+const userLocation = computed(() =>
+  userGps.coordinates.value
+    ? {
+        latitude: userGps.coordinates.value.latitude,
+        longitude: userGps.coordinates.value.longitude,
+        accuracy: userGps.accuracy.value,
+      }
+    : null,
+)
+let focusNonce = 0
+const focusRequest = ref<{ latitude: number; longitude: number; zoom: number; sampleCode?: string; nonce: number } | null>(null)
+const highlightedSampleCode = ref<string | null>(null)
+const pendingSubmission = ref<SurveyWaypoint | null>(null)
+const recentAutoPublished = ref<SurveyWaypoint | null>(null)
+
+function showTemporaryFeedback(message: string, duration = 6000) {
+  surveyFeedback.value = message
+  setTimeout(() => {
+    if (surveyFeedback.value === message) {
+      surveyFeedback.value = null
+    }
+  }, duration)
+}
+
+async function locateUserOnMap(options: { autoSelectCommunity?: boolean; silent?: boolean } = {}) {
+  const { autoSelectCommunity = true, silent = true } = options
+  const err = await userGps.capture()
+  if (err || !userGps.coordinates.value) {
+    if (!silent && err) showTemporaryFeedback(err, 5000)
+    return
+  }
+  const { latitude, longitude } = userGps.coordinates.value
+  const matched = autoSelectCommunity ? communityOfPoint(latitude, longitude, communityTargets, 10) : undefined
+  focusRequest.value = { latitude, longitude, zoom: 16, nonce: ++focusNonce }
+  if (matched) {
+    selectedCommunityId.value = matched.id
+  } else if (!silent) {
+    showTemporaryFeedback('พบตำแหน่งปัจจุบันของคุณแล้ว (อยู่นอกเขต 4 ชุมชนเป้าหมาย)', 4500)
+  }
+}
+
 function handleSelectWaypoint(wp: SurveyWaypoint) {
   selectedWaypoint.value = wp
   showPointDetailModal.value = true
@@ -147,6 +190,14 @@ function handleSelectWaypoint(wp: SurveyWaypoint) {
 
 function handleFocusWaypoint(wp: SurveyWaypoint) {
   selectedWaypoint.value = wp
+  highlightedSampleCode.value = wp.sample_code
+  focusRequest.value = {
+    latitude: wp.latitude,
+    longitude: wp.longitude,
+    zoom: 17,
+    sampleCode: wp.sample_code,
+    nonce: ++focusNonce,
+  }
 }
 const selectedGridCell = ref<PublicGridCell | null>(publicSurveyGridCells[3] ?? publicSurveyGridCells[0] ?? null)
 
@@ -239,6 +290,13 @@ const filteredWaypoints = computed(() => {
   })
 })
 
+const displayedWaypoints = computed(() => {
+  const base = filteredWaypoints.value
+  const recent = recentAutoPublished.value
+  if (!recent || base.some((wp) => wp.id === recent.id || wp.sample_code === recent.sample_code)) return base
+  return [recent, ...base]
+})
+
 const selectedCommunityName = computed(() => communityTargets.find((c) => c.id === selectedCommunityId.value)?.fullName ?? 'ทุกพื้นที่')
 
 // The summary covers every published point of the chosen community, whatever time range the map shows.
@@ -278,14 +336,18 @@ function handleSurveySubmitted(payload: {
   reviewStatus: 'auto_published' | 'pending_review'
   feedbackMessage?: string
 }) {
-  surveyFeedback.value = payload.feedbackMessage || `บันทึกผลสำรวจรหัส ${payload.waypoint.sample_code} เรียบร้อยแล้ว`
-  setTimeout(() => {
-    if (surveyFeedback.value === payload.feedbackMessage) {
-      surveyFeedback.value = null
-    }
-  }, 8000)
+  showTemporaryFeedback(
+    payload.feedbackMessage || `บันทึกผลสำรวจรหัส ${payload.waypoint.sample_code} เรียบร้อยแล้ว`,
+    8000,
+  )
 
+  pendingSubmission.value = null
+  recentAutoPublished.value = null
+  activeCommunityMapType.value = 'chemical'
+
+  const matched = communityOfPoint(payload.waypoint.latitude, payload.waypoint.longitude, communityTargets, 10)
   if (payload.reviewStatus === 'pending_review') {
+    pendingSubmission.value = payload.waypoint
     adminReviewQueue.value.unshift({
       id: payload.waypoint.id,
       sampleCode: payload.waypoint.sample_code,
@@ -300,7 +362,20 @@ function handleSurveySubmitted(payload: {
     })
   } else {
     waypoints.value = [payload.waypoint, ...waypoints.value.filter((item) => item.id !== payload.waypoint.id)]
+    recentAutoPublished.value = payload.waypoint
     selectedWaypoint.value = payload.waypoint
+  }
+
+  highlightedSampleCode.value = payload.waypoint.sample_code
+  focusRequest.value = {
+    latitude: payload.waypoint.latitude,
+    longitude: payload.waypoint.longitude,
+    zoom: 17,
+    sampleCode: payload.waypoint.sample_code,
+    nonce: ++focusNonce,
+  }
+  if (matched) {
+    selectedCommunityId.value = matched.id
   }
 }
 
@@ -392,11 +467,30 @@ watch(loadingWaypoints, (loading) => {
 })
 onBeforeUnmount(() => clearTimeout(bootSlowTimer))
 
+const autoLocateEligible = ref(false)
+const autoLocateStarted = ref(false)
+
+function startAutoLocateOnce() {
+  if (autoLocateStarted.value || !autoLocateEligible.value) return
+  autoLocateStarted.value = true
+  void locateUserOnMap({ autoSelectCommunity: true, silent: true })
+}
+
+watch(
+  [currentView, bootVisible, showWelcome, autoLocateEligible],
+  ([view, boot, welcome, eligible]) => {
+    if (eligible && view === 'dashboard' && !boot && !welcome) {
+      startAutoLocateOnce()
+    }
+  },
+)
+
 onMounted(() => {
   startBootTimer()
   void loadPublicWaypoints()
   if (typeof window !== 'undefined') {
     const params = new URLSearchParams(window.location.search)
+    const explicitCommunityParam = params.get('community')
     colorMode.preference = 'light'
 
     selectedCommunityId.value = getInitialCommunity()
@@ -409,6 +503,16 @@ onMounted(() => {
     })
     if (params.get('mode') === 'evacuation' || params.get('evac') === '1') {
       void enterEvacuationMode()
+    } else if (!explicitCommunityParam && currentView.value === 'dashboard') {
+      autoLocateEligible.value = true
+      // If location permission is already granted, capture right away so the map is centered before video dismissal.
+      if (navigator.permissions?.query) {
+        void navigator.permissions.query({ name: 'geolocation' as PermissionName })
+          .then((status) => {
+            if (status.state === 'granted') startAutoLocateOnce()
+          })
+          .catch(() => {})
+      }
     }
     window.addEventListener('popstate', () => {
       const p = new URLSearchParams(window.location.search)
@@ -450,7 +554,7 @@ onMounted(() => {
       <div class="absolute inset-0 z-0">
         <KokMapPanel
           :map-key="mapTilerKey"
-          :waypoints="filteredWaypoints"
+          :waypoints="displayedWaypoints"
           :active-thematic-layer="activeThematicLayer"
           :community-map-type="activeCommunityMapType"
           v-model:flood-stage="floodStage"
@@ -467,6 +571,10 @@ onMounted(() => {
           :evacuation-queue="evacuationQueue"
           :selected-evacuation-case="selectedEvacuationCase"
           :evacuation-destinations="evacuationDestinations"
+          :user-location="userLocation"
+          :focus-request="focusRequest"
+          :highlighted-sample-code="highlightedSampleCode"
+          :pending-submission="pendingSubmission"
           @update:active-thematic-layer="activeThematicLayer = $event"
           @select-waypoint="handleSelectWaypoint($event)"
           @select-grid-cell="selectedGridCell = $event"
@@ -501,13 +609,27 @@ onMounted(() => {
             v-model:observations-visible="observationsVisible" v-model:date="observationDate" />
           <button
             type="button"
+            aria-label="ตำแหน่งฉัน"
+            title="ไปยังตำแหน่ง GPS ปัจจุบัน"
+            class="round-control"
+            :class="{ 'ring-2 ring-[#2563EB] dark:ring-[#38BDF8]': Boolean(userLocation) }"
+            :disabled="userGps.state.value === 'loading'"
+            @click="locateUserOnMap({ autoSelectCommunity: true, silent: false })"
+          >
+            <LocateFixed
+              class="h-5 w-5 text-[#2563EB] dark:text-[#38BDF8]"
+              :class="{ 'animate-spin': userGps.state.value === 'loading' }"
+            />
+          </button>
+          <button
+            type="button"
             aria-label="คู่มือ"
             title="คู่มือ"
             class="round-control"
             :class="{ 'ring-2 ring-[#0284C7] dark:ring-[#00E5FF]': activeQuickPanel === 'guide' }"
             @click="toggleQuickPanel('guide')"
           >
-            <BookOpen class="h-4 w-4 text-[#0284C7] dark:text-[#00E5FF]" />
+            <BookOpen class="h-5 w-5 text-[#0284C7] dark:text-[#00E5FF]" />
           </button>
           <button
             type="button"
@@ -517,7 +639,7 @@ onMounted(() => {
             :class="{ 'ring-2 ring-[#16A34A] dark:ring-[#32D74B]': activeQuickPanel === 'summary' }"
             @click="toggleQuickPanel('summary')"
           >
-            <Activity class="h-4 w-4 text-[#16A34A] dark:text-[#32D74B]" />
+            <Activity class="h-5 w-5 text-[#16A34A] dark:text-[#32D74B]" />
           </button>
           <button
             type="button"
@@ -526,7 +648,7 @@ onMounted(() => {
             class="round-control"
             @click="navigateToNews"
           >
-            <Newspaper class="h-4 w-4 text-[#0284C7] dark:text-[#00E5FF]" />
+            <Newspaper class="h-5 w-5 text-[#0284C7] dark:text-[#00E5FF]" />
           </button>
           <button
             type="button"
@@ -536,7 +658,7 @@ onMounted(() => {
             :class="{ 'ring-2 ring-[#DC2626] dark:ring-[#FF453A]': currentView === 'admin' }"
             @click="navigateToAdmin"
           >
-            <ShieldAlert class="h-4 w-4 text-[#DC2626] dark:text-[#FF453A]" />
+            <ShieldAlert class="h-5 w-5 text-[#DC2626] dark:text-[#FF453A]" />
           </button>
         </div>
       </header>
@@ -559,7 +681,7 @@ onMounted(() => {
       <div v-if="!evacuationModeActive && activeCommunityMapType === 'evacuation'" class="pointer-events-none hidden sm:block absolute bottom-[16px] right-4 z-20">
         <button
           type="button"
-          class="pointer-events-auto flex items-center gap-2 px-4 py-2.5 rounded-full font-bold text-sm text-white bg-[#B91C1C] hover:bg-[#991B1B] shadow-xl border border-red-500/30 transition-transform hover:scale-105 active:scale-95"
+          class="pointer-events-auto flex items-center gap-2 px-5 py-3 rounded-full font-bold text-base text-white bg-[#B91C1C] hover:bg-[#991B1B] shadow-xl border border-red-500/30 transition-transform hover:scale-105 active:scale-95"
           @click="enterEvacuationMode"
         >
           <span>🚨 โหมดอพยพ (ทีมช่วยเหลือ)</span>
@@ -568,11 +690,11 @@ onMounted(() => {
 
       <!-- A community with nothing published yet says so, instead of showing a blank map. -->
       <div
-        v-if="!evacuationModeActive && activeCommunityMapType === 'chemical' && !loadingWaypoints && communityWaypoints.length === 0"
-        class="pointer-events-none absolute left-1/2 top-1/2 z-20 w-[min(22rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-amber-200 bg-white/95 p-4 text-center shadow-lg backdrop-blur dark:border-amber-900/60 dark:bg-[#1E1E1E]/95"
+        v-if="!evacuationModeActive && activeCommunityMapType === 'chemical' && !loadingWaypoints && displayedWaypoints.length === 0 && !pendingSubmission"
+        class="pointer-events-none absolute left-1/2 top-1/2 z-20 w-[min(24rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-amber-200 bg-white/95 p-5 text-center shadow-lg backdrop-blur dark:border-amber-900/60 dark:bg-[#1E1E1E]/95"
       >
-        <p class="text-sm font-bold text-slate-900 dark:text-white">ยังไม่มีผลตรวจที่เผยแพร่ของ{{ selectedCommunityName }}</p>
-        <p class="mt-1 text-xs text-slate-600 dark:text-[#98A2A8]">
+        <p class="text-base font-bold text-slate-900 dark:text-white">ยังไม่มีผลตรวจที่เผยแพร่ของ{{ selectedCommunityName }}</p>
+        <p class="mt-1.5 text-sm leading-relaxed text-slate-600 dark:text-[#98A2A8]">
           ชุมชนนี้ยังไม่มีผลชุดตรวจสารหนูที่ผ่านการเผยแพร่ กดปุ่ม “ทำแบบสำรวจ” เพื่อส่งผลตรวจเป็นรายการแรก
         </p>
       </div>
@@ -580,7 +702,7 @@ onMounted(() => {
       <!-- Desktop: ตัวกรองเวลาสารเคมีปนเปื้อน ลอยกึ่งกลางเหนือแถบเมนูล่าง -->
       <div
         v-if="!evacuationModeActive && activeCommunityMapType === 'chemical'"
-        class="pointer-events-none hidden sm:flex absolute bottom-[68px] left-1/2 -translate-x-1/2 z-20 items-center justify-center"
+        class="pointer-events-none hidden sm:flex absolute bottom-[74px] left-1/2 -translate-x-1/2 z-20 items-center justify-center"
       >
         <KokChemicalTimeFilter
           v-model="selectedTimeRange"
@@ -602,7 +724,7 @@ onMounted(() => {
       </div>
 
       <!-- Mobile: Floating Survey Button (แสดงเฉพาะเมื่ออยู่ในแท็บ 'สารเคมีปนเปื้อน' ลอยเหนือตัวกรองเวลา) -->
-      <div v-if="!evacuationModeActive && activeCommunityMapType === 'chemical'" class="pointer-events-none sm:hidden absolute bottom-[144px] right-3 z-20">
+      <div v-if="!evacuationModeActive && activeCommunityMapType === 'chemical'" class="pointer-events-none sm:hidden absolute bottom-[178px] right-3 z-20">
         <button
           type="button"
           class="survey-button pointer-events-auto shadow-xl"
@@ -614,10 +736,10 @@ onMounted(() => {
       </div>
 
       <!-- Mobile: ปุ่มเข้าโหมดอพยพทีมช่วยเหลือ เมื่ออยู่ในแท็บ 'อพยพ' -->
-      <div v-if="!evacuationModeActive && activeCommunityMapType === 'evacuation'" class="pointer-events-none sm:hidden fixed bottom-[68px] right-3 z-20">
+      <div v-if="!evacuationModeActive && activeCommunityMapType === 'evacuation'" class="pointer-events-none sm:hidden fixed bottom-[80px] right-3 z-20">
         <button
           type="button"
-          class="pointer-events-auto flex items-center gap-1.5 px-3.5 py-2.5 rounded-full font-bold text-xs text-white bg-[#B91C1C] hover:bg-[#991B1B] shadow-xl border border-red-500/30 transition-transform active:scale-95"
+          class="pointer-events-auto flex items-center gap-1.5 px-4 py-2.5 rounded-full font-bold text-sm text-white bg-[#B91C1C] hover:bg-[#991B1B] shadow-xl border border-red-500/30 transition-transform active:scale-95"
           @click="enterEvacuationMode"
         >
           <span>🚨 โหมดอพยพ (ทีม)</span>
@@ -627,7 +749,7 @@ onMounted(() => {
       <!-- Mobile: ตัวกรองเวลาสารเคมีปนเปื้อน ลอยเหนือแถบเมนูด้านล่าง -->
       <div
         v-if="!evacuationModeActive && activeCommunityMapType === 'chemical'"
-        class="pointer-events-none sm:hidden fixed bottom-[66px] left-3 right-3 z-20 flex justify-center"
+        class="pointer-events-none sm:hidden fixed bottom-[72px] left-3 right-3 z-20 flex justify-center"
       >
         <KokChemicalTimeFilter
           v-model="selectedTimeRange"
@@ -673,35 +795,35 @@ onMounted(() => {
           <!-- Guide Modal -->
           <div v-if="activeQuickPanel === 'guide'" class="space-y-4">
             <div class="flex items-center justify-between border-b border-slate-200 dark:border-[#2C2C2E] pb-3">
-              <h2 class="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+              <h2 class="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
                 <BookOpen class="h-5 w-5 text-[#0284C7] dark:text-[#00E5FF]" />
                 <span>คู่มือการใช้งานและชุดตรวจภาคสนาม (R13, R14)</span>
               </h2>
-              <button type="button" class="wv-btn-secondary text-xs" @click="activeQuickPanel = null">ปิด</button>
+              <button type="button" class="wv-btn-secondary text-sm" @click="activeQuickPanel = null">ปิด</button>
             </div>
             <KokTutorialVideo class="max-w-sm" />
             <div class="space-y-3">
               <div class="wv-subsurface">
-                <strong class="text-sm text-[#0284C7] dark:text-[#00E5FF]">ขั้นที่ 1: เตรียมน้ำตัวอย่าง</strong>
-                <p class="mt-1 text-xs text-slate-600 dark:text-[#98A2A8]">
+                <strong class="text-base text-[#0284C7] dark:text-[#00E5FF]">ขั้นที่ 1: เตรียมน้ำตัวอย่าง</strong>
+                <p class="mt-1 text-[15px] leading-relaxed text-slate-600 dark:text-[#98A2A8]">
                   เก็บตัวอย่างน้ำผิวดิน น้ำบ่อ หรือน้ำประปาตามคู่มือชุดตรวจภาคสนาม บันทึกวัน-เวลาและสภาพฝนตามจริง (R04, R11)
                 </p>
               </div>
               <div class="wv-subsurface">
-                <strong class="text-sm text-[#0284C7] dark:text-[#00E5FF]">ขั้นที่ 2: เทียบแถบสี 9 ระดับ</strong>
-                <p class="mt-1 text-xs text-slate-600 dark:text-[#98A2A8]">
+                <strong class="text-base text-[#0284C7] dark:text-[#00E5FF]">ขั้นที่ 2: เทียบแถบสี 9 ระดับ</strong>
+                <p class="mt-1 text-[15px] leading-relaxed text-slate-600 dark:text-[#98A2A8]">
                   เทียบสีแผ่นทดสอบกับสเกลมาตรฐาน 9 ระดับ (0, 5, 10, 30, 50, 100, 200, 300, 500 ppb) และถ่ายภาพไว้ 1–2 ภาพ
                 </p>
               </div>
               <div class="wv-subsurface">
-                <strong class="text-sm text-[#0284C7] dark:text-[#00E5FF]">ขั้นที่ 3: จับพิกัด GPS และกรอกข้อมูลติดต่อ</strong>
-                <p class="mt-1 text-xs text-slate-600 dark:text-[#98A2A8]">
+                <strong class="text-base text-[#0284C7] dark:text-[#00E5FF]">ขั้นที่ 3: จับพิกัด GPS และกรอกข้อมูลติดต่อ</strong>
+                <p class="mt-1 text-[15px] leading-relaxed text-slate-600 dark:text-[#98A2A8]">
                   กดปุ่มจับพิกัด GPS หรือกรอกละติจูด/ลองจิจูด พร้อมชื่อและเบอร์โทรสำหรับทีมงานติดต่อกลับ (ไม่เปิดเผยต่อสาธารณะ)
                 </p>
               </div>
               <div class="wv-subsurface">
-                <strong class="text-sm text-[#0284C7] dark:text-[#00E5FF]">ขั้นที่ 4: ส่งข้อมูลตามเกณฑ์ POC 50 ppb</strong>
-                <p class="mt-1 text-xs text-slate-600 dark:text-[#98A2A8]">
+                <strong class="text-base text-[#0284C7] dark:text-[#00E5FF]">ขั้นที่ 4: ส่งข้อมูลตามเกณฑ์ POC 50 ppb</strong>
+                <p class="mt-1 text-[15px] leading-relaxed text-slate-600 dark:text-[#98A2A8]">
                   ผลตรวจ &lt;= 50 ppb แสดงบนแผนที่สาธารณะทันที ส่วน &gt; 50 ppb เข้าคิวรอแอดมินตรวจสอบก่อนเผยแพร่ (R10)
                 </p>
               </div>
@@ -711,13 +833,13 @@ onMounted(() => {
           <!-- Summary Modal with Graphs and Analytics -->
           <div v-else-if="activeQuickPanel === 'summary'" class="space-y-4">
             <div class="flex items-center justify-between border-b border-slate-200 dark:border-[#2C2C2E] pb-3">
-              <h2 class="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+              <h2 class="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
                 <Activity class="h-5 w-5 text-[#16A34A] dark:text-[#32D74B]" />
                 <span>สรุปผลตรวจ คุณภาพน้ำ และกราฟแนวโน้มสารหนู · {{ selectedCommunityName }}</span>
               </h2>
-              <button type="button" class="wv-btn-secondary text-xs" @click="activeQuickPanel = null">ปิด</button>
+              <button type="button" class="wv-btn-secondary text-sm" @click="activeQuickPanel = null">ปิด</button>
             </div>
-            <p v-if="waypointLoadError" class="wv-alert-box text-xs">
+            <p v-if="waypointLoadError" class="wv-alert-box text-sm">
               โหลดข้อมูลไม่สำเร็จ: {{ waypointLoadError }}
             </p>
             <div v-else class="space-y-4">
@@ -749,13 +871,13 @@ onMounted(() => {
       <div
         v-if="surveyFeedback"
         role="status"
-        class="wv-info-box absolute top-16 right-4 z-40 max-w-md shadow-xl flex items-center justify-between gap-3 text-xs border border-emerald-300 dark:border-emerald-700 bg-white/95 dark:bg-[#1E1E1E]/95"
+        class="wv-info-box absolute top-[78px] left-3 right-16 sm:left-auto sm:top-16 sm:right-4 z-40 max-w-md shadow-xl flex items-center justify-between gap-3 text-sm sm:text-[15px] border border-emerald-300 dark:border-emerald-700 bg-white/95 dark:bg-[#1E1E1E]/95"
       >
-        <div class="flex items-start gap-2">
-          <CheckCircle2 class="h-4 w-4 text-emerald-600 dark:text-[#32D74B] shrink-0 mt-0.5" />
-          <span class="text-slate-800 dark:text-slate-100 font-medium">{{ surveyFeedback }}</span>
+        <div class="flex items-start gap-2.5">
+          <CheckCircle2 class="h-5 w-5 text-emerald-600 dark:text-[#32D74B] shrink-0 mt-0.5" />
+          <span class="text-slate-800 dark:text-slate-100 font-medium leading-snug">{{ surveyFeedback }}</span>
         </div>
-        <button type="button" class="underline ml-2 text-slate-500 hover:text-slate-700 dark:text-slate-400" @click="surveyFeedback = null">ปิด</button>
+        <button type="button" class="underline ml-2 shrink-0 text-sm text-slate-500 hover:text-slate-700 dark:text-slate-400" @click="surveyFeedback = null">ปิด</button>
       </div>
 
       <!-- K2 Survey Modal Dialog -->

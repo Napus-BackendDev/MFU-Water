@@ -28,7 +28,7 @@ const numberClass: Record<Tone, string> = {
 
 <template>
   <div v-if="surface === 'subsurface'" class="wv-subsurface">
-    <span class="text-xs text-slate-500 dark:text-[#98A2A8]">{{ label }}</span>
+    <span class="text-sm font-medium text-slate-600 dark:text-[#98A2A8]">{{ label }}</span>
     <div class="wv-kpi-number mt-1" :class="valueClass">{{ value }}</div>
   </div>
 

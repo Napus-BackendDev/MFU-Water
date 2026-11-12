@@ -160,13 +160,13 @@ const selectedPoint = computed(() => {
     <!-- Header -->
     <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 dark:border-[#2C2C2E] pb-2">
       <div class="flex items-center gap-2">
-        <Activity class="h-4 w-4 text-sky-600 dark:text-[#00E5FF]" />
-        <h4 class="text-xs font-bold text-slate-900 dark:text-white sm:text-sm">{{ title }}</h4>
+        <Activity class="h-4.5 w-4.5 text-sky-600 dark:text-[#00E5FF]" />
+        <h4 class="text-sm font-bold text-slate-900 dark:text-white sm:text-base">{{ title }}</h4>
       </div>
       <div class="flex items-center gap-2">
         <!-- Badge แนวโน้ม -->
         <span
-          class="flex items-center gap-1 rounded-md px-2 py-0.5 font-mono text-[11px] font-bold"
+          class="flex items-center gap-1 rounded-md px-2.5 py-0.5 font-mono text-xs font-bold"
           :class="
             stats.trend === 'up'
               ? 'bg-rose-50 text-rose-700 border border-rose-200 dark:bg-[#3A1C1C] dark:text-[#FF453A] dark:border-transparent'
@@ -299,17 +299,17 @@ const selectedPoint = computed(() => {
     </div>
 
     <!-- แถบรายละเอียดจุดที่เลือก -->
-    <div v-if="selectedPoint" class="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-white p-2.5 text-xs border border-slate-200 shadow-sm dark:border-[#2C2C2E] dark:bg-[#1E1E1E]">
+    <div v-if="selectedPoint" class="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-white p-3 text-sm border border-slate-200 shadow-sm dark:border-[#2C2C2E] dark:bg-[#1E1E1E]">
       <div class="flex items-center gap-2">
         <span
-          class="h-3 w-3 shrink-0 rounded-full"
+          class="h-3.5 w-3.5 shrink-0 rounded-full"
           :style="{ backgroundColor: selectedPoint.color }"
         />
         <div>
           <span class="font-bold text-slate-800 dark:text-white">ครั้งที่ {{ selectedPoint.index }} ({{ selectedPoint.sampleCode }}): </span>
-          <strong class="font-mono text-sm" :style="{ color: selectedPoint.color }">{{ selectedPoint.ppb }} ppb</strong>
+          <strong class="font-mono text-base" :style="{ color: selectedPoint.color }">{{ selectedPoint.ppb }} ppb</strong>
           <span
-            class="ml-1.5 rounded-md px-1.5 py-0.5 text-[10px] font-bold"
+            class="ml-1.5 rounded-md px-2 py-0.5 text-xs font-bold"
             :class="
               selectedPoint.isDanger
                 ? 'bg-rose-50 text-rose-700 border border-rose-200 dark:bg-[#3A1C1C] dark:text-[#FF453A] dark:border-transparent'
@@ -322,24 +322,24 @@ const selectedPoint = computed(() => {
           </span>
         </div>
       </div>
-      <div class="text-[11px] text-slate-500 dark:text-[#98A2A8] font-mono">
+      <div class="text-xs sm:text-sm text-slate-500 dark:text-[#98A2A8] font-mono">
         <span>{{ selectedPoint.fullDateLabel }}</span>
         <span class="ml-2 text-sky-700 dark:text-[#00E5FF] font-medium">• ผู้บันทึก: {{ selectedPoint.collector }}</span>
       </div>
     </div>
 
     <!-- สรุปสถิติ 3 ช่อง (ต่ำสุด / เฉลี่ย / สูงสุด) -->
-    <div v-if="series.length > 1" class="grid grid-cols-3 gap-2 pt-1 text-center text-xs">
-      <div class="rounded-lg border border-emerald-200 bg-emerald-50/70 p-1.5 dark:border-[#1C3A24] dark:bg-[#142318]">
-        <span class="block text-[10px] text-emerald-700 dark:text-[#32D74B]">ต่ำสุด</span>
+    <div v-if="series.length > 1" class="grid grid-cols-3 gap-2 pt-1 text-center text-sm">
+      <div class="rounded-lg border border-emerald-200 bg-emerald-50/70 p-2 dark:border-[#1C3A24] dark:bg-[#142318]">
+        <span class="block text-xs text-emerald-700 dark:text-[#32D74B]">ต่ำสุด</span>
         <span class="font-mono font-bold text-slate-900 dark:text-white">{{ stats.min }} ppb</span>
       </div>
-      <div class="rounded-lg border border-slate-200 bg-white p-1.5 dark:border-[#2C2C2E] dark:bg-[#1E1E1E]">
-        <span class="block text-[10px] text-slate-500 dark:text-[#98A2A8]">เฉลี่ย</span>
+      <div class="rounded-lg border border-slate-200 bg-white p-2 dark:border-[#2C2C2E] dark:bg-[#1E1E1E]">
+        <span class="block text-xs text-slate-500 dark:text-[#98A2A8]">เฉลี่ย</span>
         <span class="font-mono font-bold text-slate-900 dark:text-white">{{ stats.avg }} ppb</span>
       </div>
       <div
-        class="rounded-lg border p-1.5"
+        class="rounded-lg border p-2"
         :class="
           stats.max > 10
             ? 'border-rose-200 bg-rose-50/70 text-rose-700 dark:border-[#3A1C1C] dark:bg-[#2A1616] dark:text-[#FF453A]'
@@ -348,7 +348,7 @@ const selectedPoint = computed(() => {
               : 'border-emerald-200 bg-emerald-50/70 text-emerald-700 dark:border-[#1C3A24] dark:bg-[#142318] dark:text-[#32D74B]'
         "
       >
-        <span class="block text-[10px] opacity-80">สูงสุด</span>
+        <span class="block text-xs opacity-80">สูงสุด</span>
         <span class="font-mono font-bold">{{ stats.max }} ppb</span>
       </div>
     </div>

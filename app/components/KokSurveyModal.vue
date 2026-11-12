@@ -48,8 +48,8 @@ watch(() => props.open, (isOpen) => {
 const gps = useGpsLocation()
 const photo = useSurveyPhotos()
 
-const field = 'wv-input mt-1 border-slate-300 bg-white text-slate-900 placeholder:text-slate-400 dark:border-[#2C2C2E] dark:bg-[#141416] dark:text-white'
-const label = 'block text-xs font-semibold text-slate-700 dark:text-slate-200'
+const field = 'wv-input mt-1 text-base border-slate-300 bg-white text-slate-900 placeholder:text-slate-400 dark:border-[#2C2C2E] dark:bg-[#141416] dark:text-white'
+const label = 'block text-sm sm:text-[15px] font-semibold text-slate-800 dark:text-slate-100'
 
 function closeModal() {
   if (!saving.value) emit('close')
@@ -153,8 +153,8 @@ async function handleSubmit() {
               <ClipboardList class="h-5 w-5" />
             </div>
             <div>
-              <h2 id="survey-title" class="text-base font-bold text-slate-900 dark:text-white sm:text-lg">ทำแบบสำรวจ</h2>
-              <p class="text-xs text-slate-500 dark:text-[#98A2A8]">บันทึกผลตรวจชุดทดสอบสารหนูภาคสนาม 9 ระดับ</p>
+              <h2 id="survey-title" class="text-lg font-bold text-slate-900 dark:text-white sm:text-xl">ทำแบบสำรวจ</h2>
+              <p class="text-sm text-slate-600 dark:text-[#98A2A8]">บันทึกผลตรวจชุดทดสอบสารหนูภาคสนาม 9 ระดับ</p>
             </div>
           </div>
           <button
@@ -168,12 +168,12 @@ async function handleSubmit() {
           </button>
         </header>
 
-        <div class="rounded-xl border border-sky-200 bg-sky-50/70 p-2.5 text-xs text-slate-800 dark:border-sky-900/40 dark:bg-[#00E5FF]/10 dark:text-sky-100">
+        <div class="rounded-xl border border-sky-200 bg-sky-50/70 p-3 text-sm leading-relaxed text-slate-800 dark:border-sky-900/40 dark:bg-[#00E5FF]/10 dark:text-sky-100">
           <div class="flex items-center gap-2 font-semibold text-sky-700 dark:text-[#00E5FF]">
-            <ShieldCheck class="h-4 w-4 shrink-0" />
+            <ShieldCheck class="h-4.5 w-4.5 shrink-0" />
             <span>การรักษาข้อมูลส่วนบุคคล (ไม่เปิดเผยตัวตนต่อสาธารณะ)</span>
           </div>
-          <p class="mt-1 text-slate-600 dark:text-[#D8F9FF]">
+          <p class="mt-1 text-slate-700 dark:text-[#D8F9FF]">
             ชื่อ-นามสกุล และเบอร์โทรศัพท์จะถูกเก็บรักษาเป็นความลับ สำหรับทีมงานติดต่อกลับเท่านั้น
             <strong>บนแผนที่จะแสดงเป็นชื่อสมมติอัตโนมัติ (เช่น ภูเขาอ่อนโยน-4bf3a7)</strong>
             และไฟล์ภาพถ่ายจะถูกจัดเก็บอย่างปลอดภัย โดยไม่เปิดเผยต่อสาธารณะ
@@ -232,16 +232,16 @@ async function handleSubmit() {
           @remove="photo.remove"
         />
 
-        <label class="flex cursor-pointer items-start gap-2.5 rounded-xl border border-slate-200 bg-slate-50 p-2.5 text-xs text-slate-700 dark:border-[#2C2C2E] dark:bg-[#141416] dark:text-slate-300">
-          <input v-model="publicConsent" type="checkbox" class="mt-0.5 h-4 w-4 accent-sky-600 dark:accent-[#00E5FF]" :disabled="saving" @change="formError = null">
+        <label class="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm sm:text-[15px] leading-relaxed text-slate-800 dark:border-[#2C2C2E] dark:bg-[#141416] dark:text-slate-200">
+          <input v-model="publicConsent" type="checkbox" class="mt-1 h-5 w-5 shrink-0 accent-sky-600 dark:accent-[#00E5FF]" :disabled="saving" @change="formError = null">
           <span>ยินยอมให้แสดงพิกัดและผลตรวจสารหนูบนแผนที่สาธารณะ โดยชื่อ-นามสกุล เบอร์โทรศัพท์ และรูปถ่ายจะถูกเก็บรักษาเป็นความลับ ไม่แสดงบนแผนที่</span>
         </label>
 
-        <p v-if="formError" role="alert" class="wv-alert-box text-xs font-medium">{{ formError }}</p>
+        <p v-if="formError" role="alert" class="wv-alert-box text-sm font-medium">{{ formError }}</p>
 
         <footer class="flex items-center justify-end gap-3 border-t border-slate-200 dark:border-[#2C2C2E] pt-3">
-          <button type="button" class="wv-btn-secondary" :disabled="saving" @click="closeModal">ยกเลิก</button>
-          <button type="submit" class="wv-btn-primary" :disabled="saving">{{ saving ? 'กำลังบันทึก…' : 'ส่งข้อมูลบันทึก' }}</button>
+          <button type="button" class="wv-btn-secondary text-base" :disabled="saving" @click="closeModal">ยกเลิก</button>
+          <button type="submit" class="wv-btn-primary text-base" :disabled="saving">{{ saving ? 'กำลังบันทึก…' : 'ส่งข้อมูลบันทึก' }}</button>
         </footer>
       </form>
     </section>

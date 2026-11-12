@@ -26,13 +26,23 @@ const formatDate = (iso: string) => {
 }
 
 // Map popup for one cluster of citizen test-kit results. Text goes in as textContent, never HTML.
-export function buildChemicalPopup(cluster: SurveyWaypointCluster, dotColor: string, onDetail: () => void) {
+export function buildChemicalPopup(
+  cluster: SurveyWaypointCluster,
+  dotColor: string,
+  onDetail: () => void,
+  options: { justSubmitted?: boolean; pendingReview?: boolean } = {},
+) {
   const wp = cluster.latest
   const tone = ppbTone(cluster.maxPpb)
   const many = cluster.sampleCount > 1
   const date = formatDate(wp.collection_time || wp.created_at)
 
   const root = node('div', 'kok-pop')
+  if (options.pendingReview) {
+    root.append(node('p', 'kok-pop-badge kok-pop-badge-pending', 'จุดที่คุณส่ง • รอแอดมินตรวจ (> 50 ppb)'))
+  } else if (options.justSubmitted) {
+    root.append(node('p', 'kok-pop-badge kok-pop-badge-new', 'จุดที่คุณเพิ่งบันทึก'))
+  }
   root.append(
     node('h3', '', wp.station_name || `จุดตรวจ ${wp.sample_code}`),
     node('p', 'kok-pop-sub', ['ผลชุดตรวจชาวบ้าน', date, many ? `${cluster.sampleCount} ครั้งในบริเวณนี้` : ''].filter(Boolean).join(' · ')),

@@ -111,7 +111,7 @@ function handleFlyTo() {
           <div>
             <div class="flex flex-wrap items-center gap-2">
               <span
-                class="rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider"
+                class="rounded-full px-3 py-0.5 text-xs font-bold uppercase tracking-wider"
                 :class="
                   isCluster
                     ? 'bg-amber-100 text-amber-800 border border-amber-200 dark:bg-[#FF9F0A] dark:text-black dark:border-transparent'
@@ -120,15 +120,15 @@ function handleFlyTo() {
               >
                 {{ isCluster ? `🔥 กลุ่มจุดตรวจ (${nearbySamples.length} รอบตรวจ)` : '📍 จุดตรวจเดี่ยว' }}
               </span>
-              <span class="font-mono text-xs text-slate-500 dark:text-[#98A2A8]">{{ waypoint.sample_code }}</span>
+              <span class="font-mono text-sm text-slate-600 dark:text-[#98A2A8]">{{ waypoint.sample_code }}</span>
             </div>
-            <h3 class="mt-1 text-base font-bold text-slate-900 dark:text-white sm:text-lg">
+            <h3 class="mt-1 text-lg font-bold text-slate-900 dark:text-white sm:text-xl">
               {{ waypoint.station_name || `จุดตรวจ ${waypoint.sample_code}` }}
             </h3>
-            <p class="mt-0.5 flex flex-wrap items-center gap-x-1.5 font-mono text-xs text-slate-500 dark:text-[#98A2A8]">
-              <Compass class="h-3.5 w-3.5 shrink-0 text-sky-600 dark:text-[#00E5FF]" />
+            <p class="mt-0.5 flex flex-wrap items-center gap-x-1.5 font-mono text-sm text-slate-600 dark:text-[#98A2A8]">
+              <Compass class="h-4 w-4 shrink-0 text-sky-600 dark:text-[#00E5FF]" />
               <span class="whitespace-nowrap">พิกัด: {{ waypoint.latitude.toFixed(5) }}, {{ waypoint.longitude.toFixed(5) }}</span>
-              <span v-if="waypoint.gps_accuracy_meters" class="whitespace-nowrap text-[11px] text-emerald-600 dark:text-[#32D74B]">
+              <span v-if="waypoint.gps_accuracy_meters" class="whitespace-nowrap text-xs text-emerald-600 dark:text-[#32D74B]">
                 (±{{ waypoint.gps_accuracy_meters }} ม.)
               </span>
             </p>
@@ -146,48 +146,48 @@ function handleFlyTo() {
       </header>
 
       <!-- 3-Column KPI Summary Cards -->
-      <div class="mt-4 grid grid-cols-3 gap-2">
+      <div class="mt-4 grid grid-cols-3 gap-2.5">
         <div class="rounded-xl border border-slate-200 bg-slate-50 p-3 text-center dark:border-[#2C2C2E] dark:bg-[#141416]">
-          <span class="block text-[11px] text-slate-500 dark:text-[#98A2A8]">สารหนู (As)</span>
+          <span class="block text-xs sm:text-sm font-medium text-slate-600 dark:text-[#98A2A8]">สารหนู (As)</span>
           <span
-            class="font-mono text-xl font-bold"
+            class="font-mono text-2xl font-bold"
             :class="isDanger ? 'text-rose-600 dark:text-[#FF453A]' : isWatch ? 'text-amber-600 dark:text-[#FF9F0A]' : 'text-emerald-600 dark:text-[#32D74B]'"
           >
             {{ formatPpb(ppb) }}
           </span>
         </div>
         <div class="rounded-xl border border-slate-200 bg-slate-50 p-3 text-center dark:border-[#2C2C2E] dark:bg-[#141416]">
-          <span class="block text-[11px] text-slate-500 dark:text-[#98A2A8]">สถานะน้ำ</span>
+          <span class="block text-xs sm:text-sm font-medium text-slate-600 dark:text-[#98A2A8]">สถานะน้ำ</span>
           <span
-            class="mt-1 inline-block rounded-md px-2 py-0.5 text-xs font-bold"
+            class="mt-1 inline-block rounded-md px-2.5 py-0.5 text-sm font-bold"
             :class="statusBadge.bg"
           >
             {{ isDanger ? 'เกินเกณฑ์' : isWatch ? 'เฝ้าระวัง' : 'ปกติ' }}
           </span>
         </div>
         <div class="rounded-xl border border-slate-200 bg-slate-50 p-3 text-center dark:border-[#2C2C2E] dark:bg-[#141416]">
-          <span class="block text-[11px] text-slate-500 dark:text-[#98A2A8]">เกณฑ์ คพ.</span>
-          <span class="font-mono text-xs font-bold text-emerald-600 dark:text-[#32D74B]">
+          <span class="block text-xs sm:text-sm font-medium text-slate-600 dark:text-[#98A2A8]">เกณฑ์ คพ.</span>
+          <span class="font-mono text-sm font-bold text-emerald-600 dark:text-[#32D74B]">
             &le; 10 ppb
           </span>
-          <span class="block text-[9px] text-slate-400 dark:text-[#98A2A8]">(น้ำผิวดิน)</span>
+          <span class="block text-xs text-slate-500 dark:text-[#98A2A8]">(น้ำผิวดิน)</span>
         </div>
       </div>
 
       <!-- Point Details Information Grid -->
-      <div class="mt-4 grid grid-cols-1 gap-2.5 rounded-xl border border-slate-200 bg-slate-50 p-3.5 text-xs text-slate-800 dark:border-[#2C2C2E] dark:bg-[#141416] dark:text-white sm:grid-cols-2">
-        <div class="flex items-center gap-2">
-          <Clock class="h-4 w-4 text-sky-600 dark:text-[#00E5FF]" />
+      <div class="mt-4 grid grid-cols-1 gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3.5 text-sm text-slate-800 dark:border-[#2C2C2E] dark:bg-[#141416] dark:text-white sm:grid-cols-2">
+        <div class="flex items-center gap-2.5">
+          <Clock class="h-4.5 w-4.5 text-sky-600 dark:text-[#00E5FF]" />
           <div>
-            <span class="block text-[10px] text-slate-500 dark:text-[#98A2A8]">วันและเวลาเก็บตัวอย่าง</span>
+            <span class="block text-xs text-slate-500 dark:text-[#98A2A8]">วันและเวลาเก็บตัวอย่าง</span>
             <span class="font-mono font-medium">{{ formattedDate }}</span>
           </div>
         </div>
 
-        <div class="flex items-center gap-2">
-          <User class="h-4 w-4 text-emerald-600 dark:text-[#32D74B]" />
+        <div class="flex items-center gap-2.5">
+          <User class="h-4.5 w-4.5 text-emerald-600 dark:text-[#32D74B]" />
           <div>
-            <span class="block text-[10px] text-slate-500 dark:text-[#98A2A8]">ผู้ส่งผลตรวจ (ชื่อสมมติคุ้มครองสิทธิ)</span>
+            <span class="block text-xs text-slate-500 dark:text-[#98A2A8]">ผู้ส่งผลตรวจ (ชื่อสมมติคุ้มครองสิทธิ)</span>
             <span class="font-medium text-sky-700 dark:text-[#00E5FF]">{{ contributorName }}</span>
           </div>
         </div>
@@ -195,8 +195,8 @@ function handleFlyTo() {
 
       <!-- Sample Photos -->
       <div v-if="samplePhotos.length" class="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3.5 dark:border-[#2C2C2E] dark:bg-[#141416]">
-        <h4 class="mb-2 flex items-center gap-1.5 text-xs font-bold text-slate-500 dark:text-[#98A2A8]">
-          <Camera class="h-3.5 w-3.5 text-sky-600 dark:text-[#00E5FF]" />
+        <h4 class="mb-2 flex items-center gap-1.5 text-sm font-bold text-slate-600 dark:text-[#98A2A8]">
+          <Camera class="h-4 w-4 text-sky-600 dark:text-[#00E5FF]" />
           <span>ภาพถ่ายจุดตรวจ ({{ samplePhotos.length }} ภาพ)</span>
         </h4>
         <div class="grid grid-cols-2 gap-2 sm:grid-cols-3">
@@ -214,7 +214,7 @@ function handleFlyTo() {
               loading="lazy"
               class="aspect-[4/3] w-full object-cover transition group-hover:scale-105"
             />
-            <span class="block truncate px-2 py-1 font-mono text-[10px] text-slate-500 dark:text-[#98A2A8]">{{ photo.code }}</span>
+            <span class="block truncate px-2 py-1 font-mono text-xs text-slate-500 dark:text-[#98A2A8]">{{ photo.code }}</span>
           </button>
         </div>
         <KokMiniPager v-model:page="photoPage" :total="samplePhotos.length" :page-size="PAGE_SIZE" />
@@ -239,21 +239,21 @@ function handleFlyTo() {
 
       <!-- Historical Rounds List at this Point -->
       <div v-if="nearbySamples.length > 1" class="mt-4 space-y-2">
-        <h4 class="flex items-center gap-1.5 text-xs font-bold text-slate-500 dark:text-[#98A2A8]">
-          <Calendar class="h-3.5 w-3.5 text-sky-600 dark:text-[#00E5FF]" />
+        <h4 class="flex items-center gap-1.5 text-sm font-bold text-slate-600 dark:text-[#98A2A8]">
+          <Calendar class="h-4 w-4 text-sky-600 dark:text-[#00E5FF]" />
           <span>ประวัติการตรวจทั้งหมดในจุดนี้ ({{ nearbySamples.length }} ครั้ง)</span>
         </h4>
         <div class="space-y-1.5">
           <div
             v-for="(item, idx) in pagedHistory"
             :key="item.id || item.sample_code"
-            class="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 p-2.5 text-xs transition hover:bg-slate-100 dark:border-[#2C2C2E] dark:bg-[#141416] dark:hover:bg-[#252525]"
+            class="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm transition hover:bg-slate-100 dark:border-[#2C2C2E] dark:bg-[#141416] dark:hover:bg-[#252525]"
           >
             <div class="flex items-center gap-2">
-              <span class="font-mono text-[11px] text-slate-400 dark:text-[#98A2A8]">#{{ historyOffset + idx + 1 }}</span>
+              <span class="font-mono text-xs text-slate-400 dark:text-[#98A2A8]">#{{ historyOffset + idx + 1 }}</span>
               <div>
                 <span class="font-mono font-bold text-slate-900 dark:text-white">{{ item.sample_code }}</span>
-                <span class="ml-2 text-[11px] text-slate-500 dark:text-[#98A2A8]">
+                <span class="ml-2 text-xs text-slate-500 dark:text-[#98A2A8]">
                   {{ item.collection_time ? new Date(item.collection_time).toLocaleDateString('th-TH') : '-' }}
                 </span>
               </div>
@@ -267,7 +267,7 @@ function handleFlyTo() {
                 {{ formatPpb(item.arsenic_level_ppb) }}
               </span>
               <span
-                class="rounded-md px-1.5 py-0.5 text-[10px] font-bold"
+                class="rounded-md px-2 py-0.5 text-xs font-bold"
                 :class="
                   item.arsenic_level_ppb > 10
                     ? 'bg-rose-50 border border-rose-200 text-rose-700 dark:bg-[#3A1C1C] dark:border-transparent dark:text-[#FF453A]'
@@ -288,16 +288,16 @@ function handleFlyTo() {
       <footer class="mt-5 flex items-center justify-between border-t border-slate-200 dark:border-[#2C2C2E] pt-4">
         <button
           type="button"
-          class="wv-btn-secondary text-xs"
+          class="wv-btn-secondary text-sm sm:text-base"
           @click="handleFlyTo"
         >
-          <MapPin class="h-3.5 w-3.5 text-sky-600 dark:text-[#00E5FF]" />
+          <MapPin class="h-4 w-4 text-sky-600 dark:text-[#00E5FF]" />
           <span>บินไปยังจุดนี้บนแผนที่</span>
         </button>
 
         <button
           type="button"
-          class="wv-btn-secondary text-xs"
+          class="wv-btn-secondary text-sm sm:text-base"
           @click="closeModal"
         >
           ปิดหน้าต่าง
