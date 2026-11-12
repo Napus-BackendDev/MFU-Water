@@ -2983,4 +2983,6 @@
   - Playwright E2E (`uat-feedback.spec.ts`, `smoke.spec.ts`, `map-cards.spec.ts`): ผ่านครบ 19/19 tests (mock geolocation + API ในชุด `uat-feedback`)
   - ตรวจภาพจริง desktop (`1280x800`) และ mobile (`375x812`) แล้ว: ตัวกรองเรียงแถวเดียว ปุ่มไม่ทับกัน ไม่มี overflow แนวนอน
 - (2026-11-12 ต่อ) ผู้ใช้สั่ง: "รันระบบหน่อยสิ /browser" -> เปิดเซิร์ฟเวอร์พัฒนา `npm run dev` ที่ `http://127.0.0.1:5173/` (`task-5597`) และให้ browser subagent เปิดหน้าเว็บสำเร็จ ยืนยัน `http://127.0.0.1:5173` โหลดครบพร้อมหมุด `"คุณอยู่ที่นี่"`, ปุ่ม `"ตำแหน่งฉัน"`, ตัวกรอง 6 ผลตรวจ และปุ่ม `"ทำแบบสำรวจ"`
-- ค้าง: ยังไม่ commit/push ตามกฎ main deploy บน Vercel (รอคำสั่งผู้ใช้)
+- (2026-11-12 ต่อ) ผู้ใช้สั่ง: "commit และ push ขึ้นระบบเลย" -> ตรวจ `git status` (21 ไฟล์งาน ไม่มี `.env.*` หรือร่องรอยต้องห้าม) และ commit + push ขึ้น `origin/main` เรียบร้อย:
+  - Commit: `feat: auto-locate, survey pan, pulse pins` (`39684a7`)
+  - Push: `To https://github.com/Napus-BackendDev/MFU-Water.git (7196f4f..39684a7 main -> main)`
