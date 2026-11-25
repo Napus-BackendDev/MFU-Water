@@ -1,5 +1,7 @@
 const tokenKey = 'kok_admin_token'
 const reviewerKey = 'kok_admin_reviewer'
+const devRoleKey = 'kok_admin_dev_role'
+const devCommunitiesKey = 'kok_admin_dev_communities'
 
 function read(key: string): string | null {
   if (typeof window === 'undefined') return null
@@ -24,14 +26,22 @@ export const getAdminToken = () => read(tokenKey)
 export const setAdminToken = (token: string | null) => write(tokenKey, token)
 export const getReviewerName = () => read(reviewerKey) ?? ''
 export const setReviewerName = (name: string) => write(reviewerKey, name.trim().slice(0, 80) || null)
+export const getDevRoleId = () => read(devRoleKey) ?? ''
+export const setDevRoleId = (roleId: string | null) => write(devRoleKey, roleId || null)
+export const getDevCommunities = () => read(devCommunitiesKey) ?? ''
+export const setDevCommunities = (communities: string[] | null) => write(devCommunitiesKey, communities?.length ? communities.join(',') : null)
 
 export async function adminFetch(url: string, init: RequestInit = {}): Promise<Response> {
   const token = getAdminToken()
   const reviewer = getReviewerName()
+  const devRole = getDevRoleId()
+  const devCommunities = getDevCommunities()
   const headers: Record<string, string> = {
     ...(init.body && typeof init.body === 'string' ? { 'content-type': 'application/json' } : {}),
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    ...(reviewer ? { 'x-reviewer-name': reviewer } : {}),
+    ...(reviewer ? { 'x-reviewer-name': encodeURIComponent(reviewer) } : {}),
+    ...(devRole ? { 'x-dev-role-id': devRole } : {}),
+    ...(devCommunities ? { 'x-dev-communities': devCommunities } : {}),
     ...((init.headers as Record<string, string>) || {}),
   }
   return fetch(url, { ...init, headers })
@@ -40,9 +50,13 @@ export async function adminFetch(url: string, init: RequestInit = {}): Promise<R
 // Private photos need the admin token, which an <img src> cannot send, so fetch them and hand back an object URL.
 export async function fetchAdminPhoto(path: string): Promise<string | null> {
   const token = getAdminToken()
+  const devRole = getDevRoleId()
   try {
     const response = await fetch(`/api/admin/photo?path=${encodeURIComponent(path)}`, {
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...(devRole ? { 'x-dev-role-id': devRole } : {}),
+      },
     })
     return response.ok ? URL.createObjectURL(await response.blob()) : null
   } catch {
@@ -58,10 +72,13 @@ export async function requestAdminBypass(): Promise<boolean> {
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ passcode: '' }),
     })
+    if (!response.ok) return false
     const data = await response.json().catch(() => null)
-    if (!response.ok || !data?.bypass || typeof data.token !== 'string') return false
-    setAdminToken(data.token)
-    return true
+    if (data?.bypass && data?.token) {
+      setAdminToken(data.token)
+      return true
+    }
+    return false
   } catch {
     return false
   }

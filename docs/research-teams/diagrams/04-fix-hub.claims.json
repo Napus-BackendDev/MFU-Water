@@ -1,0 +1,91 @@
+{
+ "question": "ข้อมูลทีมวิจัยที่มีอยู่ในหลังบ้านตรงกับสมุดงานของทีมหรือไม่",
+ "audience": "ผู้ใช้โครงการ",
+ "findings": [
+  "หลังบ้านมีตัวเลขของทีมที่ไม่พบในสมุดงาน และบางทีมเป็นคนละหัวข้อ (app/components/KokAdminResearchHub.vue:81)",
+  "ตัวเลข 6,269 คนมาจากรายงานคัดกรองอีกฉบับ ไม่ใช่งานสำรวจของ SWG4.1"
+ ],
+ "noExceptionsBecause": "ภาพเทียบข้อมูล ไม่ใช่ลำดับงาน",
+ "claims": {
+  "r0c0": {
+   "status": "verified",
+   "evidence": "app/components/KokAdminResearchHub.vue:81"
+  },
+  "r0c1": {
+   "status": "verified",
+   "evidence": "MFU_IP3_SWG_6M-Progress SWG1!E8 SWG1!E9"
+  },
+  "r0c2": {
+   "status": "assumption",
+   "evidence": "ข้อเสนอ"
+  },
+  "z0": {
+   "status": "user-confirmed",
+   "evidence": "ผู้ใช้ 2026-11-16 ขอให้ภาพสวยและต่อกันเป็น flow"
+  },
+  "r1c0": {
+   "status": "verified",
+   "evidence": "app/components/KokAdminResearchHub.vue:104"
+  },
+  "r1c1": {
+   "status": "verified",
+   "evidence": "MFU_IP3_SWG_6M-Progress SWG2.1!E8 SWG2.1!E9"
+  },
+  "r1c2": {
+   "status": "assumption",
+   "evidence": "ข้อเสนอ"
+  },
+  "z1": {
+   "status": "user-confirmed",
+   "evidence": "ผู้ใช้ 2026-11-16 ขอให้ภาพสวยและต่อกันเป็น flow"
+  },
+  "r2c0": {
+   "status": "verified",
+   "evidence": "app/components/KokAdminResearchHub.vue:127"
+  },
+  "r2c1": {
+   "status": "verified",
+   "evidence": "MFU_IP3_SWG_6M-Progress SWG3!B4 SWG3!E7"
+  },
+  "r2c2": {
+   "status": "assumption",
+   "evidence": "ข้อเสนอ"
+  },
+  "z2": {
+   "status": "user-confirmed",
+   "evidence": "ผู้ใช้ 2026-11-16 ขอให้ภาพสวยและต่อกันเป็น flow"
+  },
+  "r3c0": {
+   "status": "verified",
+   "evidence": "app/components/KokAdminResearchHub.vue:150"
+  },
+  "r3c1": {
+   "status": "verified",
+   "evidence": "KokData/drive-sync-2026-10-15/files/00_เริ่มอ่านที่นี่/01_เล่าเรื่องทั้งหมดและข้อสรุป.txt:105"
+  },
+  "r3c2": {
+   "status": "assumption",
+   "evidence": "ข้อเสนอ"
+  },
+  "z3": {
+   "status": "user-confirmed",
+   "evidence": "ผู้ใช้ 2026-11-16 ขอให้ภาพสวยและต่อกันเป็น flow"
+  },
+  "r4c0": {
+   "status": "verified",
+   "evidence": "app/components/KokAdminResearchHub.vue:219"
+  },
+  "r4c1": {
+   "status": "verified",
+   "evidence": "MFU_IP3_SWG_6M-Progress SWG6!E7 SWG6!E8 SWG6!E10"
+  },
+  "r4c2": {
+   "status": "assumption",
+   "evidence": "ข้อเสนอ"
+  },
+  "z4": {
+   "status": "user-confirmed",
+   "evidence": "ผู้ใช้ 2026-11-16 ขอให้ภาพสวยและต่อกันเป็น flow"
+  }
+ }
+}

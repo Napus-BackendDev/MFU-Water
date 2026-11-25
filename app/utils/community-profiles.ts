@@ -1,4 +1,5 @@
 import type { CommunityTarget } from './kok-contract'
+import type { NewsContentBlock } from './news-types'
 
 export type CommunityProfile = {
   title: string
@@ -6,10 +7,12 @@ export type CommunityProfile = {
   people: string
   livelihood: string
   risk: string
+  cover_image_url?: string
+  content_blocks?: NewsContentBlock[]
 }
 
 // เนื้อหาพื้นที่ของ 4 ชุมชน แปลและย่อจากชีต "Village" ใน MFU_IP3_SWG_6M-Progress.xlsx (แถว ลุ่มน้ำ/ภูมิประเทศ, กลุ่มชาติพันธุ์, อาชีพ, ความท้าทาย)
-// เป็นคำบรรยายภาพรวม ไม่ใช่ผลวัด ยังรอทีมวิจัยตรวจคำแปล
+// พร้อมเรื่องเล่าพื้นที่เริ่มต้นสำหรับแท็บหมู่บ้าน (แอดมินแก้และเพิ่มส่วนประกอบต่อได้ในหน้าจัดการหมู่บ้าน)
 export const communityProfiles: Record<CommunityTarget['id'], CommunityProfile> = {
   thaton: {
     title: 'บ้านท่าตอน',
@@ -17,6 +20,24 @@ export const communityProfiles: Record<CommunityTarget['id'], CommunityProfile> 
     people: 'ไทยวน ไทใหญ่ อาข่า ลาหู่ กะเหรี่ยง จีนยูนนาน',
     livelihood: 'ท่องเที่ยวเชิงนิเวศ เรือโดยสาร สวนส้มและลิ้นจี่ ค้าขายชายแดน',
     risk: 'น้ำเปลี่ยนจากเขื่อนต้นน้ำ ตะกอนและน้ำหลากเร็ว หมอกควันหน้าแล้ง',
+    cover_image_url: '/data/news/thaton-normal-sat.png',
+    content_blocks: [
+      {
+        id: 'thaton-story-1',
+        type: 'image_text',
+        layout: 'left',
+        imageUrl: '/data/news/thaton-sentinel2-flood.png',
+        caption: 'ภาพเปรียบเทียบแนวแม่น้ำกกช่วงท่าตอน',
+        heading: 'ชุมชนหน้าด่านลุ่มน้ำกกตอนบน',
+        body: 'บ้านท่าตอนตั้งอยู่ตรงจุดโค้งแม่น้ำกกก่อนไหลเข้าสู่จังหวัดเชียงราย ชาวบ้านพึ่งพาน้ำกกทั้งการเดินเรือ การเกษตรริมตลิ่ง และบ่อน้ำตื้นในพื้นที่ จึงเป็นจุดแรกที่รับความเปลี่ยนแปลงของคุณภาพน้ำและตะกอนจากต้นน้ำ',
+      },
+      {
+        id: 'thaton-story-2',
+        type: 'text',
+        heading: 'วิถีชีวิตและการเฝ้าระวังร่วมกัน',
+        body: 'อาสาสมัครในหมู่บ้านร่วมกับทีมวิจัย มฟล. เก็บตัวอย่างน้ำและบันทึกจุดเสี่ยงน้ำท่วมอย่างต่อเนื่อง เพื่อให้ทุกครัวเรือนรู้เท่าทันระดับสารหนูและเส้นทางอพยพเมื่อเกิดเหตุฉุกเฉิน',
+      },
+    ],
   },
   ruammit: {
     title: 'บ้านกะเหรี่ยงรวมมิตร',
@@ -24,6 +45,18 @@ export const communityProfiles: Record<CommunityTarget['id'], CommunityProfile> 
     people: 'กะเหรี่ยง (โปว์ สะกอ) อาข่า ลาหู่ ลีซู ไทยวน',
     livelihood: 'ท่องเที่ยวชุมชน (ปางช้าง โฮมสเตย์) ทอผ้า ทำนาตามฤดู',
     risk: 'ตลิ่งพังจากระดับน้ำเปลี่ยน พึ่งการท่องเที่ยวตามฤดู ดินบนที่สูงเสื่อม',
+    cover_image_url: '/data/news/ruammit-field-survey.png',
+    content_blocks: [
+      {
+        id: 'ruammit-story-1',
+        type: 'image_text',
+        layout: 'left',
+        imageUrl: '/data/news/water-lab-training.png',
+        caption: 'อาสาสมัครร่วมเรียนรู้การตรวจคุณภาพน้ำ',
+        heading: 'หมู่บ้านท่องเที่ยวเชิงวัฒนธรรมริมกก',
+        body: 'ชุมชนหลากหลายชาติพันธุ์ริมฝั่งแม่น้ำกกตอนกลางที่ผสานวิถีทอผ้า ปางช้าง และเกษตรกรรมเข้าด้วยกัน โดยมีเครือข่ายอาสาสมัครชุมชนช่วยติดตามคุณภาพน้ำและสภาพตลิ่งตลอดฤดูกาล',
+      },
+    ],
   },
   pongkhong: {
     title: 'บ้านปงของ',
@@ -31,6 +64,15 @@ export const communityProfiles: Record<CommunityTarget['id'], CommunityProfile> 
     people: 'ไทยวน (คนเมือง) มีม้งและเมี่ยนอยู่ใกล้เคียง',
     livelihood: 'ทำนา ข้าวโพดเลี้ยงสัตว์ มันสำปะหลัง สวนยางและผลไม้',
     risk: 'น้ำป่าหลากจากร่องเขา ดินกร่อนจากพืชเชิงเดี่ยว ราคาผลผลิตผันผวน หมอกควัน PM2.5',
+    cover_image_url: '/data/news/thaton-map-preview.png',
+    content_blocks: [
+      {
+        id: 'pongkhong-story-1',
+        type: 'text',
+        heading: 'พื้นที่เกษตรและลำห้วยสาขาลุ่มน้ำโขง',
+        body: 'ชุมชนบนที่ราบลอนคลื่นที่มีลำห้วยสาขาไหลลงสู่แม่น้ำโขง การเฝ้าระวังน้ำหลากจากร่องเขาและการดูแลแหล่งน้ำใช้อุปโภคบริโภคเป็นหัวใจสำคัญของชุมชน',
+      },
+    ],
   },
   pakingtai: {
     title: 'บ้านปากอิงใต้',
@@ -38,5 +80,14 @@ export const communityProfiles: Record<CommunityTarget['id'], CommunityProfile> 
     people: 'ไทยวน ไทลื้อ',
     livelihood: 'ประมงพื้นบ้าน นาลุ่มน้ำท่วมถึง',
     risk: 'น้ำเท้อจากโขงสูง ปลาธรรมชาติลด ผักตบชวา',
+    cover_image_url: '/data/news/arsenic-kit-guide.png',
+    content_blocks: [
+      {
+        id: 'pakingtai-story-1',
+        type: 'text',
+        heading: 'วิถีประมงพื้นบ้านปากแม่น้ำอิง',
+        body: 'ตั้งอยู่ตรงจุดบรรจบแม่น้ำอิงและแม่น้ำโขง อาชีพหลักผูกพันกับระดับน้ำและระบบนิเวศลุ่มน้ำท่วมถึง จึงต้องติดตามภาวะน้ำเท้อและคุณภาพน้ำอย่างสม่ำเสมอ',
+      },
+    ],
   },
 }

@@ -1,10 +1,13 @@
 import { GridFSBucket } from 'mongodb'
 import { getDb } from '../surveys/_db.js'
 import { config } from '../surveys/_shared.js'
+import { recordUploadedFile, writePublicUpload } from '../_public_uploads.js'
 import { readFileSync, existsSync } from 'node:fs'
 import { resolve } from 'node:path'
 
 export const maxNewsPhotoBytes = 10 * 1024 * 1024 // 10 MB
+
+const imageExtensions = ['jpg', 'jpeg', 'png', 'webp', 'gif']
 
 const typeByExtension = {
   jpg: 'image/jpeg',
@@ -12,6 +15,16 @@ const typeByExtension = {
   png: 'image/png',
   webp: 'image/webp',
   gif: 'image/gif',
+  pdf: 'application/pdf',
+  doc: 'application/msword',
+  docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  xls: 'application/vnd.ms-excel',
+  xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  ppt: 'application/vnd.ms-powerpoint',
+  pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  zip: 'application/zip',
+  txt: 'text/plain',
+  csv: 'text/csv',
 }
 
 export async function getNewsBucket(settings) {
@@ -20,37 +33,68 @@ export async function getNewsBucket(settings) {
   return new GridFSBucket(db, { bucketName: 'news_photos' })
 }
 
-export function sanitizeFilename(name = '') {
-  const parts = name.split('.')
-  const ext = parts.length > 1 ? parts.pop().toLowerCase() : 'jpg'
-  const base = parts.join('_').replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 40) || 'photo'
+export function sanitizeFilename(name = '', kind = 'image') {
+  const parts = String(name || '').split('.')
+  const defaultExt = kind === 'file' ? 'pdf' : 'jpg'
+  const ext = parts.length > 1 ? parts.pop().toLowerCase() : defaultExt
+  const base = parts.join('_').replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 40) || (kind === 'file' ? 'file' : 'photo')
   const randomSuffix = Math.random().toString(36).substring(2, 8)
-  const safeExt = typeByExtension[ext] ? ext : 'jpg'
-  return `news-${Date.now()}-${randomSuffix}-${base}.${safeExt}`
+  const allowedExts = kind === 'file' ? Object.keys(typeByExtension) : imageExtensions
+  const safeExt = allowedExts.includes(ext) ? ext : defaultExt
+  const prefix = kind === 'file' ? 'news-file' : 'news'
+  return `${prefix}-${Date.now()}-${randomSuffix}-${base}.${safeExt}`
 }
 
-export async function saveNewsPhoto(settings, rawFilename, buffer, contentType) {
-  const bucket = await getNewsBucket(settings)
-  const filename = sanitizeFilename(rawFilename)
-  const mime = contentType || typeByExtension[filename.split('.').pop().toLowerCase()] || 'image/jpeg'
+export async function saveNewsPhoto(settings, rawFilename, buffer, contentType, options = {}) {
+  const resolved = settings?.mongoUri ? settings : config(false)
+  const db = await getDb(resolved)
+  const bucket = new GridFSBucket(db, { bucketName: 'news_photos' })
+  const kind = options?.kind === 'file' ? 'file' : 'image'
+  const filename = sanitizeFilename(rawFilename, kind)
+  const ext = filename.split('.').pop().toLowerCase()
+  const mime = contentType || typeByExtension[ext] || (kind === 'file' ? 'application/octet-stream' : 'image/jpeg')
+  const subDir = kind === 'file' ? 'news/files' : 'news/images'
+  const apiUrl = `/api/news/photo/${encodeURIComponent(filename)}`
+  const uploadedAt = new Date()
 
-  await new Promise((resolve, reject) => {
+  const { publicUrl, diskPath } = writePublicUpload(subDir, filename, buffer, options?.rootDir)
+
+  await new Promise((resolvePromise, reject) => {
     const uploadStream = bucket.openUploadStream(filename, {
       contentType: mime,
       metadata: {
         contentType: mime,
         originalName: rawFilename,
-        uploadedAt: new Date(),
+        kind,
+        publicUrl,
+        diskPath,
+        uploadedAt,
       },
     })
     uploadStream.once('error', reject)
-    uploadStream.once('finish', resolve)
+    uploadStream.once('finish', resolvePromise)
     uploadStream.end(buffer)
+  })
+
+  await recordUploadedFile(db, {
+    filename,
+    originalName: rawFilename,
+    category: kind === 'file' ? 'news_file' : 'news_image',
+    contentType: mime,
+    size: buffer.length,
+    publicUrl,
+    diskPath,
+    apiUrl,
+    gridFsBucket: 'news_photos',
+    uploadedAt,
   })
 
   return {
     filename,
-    url: `/api/news/photo/${encodeURIComponent(filename)}`,
+    url: apiUrl,
+    publicUrl,
+    diskPath,
+    apiUrl,
     contentType: mime,
     size: buffer.length,
   }

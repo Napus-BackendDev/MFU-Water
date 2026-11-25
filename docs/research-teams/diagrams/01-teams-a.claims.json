@@ -1,0 +1,74 @@
+{
+ "question": "ทีมวิจัย SWG1 ถึง SWG4.1 ทำอะไรและได้ผลอะไรแล้ว",
+ "audience": "ผู้ใช้โครงการและเจ้าหน้าที่ศูนย์",
+ "findings": [
+  "SWG4.1 ทำเสร็จ 1 จาก 4 หมู่บ้าน (SWG4.1!D7) และ SWG1 ยังไม่มีผลทดสอบประสิทธิภาพ (SWG1!E9)"
+ ],
+ "noExceptionsBecause": "ภาพสรุปผลงานของทีม ไม่ใช่ลำดับงาน",
+ "claims": {
+  "r0c0": {
+   "status": "verified",
+   "evidence": "MFU_IP3_SWG_6M-Progress SWG1!C1 SWG1!C2"
+  },
+  "r0c1": {
+   "status": "verified",
+   "evidence": "MFU_IP3_SWG_6M-Progress SWG1!E7 SWG1!E9"
+  },
+  "r0c2": {
+   "status": "verified",
+   "evidence": "MFU_IP3_SWG_6M-Progress SWG1!E9 SWG1!D11"
+  },
+  "z0": {
+   "status": "user-confirmed",
+   "evidence": "ผู้ใช้ 2026-11-16 ขอให้ภาพสวยและต่อกันเป็น flow"
+  },
+  "r1c0": {
+   "status": "verified",
+   "evidence": "MFU_IP3_SWG_6M-Progress SWG2.1!C1 SWG2.1!C2"
+  },
+  "r1c1": {
+   "status": "verified",
+   "evidence": "MFU_IP3_SWG_6M-Progress SWG2.1!E8"
+  },
+  "r1c2": {
+   "status": "verified",
+   "evidence": "MFU_IP3_SWG_6M-Progress SWG2.1!B4 SWG2.1!E7"
+  },
+  "z1": {
+   "status": "user-confirmed",
+   "evidence": "ผู้ใช้ 2026-11-16 ขอให้ภาพสวยและต่อกันเป็น flow"
+  },
+  "r2c0": {
+   "status": "verified",
+   "evidence": "MFU_IP3_SWG_6M-Progress SWG3!C1 SWG3!C2"
+  },
+  "r2c1": {
+   "status": "verified",
+   "evidence": "MFU_IP3_SWG_6M-Progress SWG3!E7 SWG3!E8 SWG3!E9"
+  },
+  "r2c2": {
+   "status": "verified",
+   "evidence": "MFU_IP3_SWG_6M-Progress SWG3!B4 SWG3!C10"
+  },
+  "z2": {
+   "status": "user-confirmed",
+   "evidence": "ผู้ใช้ 2026-11-16 ขอให้ภาพสวยและต่อกันเป็น flow"
+  },
+  "r3c0": {
+   "status": "verified",
+   "evidence": "MFU_IP3_SWG_6M-Progress SWG4.1!C1 SWG4.1!C2"
+  },
+  "r3c1": {
+   "status": "verified",
+   "evidence": "MFU_IP3_SWG_6M-Progress SWG4.1!D7 SWG4.1!E7 SWG4.1!E8"
+  },
+  "r3c2": {
+   "status": "verified",
+   "evidence": "MFU_IP3_SWG_6M-Progress SWG4.1!B4 SWG4.1!C9"
+  },
+  "z3": {
+   "status": "user-confirmed",
+   "evidence": "ผู้ใช้ 2026-11-16 ขอให้ภาพสวยและต่อกันเป็น flow"
+  }
+ }
+}

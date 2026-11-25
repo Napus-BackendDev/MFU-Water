@@ -1,0 +1,74 @@
+{
+ "question": "ทีมวิจัย SWG4.2 ถึง SWG7 ทำอะไรและได้ผลอะไรแล้ว",
+ "audience": "ผู้ใช้โครงการและเจ้าหน้าที่ศูนย์",
+ "findings": [
+  "มีเพียง SWG5 และ SWG6 ที่ผลงานถูกใช้ในระบบแล้ว (public/evacuation/thaton.json:1, public/mymaps/thaton.json:1)"
+ ],
+ "noExceptionsBecause": "ภาพสรุปผลงานของทีม ไม่ใช่ลำดับงาน",
+ "claims": {
+  "r0c0": {
+   "status": "verified",
+   "evidence": "MFU_IP3_SWG_6M-Progress SWG4.2!C1 SWG4.2!C2"
+  },
+  "r0c1": {
+   "status": "verified",
+   "evidence": "MFU_IP3_SWG_6M-Progress SWG4.2!B4 SWG4.2!D12 SWG4.2!D13"
+  },
+  "r0c2": {
+   "status": "verified",
+   "evidence": "MFU_IP3_SWG_6M-Progress SWG4.2!B4 SWG4.2!C9"
+  },
+  "z0": {
+   "status": "user-confirmed",
+   "evidence": "ผู้ใช้ 2026-11-16 ขอให้ภาพสวยและต่อกันเป็น flow"
+  },
+  "r1c0": {
+   "status": "verified",
+   "evidence": "MFU_IP3_SWG_6M-Progress SWG5!C1 SWG5!C2"
+  },
+  "r1c1": {
+   "status": "verified",
+   "evidence": "MFU_IP3_SWG_6M-Progress SWG5!E7 SWG5!E8 SWG5!E9"
+  },
+  "r1c2": {
+   "status": "verified",
+   "evidence": "MFU_IP3_SWG_6M-Progress SWG5!B4 SWG5!C10"
+  },
+  "z1": {
+   "status": "user-confirmed",
+   "evidence": "ผู้ใช้ 2026-11-16 ขอให้ภาพสวยและต่อกันเป็น flow"
+  },
+  "r2c0": {
+   "status": "verified",
+   "evidence": "MFU_IP3_SWG_6M-Progress SWG6!C1 SWG6!C2"
+  },
+  "r2c1": {
+   "status": "verified",
+   "evidence": "MFU_IP3_SWG_6M-Progress SWG6!E7 SWG6!E8 SWG6!E9"
+  },
+  "r2c2": {
+   "status": "verified",
+   "evidence": "MFU_IP3_SWG_6M-Progress SWG6!C13 SWG6!E10 SWG6!D12"
+  },
+  "z2": {
+   "status": "user-confirmed",
+   "evidence": "ผู้ใช้ 2026-11-16 ขอให้ภาพสวยและต่อกันเป็น flow"
+  },
+  "r3c0": {
+   "status": "verified",
+   "evidence": "MFU_IP3_SWG_6M-Progress SWG7!C1 SWG7!C2"
+  },
+  "r3c1": {
+   "status": "verified",
+   "evidence": "MFU_IP3_SWG_6M-Progress SWG7!E7 SWG7!E11 SWG7!E12"
+  },
+  "r3c2": {
+   "status": "verified",
+   "evidence": "MFU_IP3_SWG_6M-Progress SWG7!E8 SWG7!E9 SWG7!E10"
+  },
+  "z3": {
+   "status": "user-confirmed",
+   "evidence": "ผู้ใช้ 2026-11-16 ขอให้ภาพสวยและต่อกันเป็น flow"
+  }
+ }
+}

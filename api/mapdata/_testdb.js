@@ -41,6 +41,7 @@ export class FakeCollection {
   find(filter = {}) { return new Cursor(this.docs.filter((doc) => matches(doc, filter))) }
   async findOne(filter = {}) { const doc = this.docs.find((item) => matches(item, filter)); return doc ? structuredClone(doc) : null }
   async insertOne(doc) { this.docs.push(structuredClone({ _id: nextId++, ...doc })); return { insertedId: doc._id } }
+  async insertMany(docs) { for (const doc of docs) await this.insertOne(doc); return { insertedCount: docs.length } }
   async countDocuments(filter = {}) { return this.docs.filter((doc) => matches(doc, filter)).length }
   async updateOne(filter, update, options = {}) {
     const doc = this.docs.find((item) => matches(item, filter))

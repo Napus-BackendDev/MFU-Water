@@ -13,9 +13,9 @@ const selected = computed(() => levels.find((item) => item.ppb === level.value) 
 <template>
   <fieldset :disabled="disabled" class="space-y-2">
     <legend class="text-sm sm:text-[15px] font-semibold text-slate-800 dark:text-white">
-      โปรดเลือกสีที่ตรงกับผลตรวจของท่าน (Arsenic Level 9 ระดับ) <span class="text-rose-600 dark:text-[#FF453A]">*ต้องระบุ</span>
+      โปรดเลือกสีที่ตรงกับผลตรวจของท่าน (Arsenic Level 6 ระดับ) <span class="text-rose-600 dark:text-[#FF453A]">*ต้องระบุ</span>
     </legend>
-    <div role="radiogroup" aria-label="ระดับสารหนู (As) หน่วย ppb" class="grid grid-cols-3 gap-2 sm:grid-cols-9">
+    <div role="radiogroup" aria-label="ระดับสารหนู (As) หน่วย ppb" class="grid grid-cols-3 gap-2 sm:grid-cols-6">
       <button
         v-for="(item, index) in levels"
         :key="item.ppb"

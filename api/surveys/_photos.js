@@ -1,6 +1,13 @@
 import { createHmac, timingSafeEqual } from 'node:crypto'
 import { GridFSBucket } from 'mongodb'
 import { getDb } from './_db.js'
+import {
+  buildPublicUploadPaths,
+  deleteUploadedFileRecord,
+  recordUploadedFile,
+  removePublicUpload,
+  writePublicUpload,
+} from '../_public_uploads.js'
 
 export const maxPhotoBytes = 10 * 1024 * 1024
 
@@ -32,10 +39,25 @@ export function verifyUploadToken(secret, path, token) {
 
 // Returns false when the path already holds a photo (uploads never overwrite).
 export async function savePhoto(settings, path, buffer, contentType) {
-  const bucket = await bucketFor(settings)
+  const db = await getDb(settings)
+  const bucket = new GridFSBucket(db, { bucketName: 'survey_photos' })
   if (await bucket.find({ filename: path }, { limit: 1 }).hasNext()) return false
+  const uploadedAt = new Date()
+  const { publicUrl, diskPath } = writePublicUpload('surveys', path, buffer)
   await new Promise((resolve, reject) => {
-    bucket.openUploadStream(path, { contentType, metadata: { uploadedAt: new Date() } }).once('error', reject).once('finish', resolve).end(buffer)
+    bucket.openUploadStream(path, { contentType, metadata: { uploadedAt, publicUrl, diskPath } }).once('error', reject).once('finish', resolve).end(buffer)
+  })
+  await recordUploadedFile(db, {
+    filename: path,
+    originalName: path,
+    category: 'survey_photo',
+    contentType: contentType || typeByExtension[path.split('.').pop().toLowerCase()] || 'image/jpeg',
+    size: buffer.length,
+    publicUrl,
+    diskPath,
+    apiUrl: `/api/surveys/photo?path=${encodeURIComponent(path)}`,
+    gridFsBucket: 'survey_photos',
+    uploadedAt,
   })
   return true
 }
@@ -70,8 +92,12 @@ export async function readPhoto(settings, path) {
 }
 
 export async function deletePhotos(settings, paths) {
-  const bucket = await bucketFor(settings)
+  const db = await getDb(settings)
+  const bucket = new GridFSBucket(db, { bucketName: 'survey_photos' })
   for (const path of paths) {
     for (const file of await bucket.find({ filename: path }).toArray()) await bucket.delete(file._id)
+    removePublicUpload('surveys', path)
+    const { publicUrl } = buildPublicUploadPaths('surveys', path)
+    await deleteUploadedFileRecord(db, publicUrl)
   }
 }

@@ -60,15 +60,18 @@ const completeHousehold = (overrides = {}) => ({
 // The seven My Maps landmarks of ท่าตอน in data/thaton-landmarks.json.
 const landmarkIds = ['TH-LM-01', 'TH-LM-02', 'TH-LM-03', 'TH-LM-04', 'TH-LM-05', 'TH-LM-06', 'TH-LM-07']
 
+// The six My Maps topics become six maps of 129 published pins each (774 in all), shown one map at a time.
+const layerPinCount = 6 * 129
+
 describe('first use fills the database from the existing files, once', () => {
-  it('imports 129 households, hamlets, the two planned places, the seven landmarks and the route', async () => {
+  it('imports 129 households, hamlets, the two planned places, the seven landmarks, the six survey maps and the route', async () => {
     const { status, body } = await admin('GET', '/')
     expect(status).toBe(200)
     expect(body.households).toMatchObject({ total: 129, published: 129 })
     expect(Object.fromEntries(body.households.byLevel.map((level) => [level.key, level.count]))).toEqual({ 1: 4, 2: 8, 4: 56, 5: 61 })
     expect(body.hamlets).toEqual({ total: 10, unassigned: 3 })
-    expect(body.places).toEqual({ total: 9, published: 9, waitingLocation: 0 })
-    expect(Object.keys(body.seed).sort()).toEqual(['community', 'landmarks', 'places', 'routes'])
+    expect(body.places).toEqual({ total: 9 + layerPinCount, published: 9 + layerPinCount, waitingLocation: 0 })
+    expect(Object.keys(body.seed).sort()).toEqual(['community', 'landmarks', 'layerMaps', 'places', 'routes'])
   })
 
   it('does not import twice and does not bring back what the admin deleted', async () => {
@@ -76,14 +79,46 @@ describe('first use fills the database from the existing files, once', () => {
     expect((await admin('DELETE', '/places/TH-ASSEMBLY-01')).status).toBe(200)
     resetMapDataCache()
     const { body } = await admin('GET', '/')
-    expect(body.places.total).toBe(8)
+    expect(body.places.total).toBe(8 + layerPinCount)
     expect(body.households.total).toBe(129)
   })
 
   it('keeps the old ids so evacuation cases and destinations keep working', async () => {
     const { body } = await admin('GET', '/places')
-    expect(body.items.map((place) => place.id)).toEqual(['TH-ASSEMBLY-01', ...landmarkIds, 'TH-SHELTER-01'])
+    expect(body.items.map((place) => place.id).filter((id) => !id.startsWith('MP'))).toEqual(['TH-ASSEMBLY-01', ...landmarkIds, 'TH-SHELTER-01'])
     expect((await admin('GET', '/households/MM1-001')).body.household.id).toBe('MM1-001')
+  })
+
+  it('gives each survey topic its own map of published pins, told apart by map name', async () => {
+    const all = (await admin('GET', '/places')).body.items
+    const pins = all.filter((place) => place.id.startsWith('MP'))
+    expect(pins).toHaveLength(layerPinCount)
+    const maps = new Map()
+    for (const pin of pins) maps.set(pin.map_name, (maps.get(pin.map_name) ?? 0) + 1)
+    expect([...maps.keys()]).toEqual(original.layers.map((layer) => layer.label))
+    expect([...maps.values()]).toEqual(Array(6).fill(129))
+    expect(pins.every((pin) => pin.status === 'published' && pin.community_id === 'thaton' && Number.isFinite(pin.latitude))).toBe(true)
+    expect(pins.every((pin) => /^#[0-9A-Fa-f]{6}$/.test(pin.pin_color) && pin.note.length <= 300)).toBe(true)
+    // Notes read as sentences, not as a dump of "question: answer" pairs.
+    expect(pins.every((pin) => pin.note.startsWith('ครัวเรือนนี้') && !/_|ไม่ระบุ|: /.test(pin.note.replace(/\(จัดอยู่ในกลุ่ม: [^)]*\)/, '')))).toBe(true)
+    expect(new Set(pins.map((pin) => pin.note)).size).toBeGreaterThan(40)
+    // No source text on the imported pins, in the data or in what the public gets.
+    expect(pins.every((pin) => !pin.source_section)).toBe(true)
+    expect((await pub('places', { community: 'thaton' })).body.placed.filter((place) => place.id.startsWith('MP')).every((place) => !place.sourceSection)).toBe(true)
+    const placed = (await pub('places', { community: 'thaton' })).body.placed
+    expect(placed.filter((place) => place.id.startsWith('MP'))).toHaveLength(layerPinCount)
+    expect(placed.find((place) => place.id === 'MP3-001')).toMatchObject({ mapName: original.layers[2].label, kind: 'other', pinIcon: 'drop' })
+    expect((await pub('availability')).body.places).toBe(9 + layerPinCount)
+    // They are not evacuation destinations, so the evacuation tab keeps only the shelter and the assembly point.
+    expect((await pub('availability')).body.evacuationDestinations).toBe(2)
+  })
+
+  it('lets an admin take a survey pin off the public map again', async () => {
+    await admin('GET', '/')
+    expect((await admin('POST', '/places/MP2-001/publish', { body: { published: false } })).status).toBe(200)
+    const placed = (await pub('places', { community: 'thaton' })).body.placed
+    expect(placed.some((place) => place.id === 'MP2-001')).toBe(false)
+    expect(placed.filter((place) => place.id.startsWith('MP'))).toHaveLength(layerPinCount - 1)
   })
 })
 
@@ -148,7 +183,7 @@ const COMMUNITY_LAYER_IDS = ['layer-1', 'layer-2', 'layer-3', 'layer-4', 'layer-
 describe('when the seed files are not available to the function', () => {
   it('answers 503 so the public map falls back to its own files instead of showing nothing', async () => {
     const original = { ...seedSources }
-    Object.assign(seedSources, { community: () => null, route: () => null, place: () => null, landmark: () => null })
+    Object.assign(seedSources, { community: () => null, route: () => null, place: () => null, landmark: () => null, layerMaps: () => null })
     try {
       expect((await pub('community')).status).toBe(503)
       expect((await pub('places')).status).toBe(503)
@@ -250,7 +285,7 @@ describe('important places', () => {
     expect(created.body.place.id).toBe('PL-0001')
 
     let payload = (await pub('places', { community: 'thaton' })).body
-    expect(payload.placed.map((place) => place.id).sort()).toEqual(['TH-ASSEMBLY-01', ...landmarkIds, 'TH-SHELTER-01'])
+    expect(payload.placed.map((place) => place.id).filter((id) => !id.startsWith('MP')).sort()).toEqual(['TH-ASSEMBLY-01', ...landmarkIds, 'TH-SHELTER-01'])
     expect(payload.pending.map((place) => place.name)).toEqual(['ศาลาประชาคม'])
 
     await admin('PUT', '/places/PL-0001', { body: { name: 'ศาลาประชาคม', kind: 'community_hall', latitude: 20.0575, longitude: 99.3561, location_precision: 'field_verified', capacity_planned: 100, status: 'published' } })
@@ -273,9 +308,10 @@ describe('important places', () => {
 
   it('turns the public places tab on only when there is something to show', async () => {
     const before = (await pub('availability')).body
-    expect(before).toMatchObject({ places: 9, placesPending: 0, evacuationDestinations: 2 })
+    expect(before).toMatchObject({ places: 9 + layerPinCount, placesPending: 0, evacuationDestinations: 2 })
     for (const id of ['TH-SHELTER-01', 'TH-ASSEMBLY-01', ...landmarkIds]) await admin('POST', `/places/${id}/publish`, { body: { published: false } })
-    expect((await pub('availability')).body).toMatchObject({ places: 0, evacuationDestinations: 0 })
+    // The planned places are gone, but the six survey maps are still published, so the tab stays on.
+    expect((await pub('availability')).body).toMatchObject({ places: layerPinCount, evacuationDestinations: 0 })
   })
 
   it('validates kind, name and the pair of coordinates', async () => {

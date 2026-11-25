@@ -24,7 +24,7 @@ const stepClass = 'rounded-lg border border-slate-300 p-2 text-slate-600 disable
       <label class="flex items-center gap-1.5">
         <span class="text-slate-500 dark:text-[#98A2A8]">แถวต่อหน้า:</span>
         <select v-model.number="pageSize" class="rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs text-slate-800 dark:border-[#2C2C2E] dark:bg-[#1E1E1E] dark:text-white">
-          <option v-for="size in [10, 25, 50, 100]" :key="size" :value="size">{{ size }}</option>
+          <option v-for="size in [5, 10, 25, 50, 100]" :key="size" :value="size">{{ size }}</option>
         </select>
       </label>
 

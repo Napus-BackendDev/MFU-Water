@@ -5,7 +5,7 @@ import { listResearchTeams, updateResearchTeam, recordDownload } from './_resear
 export const getResearchHubHandler = adminEndpoint('GET', async (_request, response, settings) => {
   const teams = await listResearchTeams(settings)
   return respond(response, 200, { ok: true, teams })
-})
+}, { page: 'research', level: 'view' })
 
 export const updateResearchTeamHandler = adminEndpoint('PUT', async (request, response, settings) => {
   const id = request.params?.id || request.body?.id || request.query?.id
@@ -19,7 +19,7 @@ export const updateResearchTeamHandler = adminEndpoint('PUT', async (request, re
     return respond(response, 404, { error: 'ไม่พบข้อมูลทีมวิจัยในระบบ' })
   }
   return respond(response, 200, { ok: true, team: updated })
-})
+}, { page: 'research', level: 'edit' })
 
 export const downloadResearchDocHandler = async (request, response, settings) => {
   const id = request.params?.id || request.query?.id

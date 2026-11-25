@@ -507,8 +507,8 @@ html:not(.dark) .time-range-card {
 
 .round-control {
   display: grid;
-  width: 48px;
-  height: 48px;
+  width: 38px;
+  height: 38px;
   place-items: center;
   border-radius: 50%;
   border: 1px solid var(--wv-border);
@@ -516,6 +516,13 @@ html:not(.dark) .time-range-card {
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
   cursor: pointer;
   transition: all 0.15s ease;
+}
+
+@media (min-width: 640px) {
+  .round-control {
+    width: 46px;
+    height: 46px;
+  }
 }
 
 html.light .round-control,

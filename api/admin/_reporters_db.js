@@ -108,6 +108,13 @@ export async function listReporters(settings, { communityId = 'all', search = ''
   return docs.map(plain)
 }
 
+// Village of a registry entry, for the village-scope check; null when the entry does not exist.
+export async function getReporterCommunity(settings, id) {
+  const db = await getDb(settings)
+  const doc = await db.collection(COLLECTION).findOne({ id }, { projection: { communityId: 1 } })
+  return doc ? (doc.communityId ?? 'thaton') : null
+}
+
 export async function createReporter(settings, payload, author = 'แอดมิน') {
   const db = await getDb(settings)
   const collection = db.collection(COLLECTION)

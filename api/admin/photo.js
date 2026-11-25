@@ -13,4 +13,4 @@ export default adminEndpoint('GET', async (request, response, settings) => {
   response.setHeader('Content-Type', photo.contentType || 'image/png')
   response.setHeader('Cache-Control', 'private, max-age=3600')
   return response.status(200).send(photo.buffer)
-})
+}, { page: 'samples', level: 'view' })

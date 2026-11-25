@@ -55,7 +55,7 @@ test('app opens on the map dashboard and the survey form loads in Nuxt UI', asyn
   // Survey Form
   await page.getByRole('button', { name: 'ทำแบบสำรวจ' }).first().click()
   await expect(page.getByRole('dialog', { name: 'ทำแบบสำรวจ' })).toBeVisible()
-  await expect(page.getByRole('radio')).toHaveCount(9)
+  await expect(page.getByRole('radio')).toHaveCount(6)
   await expect(page.getByLabel('เลือกภาพที่ 1')).toBeVisible()
   await expect(page.getByLabel('เลือกภาพที่ 2')).toBeVisible()
   await expect(page.getByRole('button', { name: 'ส่งข้อมูลบันทึก' })).toBeEnabled()
@@ -85,7 +85,7 @@ test('a survey that cannot reach the server explains it in Thai and keeps the fo
   const form = page.getByRole('dialog', { name: 'ทำแบบสำรวจ' })
   await form.getByPlaceholder('ระบุชื่อ-นามสกุลผู้เก็บตัวอย่าง').fill('ผู้ทดสอบ')
   await form.getByPlaceholder('08X-XXX-XXXX').fill('0800000000')
-  await form.getByLabel('ชุดตรวจที่ใช้').selectOption('ADPC')
+  await expect(form.getByLabel('ชุดตรวจที่ใช้')).toHaveValue('Oxfam')
   await form.getByRole('radio', { name: '6: 100 ppb' }).click()
   await form.getByRole('button', { name: /พิกัด GPS/ }).click()
   await expect(form.getByText(/ความแม่นยำ GPS/)).toBeVisible()

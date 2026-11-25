@@ -48,6 +48,22 @@ import {
   updateSponsorsHandler,
   updateContactsHandler,
 } from './admin/_settings.js'
+import {
+  getMeHandler,
+  getUsersHandler,
+  createUserHandler,
+  updateUserHandler,
+  deleteUserHandler,
+  getRolesHandler,
+  createRoleHandler,
+  updateRoleHandler,
+  deleteRoleHandler,
+} from './admin/_users.js'
+import {
+  oauthStatusHandler,
+  googleOAuthStartHandler,
+  googleOAuthCallbackHandler,
+} from './admin/_oauth.js'
 
 const serverEnvKeys = [
   'ADMIN_PASSCODE',
@@ -62,6 +78,9 @@ const serverEnvKeys = [
   'TURNSTILE_ALLOWED_HOSTNAMES',
   'GOOGLE_APPLICATION_CREDENTIALS',
   'GOOGLE_APPLICATION_CREDENTIALS_JSON',
+  'GOOGLE_OAUTH_CLIENT_ID',
+  'GOOGLE_OAUTH_CLIENT_SECRET',
+  'GOOGLE_OAUTH_SUPER_ADMINS',
 ]
 
 function resolveProjectFile(rootDir, relativePath) {
@@ -100,6 +119,8 @@ export function createExpressApp(rootDir = process.cwd()) {
   const app = express()
   app.disable('x-powered-by')
 
+  app.use('/api/admin/news', express.json({ limit: '15mb' }))
+  app.use('/api/admin/map-data/profiles', express.json({ limit: '512kb' }))
   app.use('/api', express.json({ limit: '16kb' }))
 
   app.use('/api', (err, _req, res, next) => {
@@ -195,6 +216,25 @@ export function createExpressApp(rootDir = process.cwd()) {
   app.get('/api/admin/settings', getProjectSettingsHandler)
   app.put('/api/admin/settings/sponsors', updateSponsorsHandler)
   app.put('/api/admin/settings/contacts', updateContactsHandler)
+
+  // Admin Users & Roles (RBAC) API
+  app.get('/api/admin/me', getMeHandler)
+  app.get('/api/admin/oauth/status', oauthStatusHandler)
+  app.get('/api/admin/oauth/google/start', googleOAuthStartHandler)
+  app.get('/api/admin/oauth/google/callback', googleOAuthCallbackHandler)
+  app.get('/api/auth/google/callback', googleOAuthCallbackHandler)
+  app.get('/api/admin/users', getUsersHandler)
+  app.post('/api/admin/users', createUserHandler)
+  app.put('/api/admin/users/:id', updateUserHandler)
+  app.put('/api/admin/users', updateUserHandler)
+  app.delete('/api/admin/users/:id', deleteUserHandler)
+  app.delete('/api/admin/users', deleteUserHandler)
+  app.get('/api/admin/roles', getRolesHandler)
+  app.post('/api/admin/roles', createRoleHandler)
+  app.put('/api/admin/roles/:id', updateRoleHandler)
+  app.put('/api/admin/roles', updateRoleHandler)
+  app.delete('/api/admin/roles/:id', deleteRoleHandler)
+  app.delete('/api/admin/roles', deleteRoleHandler)
 
   app.get('/api/contract', (_req, res) => {
     try {

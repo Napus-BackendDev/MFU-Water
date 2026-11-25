@@ -2,7 +2,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { readJsonBody, respond } from '../surveys/_shared.js'
 import { getDb } from '../surveys/_db.js'
-import { getAdminSettings, reviewerName, verifyAdminAuth } from '../admin/_admin_shared.js'
+import { getAdminSettings, requireAdmin, reviewerName } from '../admin/_admin_shared.js'
 
 let cachedRecords = null
 let cachedDestinations = null
@@ -199,7 +199,8 @@ export async function getActiveRun(db) {
 
 // 1. GET /api/admin/evacuation
 export async function getEvacuationHandler(request, response) {
-  if (!verifyAdminAuth(request)) return respond(response, 401, { error: 'กรุณาเข้าสู่ระบบผู้ดูแลระบบ' })
+  // Evacuation data is ท่าตอน's: the account needs edit (or view for reading) on the evacuation page and that village.
+  if (!(await requireAdmin(request, response, { page: 'evacuation', community: 'thaton' }))) return
 
   const settings = getAdminSettings()
   const db = await getDb(settings)
@@ -243,7 +244,8 @@ export async function getEvacuationHandler(request, response) {
 
 // 2. POST /api/admin/evacuation/start
 export async function startEvacuationHandler(request, response) {
-  if (!verifyAdminAuth(request)) return respond(response, 401, { error: 'กรุณาเข้าสู่ระบบผู้ดูแลระบบ' })
+  // Evacuation data is ท่าตอน's: the account needs edit (or view for reading) on the evacuation page and that village.
+  if (!(await requireAdmin(request, response, { page: 'evacuation', community: 'thaton' }))) return
 
   const settings = getAdminSettings()
   const db = await getDb(settings)
@@ -304,7 +306,8 @@ export async function startEvacuationHandler(request, response) {
 
 // 3. PATCH /api/admin/evacuation/cases/:householdId
 export async function updateEvacuationCaseHandler(request, response) {
-  if (!verifyAdminAuth(request)) return respond(response, 401, { error: 'กรุณาเข้าสู่ระบบผู้ดูแลระบบ' })
+  // Evacuation data is ท่าตอน's: the account needs edit (or view for reading) on the evacuation page and that village.
+  if (!(await requireAdmin(request, response, { page: 'evacuation', community: 'thaton' }))) return
 
   const householdId = request.params?.householdId || request.query?.householdId
   if (!householdId) return respond(response, 400, { error: 'กรุณาระบุ householdId' })
@@ -343,7 +346,8 @@ export async function updateEvacuationCaseHandler(request, response) {
 
 // 4. PUT /api/admin/evacuation/order
 export async function reorderEvacuationHandler(request, response) {
-  if (!verifyAdminAuth(request)) return respond(response, 401, { error: 'กรุณาเข้าสู่ระบบผู้ดูแลระบบ' })
+  // Evacuation data is ท่าตอน's: the account needs edit (or view for reading) on the evacuation page and that village.
+  if (!(await requireAdmin(request, response, { page: 'evacuation', community: 'thaton' }))) return
 
   const body = readJsonBody(request) || {}
   const { household_ids } = body
@@ -371,7 +375,8 @@ export async function reorderEvacuationHandler(request, response) {
 
 // 5. POST /api/admin/evacuation/close
 export async function closeEvacuationHandler(request, response) {
-  if (!verifyAdminAuth(request)) return respond(response, 401, { error: 'กรุณาเข้าสู่ระบบผู้ดูแลระบบ' })
+  // Evacuation data is ท่าตอน's: the account needs edit (or view for reading) on the evacuation page and that village.
+  if (!(await requireAdmin(request, response, { page: 'evacuation', community: 'thaton' }))) return
 
   const body = readJsonBody(request) || {}
   const settings = getAdminSettings()

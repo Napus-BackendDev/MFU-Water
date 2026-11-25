@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import type { ObservationDate } from './utils/flood-observations'
-import { Activity, BookOpen, CheckCircle2, ClipboardList, LocateFixed, Newspaper, ShieldAlert } from 'lucide-vue-next'
+import { Activity, BookOpen, CheckCircle2, ClipboardList, Layers, LocateFixed, Newspaper, ShieldAlert } from 'lucide-vue-next'
 import KokLandingHero from './components/KokLandingHero.vue'
 import KokKpiCard from './components/KokKpiCard.vue'
 import KokLoadingScreen from './components/KokLoadingScreen.vue'
@@ -13,6 +13,7 @@ import KokCommunityProfileCard from './components/KokCommunityProfileCard.vue'
 import KokPointDetailModal from './components/KokPointDetailModal.vue'
 import KokAdminDataTablePage from './components/KokAdminDataTablePage.vue'
 import KokNewsPage from './components/KokNewsPage.vue'
+import KokFloodLayersPage from './components/KokFloodLayersPage.vue'
 import KokEvacuationMode from './components/KokEvacuationMode.vue'
 import KokAdminLogin from './components/KokAdminLogin.vue'
 import { getAdminToken, requestAdminBypass } from './utils/admin-session'
@@ -178,8 +179,6 @@ async function locateUserOnMap(options: { autoSelectCommunity?: boolean; silent?
   focusRequest.value = { latitude, longitude, zoom: 16, nonce: ++focusNonce }
   if (matched) {
     selectedCommunityId.value = matched.id
-  } else if (!silent) {
-    showTemporaryFeedback('พบตำแหน่งปัจจุบันของคุณแล้ว (อยู่นอกเขต 4 ชุมชนเป้าหมาย)', 4500)
   }
 }
 
@@ -384,8 +383,26 @@ function toggleQuickPanel(panel: 'guide' | 'summary') {
 }
 
 // View navigation state: the map dashboard is the first page; 'landing' (community picker) is only reachable with ?view=landing
-type AppView = 'landing' | 'dashboard' | 'admin' | 'news'
+type AppView = 'landing' | 'dashboard' | 'admin' | 'news' | 'flood-layers'
 const currentView = ref<AppView>('dashboard')
+
+function navigateToFloodLayers() {
+  currentView.value = 'flood-layers'
+  if (typeof window !== 'undefined' && window.history) {
+    const url = new URL(window.location.href)
+    url.searchParams.set('view', 'flood-layers')
+    window.history.pushState(null, '', url.toString())
+  }
+}
+
+function returnToDashboardFromFloodLayers() {
+  currentView.value = 'dashboard'
+  if (typeof window !== 'undefined' && window.history) {
+    const url = new URL(window.location.href)
+    url.searchParams.set('view', 'dashboard')
+    window.history.pushState(null, '', url.toString())
+  }
+}
 
 function navigateToNews() {
   currentView.value = 'news'
@@ -496,6 +513,7 @@ onMounted(() => {
     selectedCommunityId.value = getInitialCommunity()
     if (params.get('view') === 'admin') currentView.value = 'admin'
     else if (params.get('view') === 'news') currentView.value = 'news'
+    else if (params.get('view') === 'flood-layers') currentView.value = 'flood-layers'
     else if (params.get('view') === 'landing') currentView.value = 'landing'
     welcomeOpen.value = currentView.value === 'dashboard' && params.get('welcome') !== 'off'
     window.addEventListener('resize', () => {
@@ -517,7 +535,7 @@ onMounted(() => {
     window.addEventListener('popstate', () => {
       const p = new URLSearchParams(window.location.search)
       const v = p.get('view')
-      currentView.value = v === 'admin' ? 'admin' : v === 'news' ? 'news' : v === 'landing' ? 'landing' : 'dashboard'
+      currentView.value = v === 'admin' ? 'admin' : v === 'news' ? 'news' : v === 'flood-layers' ? 'flood-layers' : v === 'landing' ? 'landing' : 'dashboard'
     })
   }
 })
@@ -534,6 +552,13 @@ onMounted(() => {
     <KokNewsPage
       v-else-if="currentView === 'news'"
       @back-to-map="returnToDashboardFromNews"
+    />
+
+    <KokFloodLayersPage
+      v-else-if="currentView === 'flood-layers'"
+      v-model:observations-visible="observationsVisible"
+      v-model:date="observationDate"
+      @back-to-map="returnToDashboardFromFloodLayers"
     />
 
     <!-- Page 1: Landing Page & Community Selection (R02 4 Focus Communities) -->
@@ -604,9 +629,18 @@ onMounted(() => {
         </div>
 
         <!-- Header Actions / Map Actions (Vertical on mobile, horizontal on sm+) -->
-        <div class="map-actions pointer-events-auto flex flex-col sm:flex-row items-center gap-2 shrink-0">
-          <KokFloodLayersControl v-if="(selectedCommunityId === 'thaton' || selectedCommunityId === 'all') && activeCommunityMapType === 'evacuation'"
-            v-model:observations-visible="observationsVisible" v-model:date="observationDate" />
+        <div class="map-actions pointer-events-auto flex flex-col sm:flex-row items-center gap-1.5 sm:gap-2 shrink-0">
+          <button
+            v-if="(selectedCommunityId === 'thaton' || selectedCommunityId === 'all') && activeCommunityMapType === 'evacuation'"
+            type="button"
+            aria-label="เลเยอร์น้ำท่วม"
+            title="เลเยอร์น้ำท่วม"
+            class="round-control"
+            :class="{ 'ring-2 ring-[#0284C7] dark:ring-[#00E5FF]': observationsVisible }"
+            @click="navigateToFloodLayers"
+          >
+            <Layers class="h-4.5 w-4.5 text-[#0284C7] dark:text-[#00E5FF]" />
+          </button>
           <button
             type="button"
             aria-label="ตำแหน่งฉัน"
@@ -810,9 +844,9 @@ onMounted(() => {
                 </p>
               </div>
               <div class="wv-subsurface">
-                <strong class="text-base text-[#0284C7] dark:text-[#00E5FF]">ขั้นที่ 2: เทียบแถบสี 9 ระดับ</strong>
+                <strong class="text-base text-[#0284C7] dark:text-[#00E5FF]">ขั้นที่ 2: เทียบแถบสี 6 ระดับ</strong>
                 <p class="mt-1 text-[15px] leading-relaxed text-slate-600 dark:text-[#98A2A8]">
-                  เทียบสีแผ่นทดสอบกับสเกลมาตรฐาน 9 ระดับ (0, 5, 10, 30, 50, 100, 200, 300, 500 ppb) และถ่ายภาพไว้ 1–2 ภาพ
+                  เทียบสีแผ่นทดสอบกับสเกลมาตรฐาน 6 ระดับ (0, 5, 10, 30, 50, 100 ppb) และถ่ายภาพไว้ 1–2 ภาพ
                 </p>
               </div>
               <div class="wv-subsurface">
@@ -867,18 +901,11 @@ onMounted(() => {
         </div>
       </div>
 
-      <!-- Survey Submission Toast Feedback -->
-      <div
-        v-if="surveyFeedback"
-        role="status"
-        class="wv-info-box absolute top-[78px] left-3 right-16 sm:left-auto sm:top-16 sm:right-4 z-40 max-w-md shadow-xl flex items-center justify-between gap-3 text-sm sm:text-[15px] border border-emerald-300 dark:border-emerald-700 bg-white/95 dark:bg-[#1E1E1E]/95"
-      >
-        <div class="flex items-start gap-2.5">
-          <CheckCircle2 class="h-5 w-5 text-emerald-600 dark:text-[#32D74B] shrink-0 mt-0.5" />
-          <span class="text-slate-800 dark:text-slate-100 font-medium leading-snug">{{ surveyFeedback }}</span>
-        </div>
-        <button type="button" class="underline ml-2 shrink-0 text-sm text-slate-500 hover:text-slate-700 dark:text-slate-400" @click="surveyFeedback = null">ปิด</button>
-      </div>
+      <!-- Survey Submission Toast Feedback (Floating Bottom-Right Alert) -->
+      <KokAlertToast
+        :feedback="surveyFeedback ? { type: 'success', message: surveyFeedback } : null"
+        @close="surveyFeedback = null"
+      />
 
       <!-- K2 Survey Modal Dialog -->
       <KokSurveyModal

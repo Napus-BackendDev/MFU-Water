@@ -55,12 +55,16 @@ export default defineNuxtConfig({
       meta: [
         { charset: 'utf-8' },
         { name: 'viewport', content: 'width=device-width, initial-scale=1' },
+        { name: 'theme-color', content: '#0284C7' },
         {
           name: 'description',
           content: 'ระบบติดตามคุณภาพน้ำแม่น้ำกกและข้อมูลชุมชนต้นแบบ มหาวิทยาลัยแม่ฟ้าหลวง (R01–R29 ข้อมูลจริง KokData)',
         },
       ],
       link: [
+        { rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' },
+        { rel: 'shortcut icon', href: '/favicon.svg' },
+        { rel: 'apple-touch-icon', href: '/favicon.svg' },
         { rel: 'preconnect', href: 'https://fonts.googleapis.com' },
         { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: '' },
         {

@@ -62,29 +62,29 @@ onBeforeUnmount(() => {
     <!-- Main Dropdown Trigger Button with 3 Rows Layout -->
     <button
       type="button"
-      class="flex items-center gap-2.5 rounded-xl border border-slate-200/90 bg-white/95 px-3 py-1.5 shadow-lg backdrop-blur-md transition-all hover:border-[#0284C7] dark:border-[#2C2C2E] dark:bg-[#1E1E1E]/95 dark:hover:border-[#00E5FF] focus:outline-hidden focus:ring-2 focus:ring-[#0284C7]/40 dark:focus:ring-[#00E5FF]/40 cursor-pointer"
+      class="flex items-center gap-2 sm:gap-2.5 rounded-xl border border-slate-200/90 bg-white/95 px-2.5 py-1 sm:px-3 sm:py-1.5 shadow-lg backdrop-blur-md transition-all hover:border-[#0284C7] dark:border-[#2C2C2E] dark:bg-[#1E1E1E]/95 dark:hover:border-[#00E5FF] focus:outline-hidden focus:ring-2 focus:ring-[#0284C7]/40 dark:focus:ring-[#00E5FF]/40 cursor-pointer"
       :aria-expanded="isOpen"
       aria-haspopup="listbox"
       aria-label="เลือกพื้นที่ชุมชนเป้าหมาย"
       @click="toggleDropdown"
     >
       <!-- Icon with soft brand accent background -->
-      <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#0284C7]/15 text-[#0284C7] dark:bg-[#00E5FF]/20 dark:text-[#00E5FF]">
-        <MapPin class="h-4.5 w-4.5" />
+      <div class="flex h-7 w-7 sm:h-8 sm:w-8 shrink-0 items-center justify-center rounded-lg bg-[#0284C7]/15 text-[#0284C7] dark:bg-[#00E5FF]/20 dark:text-[#00E5FF]">
+        <MapPin class="h-4 w-4 sm:h-4.5 sm:w-4.5" />
       </div>
 
       <!-- Current Community Details (3 Rows: Overline, Main Name, Subtitle) -->
       <div class="flex flex-col text-left leading-tight">
         <!-- Row 1: ลักษณะเล็กๆ บอก 'เลือกพื้นที่' -->
-        <span class="text-xs sm:text-[13px] font-medium text-slate-500 dark:text-zinc-400">
+        <span class="text-[11px] sm:text-[13px] font-medium text-slate-500 dark:text-zinc-400">
           เลือกพื้นที่
         </span>
         <!-- Row 2: ชื่อชุมชนหลัก เช่น 'บ้านท่าตอน' -->
-        <span class="text-base sm:text-[17px] font-bold text-slate-900 dark:text-white my-0.5 tracking-tight">
+        <span class="text-sm sm:text-[17px] font-bold text-slate-900 dark:text-white my-0.5 tracking-tight">
           {{ communityDisplayName(currentTarget) }}
         </span>
         <!-- Row 3: ลักษณะเล็กๆ บอก ตำบล อำเภอ จังหวัด -->
-        <span class="text-xs sm:text-[13px] text-slate-500 dark:text-zinc-400">
+        <span class="text-[11px] sm:text-[12px] text-slate-500 dark:text-zinc-400">
           {{ currentTarget.subdistrict }} {{ currentTarget.district }} {{ currentTarget.province }}
         </span>
       </div>

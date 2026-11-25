@@ -1,3 +1,4 @@
+import { fillPasscode, superAdminMe } from './admin-login'
 import { expect, test, type Page } from '@playwright/test'
 
 const article = {
@@ -21,7 +22,7 @@ const article = {
 const openLogin = (page: Page) => page.goto('/?view=admin')
 
 async function login(page: Page, passcode: string) {
-  await page.locator('input[type=password]').fill(passcode)
+  await fillPasscode(page, passcode)
   await page.getByRole('button', { name: /เข้าสู่ระบบ/ }).click()
   await page.getByRole('button', { name: /จัดการข่าวสาร/ }).click()
 }
@@ -32,6 +33,7 @@ async function mockAdminApi(page: Page, writeStatus: number) {
     const request = route.request()
     const url = request.url()
     if (url.includes('verify-passcode')) return route.fulfill({ json: { ok: true, token: '1.mock' } })
+    if (url.endsWith('/api/admin/me')) return route.fulfill({ json: superAdminMe })
     if (url.includes('/samples')) return route.fulfill({ json: { samples: [], counts: { total: 0, pending: 0, approved: 0, autoPublished: 0, rejected: 0 }, alerts: [] } })
     if (url.includes('/map-data/audit')) return route.fulfill({ json: { ok: true, items: [] } })
     if (url.includes('/map-data/preview')) return route.fulfill({ json: { ok: true, payload: { placed: [], pending: [], hamlets: [], routes: [], layers: [] } } })
@@ -102,7 +104,7 @@ for (const viewport of [{ width: 375, height: 812 }, { width: 1440, height: 900 
     await mockAdminApi(page, 503)
     await mockSamples(page)
     await openLogin(page)
-    await page.locator('input[type=password]').fill('mock')
+    await fillPasscode(page, 'mock')
     await page.getByRole('button', { name: /เข้าสู่ระบบ/ }).click()
     await openSamplesTab(page)
     await page.getByRole('button', { name: 'KOK-E2E-001' }).click()
@@ -118,7 +120,7 @@ for (const width of [375, 768, 1024, 1280, 1440]) {
     await mockAdminApi(page, 503)
     await mockSamples(page)
     await openLogin(page)
-    await page.locator('input[type=password]').fill('mock')
+    await fillPasscode(page, 'mock')
     await page.getByRole('button', { name: /เข้าสู่ระบบ/ }).click()
     await openSamplesTab(page)
     const fits = () => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)
@@ -151,7 +153,7 @@ test('an admin edits a sample and deletes it, and failures stay in the dialog', 
     return route.fulfill({ json: { success: true } })
   })
   await openLogin(page)
-  await page.locator('input[type=password]').fill('mock')
+  await fillPasscode(page, 'mock')
   await page.getByRole('button', { name: /เข้าสู่ระบบ/ }).click()
   await openSamplesTab(page)
   await page.getByRole('button', { name: 'KOK-E2E-001' }).click()

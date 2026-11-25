@@ -285,6 +285,7 @@ function selectTeam(id: SwgTeamId) {
 async function handleSave() {
   if (!currentTeam.value) return
   saving.value = true
+  errorMessage.value = null
   try {
     const payload = {
       id: currentTeam.value.id,
@@ -309,10 +310,10 @@ async function handleSave() {
         isSavedToastVisible.value = false
       }, 2500)
     } else {
-      alert('บันทึกข้อมูลไม่สำเร็จ กรุณาลองใหม่อีกครั้ง')
+      errorMessage.value = 'บันทึกข้อมูลไม่สำเร็จ กรุณาลองใหม่อีกครั้ง'
     }
-  } catch (err) {
-    alert('เกิดข้อผิดพลาดในการบันทึกข้อมูล')
+  } catch {
+    errorMessage.value = 'เกิดข้อผิดพลาดในการบันทึกข้อมูล'
   } finally {
     saving.value = false
   }
@@ -349,6 +350,15 @@ async function handleSave() {
           <span>{{ saving ? 'กำลังบันทึก...' : 'บันทึกการแก้ไข' }}</span>
         </button>
       </div>
+    </div>
+
+    <div
+      v-if="errorMessage"
+      role="alert"
+      class="fixed bottom-6 right-6 z-50 flex max-w-sm items-start gap-2.5 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs font-bold text-rose-800 shadow-lg dark:border-rose-900 dark:bg-rose-950/80 dark:text-rose-200"
+    >
+      <span class="flex-1">{{ errorMessage }}</span>
+      <button type="button" aria-label="ปิดข้อความ" class="cursor-pointer text-rose-600 hover:text-rose-800 dark:text-rose-300" @click="errorMessage = null">✕</button>
     </div>
 
     <!-- Toast Notification -->

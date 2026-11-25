@@ -1,0 +1,107 @@
+{
+  "question": "ผลตรวจน้ำ 1 ตัวอย่างผ่านใครบ้างก่อนทีมวิจัยนำไปวิเคราะห์และคืนข้อมูลให้ชุมชน และขั้นไหนที่ระบบยังไม่มี?",
+  "audience": "ทีมวิจัยและเจ้าของโครงการ MFU Kok Water Watch",
+  "findings": [
+    "ผลตรวจ >50 ppb รอผู้ตรวจอนุมัติโดยไม่มีกำหนดเวลาและไม่มีการเตือนเมื่อค้างนาน (ค้นโค้ด api/ และ app/ แล้วไม่พบตรรกะ overdue/reminder) ตัวอย่างจึงค้างหายจากแผนที่ได้เรื่อย ๆ",
+    "ผลตรวจ ≤50 ppb เผยแพร่ขึ้นแผนที่ทันทีโดยไม่ผ่านการตรวจจากคน (api/surveys/complete.js:54)",
+    "ขั้น 'ทีมวิจัยตรวจคุณภาพข้อมูลและตัดสินว่าพอสรุปไหม' ยังไม่มีหน้าจอรองรับ (ยังเป็นข้อเสนอใน docs/research-team-workflow.md) และส่งออกมีเฉพาะ CSV"
+  ],
+  "exceptions": [
+    "ผู้ตรวจปฏิเสธ: ตัวอย่างไม่ขึ้นแผนที่ ผู้ตรวจติดต่อผู้ส่งกลับหรือขอตรวจซ้ำ (ข้อ R05)",
+    "ข้อมูลน้อยเกินสรุป: ย้อนกลับไปเก็บตัวอย่างเพิ่ม"
+  ],
+  "claims": {
+    "start": {
+      "status": "verified",
+      "evidence": "api/surveys/complete.js:54"
+    },
+    "gate": {
+      "status": "verified",
+      "evidence": "api/surveys/complete.js:54"
+    },
+    "auto": {
+      "status": "verified",
+      "evidence": "api/surveys/waypoints.js:43"
+    },
+    "queue": {
+      "status": "verified",
+      "evidence": "api/surveys/_db.js:172"
+    },
+    "decide": {
+      "status": "verified",
+      "evidence": "api/admin/review.js:31"
+    },
+    "approved": {
+      "status": "verified",
+      "evidence": "api/surveys/waypoints.js:43"
+    },
+    "rejected": {
+      "status": "verified",
+      "evidence": "api/surveys/_db.js:150"
+    },
+    "analyze": {
+      "status": "assumption",
+      "evidence": "ยังไม่มีหน้า ศูนย์ข้อมูลทีมวิจัย; มีเฉพาะ KokAdminReports.vue ที่สรุปผลน้ำ (เสนอใน docs/research-team-workflow.md)"
+    },
+    "enough": {
+      "status": "assumption",
+      "evidence": "เกณฑ์ n ต่อสถานีเป็นข้อเสนอ (5) ยังไม่ได้ให้ทีมตัดสิน"
+    },
+    "report": {
+      "status": "verified",
+      "evidence": "app/components/KokAdminReports.vue:139"
+    },
+    "return": {
+      "status": "verified",
+      "evidence": "app/components/KokAdminNewsForm.vue:1"
+    },
+    "end": {
+      "status": "verified",
+      "evidence": "app/components/KokAdminPrintMap.vue:1"
+    },
+    "a1": {
+      "status": "verified",
+      "evidence": "api/surveys/complete.js:54"
+    },
+    "a2": {
+      "status": "verified",
+      "evidence": "api/surveys/complete.js:54"
+    },
+    "a3": {
+      "status": "verified",
+      "evidence": "api/surveys/complete.js:54"
+    },
+    "a4": {
+      "status": "verified",
+      "evidence": "api/surveys/_db.js:172"
+    },
+    "a5": {
+      "status": "verified",
+      "evidence": "api/admin/review.js:31"
+    },
+    "a6": {
+      "status": "verified",
+      "evidence": "api/surveys/waypoints.js:43"
+    },
+    "a7": {
+      "status": "verified",
+      "evidence": "api/surveys/_db.js:150"
+    },
+    "a8": {
+      "status": "assumption",
+      "evidence": "ขั้นวิเคราะห์ยังไม่มีหน้าจอ"
+    },
+    "a9": {
+      "status": "assumption",
+      "evidence": "เกณฑ์ข้อมูลพอสรุปเป็นข้อเสนอ"
+    },
+    "a10": {
+      "status": "verified",
+      "evidence": "app/components/KokAdminReports.vue:139"
+    },
+    "a11": {
+      "status": "verified",
+      "evidence": "app/components/KokAdminNewsForm.vue:1"
+    }
+  }
+}

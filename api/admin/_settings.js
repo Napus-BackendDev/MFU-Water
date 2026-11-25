@@ -5,7 +5,7 @@ import { getProjectSettings, updateSponsors, updateContacts } from './_settings_
 export const getProjectSettingsHandler = adminEndpoint('GET', async (_request, response, settings) => {
   const data = await getProjectSettings(settings)
   return respond(response, 200, { ok: true, ...data })
-})
+}, { page: 'settings', level: 'view' })
 
 export const updateSponsorsHandler = adminEndpoint('PUT', async (request, response, settings) => {
   const items = Array.isArray(request.body?.sponsors)
@@ -18,7 +18,7 @@ export const updateSponsorsHandler = adminEndpoint('PUT', async (request, respon
   const author = reviewerName(request.headers?.['x-reviewer-name']) || 'แอดมิน'
   const updated = await updateSponsors(settings, items, author)
   return respond(response, 200, { ok: true, sponsors: updated })
-})
+}, { page: 'settings', level: 'edit' })
 
 export const updateContactsHandler = adminEndpoint('PUT', async (request, response, settings) => {
   const items = Array.isArray(request.body?.contacts)
@@ -31,4 +31,4 @@ export const updateContactsHandler = adminEndpoint('PUT', async (request, respon
   const author = reviewerName(request.headers?.['x-reviewer-name']) || 'แอดมิน'
   const updated = await updateContacts(settings, items, author)
   return respond(response, 200, { ok: true, contacts: updated })
-})
+}, { page: 'settings', level: 'edit' })

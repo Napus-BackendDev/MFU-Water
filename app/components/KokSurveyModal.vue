@@ -30,8 +30,8 @@ const publicConsent = ref(false)
 const formError = ref<string | null>(null)
 const saving = ref(false)
 
-// ชุดตรวจ: ADPC และ Oxfam เป็นชุดที่โครงการแจกจ่าย ชุดอื่นให้ระบุยี่ห้อเอง
-const testKit = ref('')
+// ชุดตรวจ: Oxfam เป็นชุดที่โครงการแจกจ่าย (ค่าเริ่มต้น) ชุดอื่นให้ระบุยี่ห้อเอง
+const testKit = ref('Oxfam')
 const testKitOther = ref('')
 const collectedAt = ref('')
 const nowLocal = () => {
@@ -43,6 +43,7 @@ watch(() => props.open, (isOpen) => {
   if (!isOpen) return
   maxCollectedAt.value = nowLocal()
   if (!collectedAt.value) collectedAt.value = maxCollectedAt.value
+  if (!testKit.value) testKit.value = 'Oxfam'
 })
 
 const gps = useGpsLocation()
@@ -69,7 +70,7 @@ function resetForm() {
   phoneNumber.value = ''
   arsenicLevel.value = null
   publicConsent.value = false
-  testKit.value = ''
+  testKit.value = 'Oxfam'
   testKitOther.value = ''
   collectedAt.value = ''
   formError.value = null
@@ -143,18 +144,18 @@ async function handleSubmit() {
       role="dialog"
       aria-modal="true"
       aria-labelledby="survey-title"
-      class="wv-card max-h-[92vh] w-full max-w-2xl overflow-y-auto no-scrollbar rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 text-slate-900 shadow-2xl dark:border-[#2C2C2E] dark:bg-[#1E1E1E] dark:text-white"
+      class="wv-card max-h-[95vh] w-full max-w-3xl overflow-y-auto no-scrollbar rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 text-slate-900 shadow-2xl dark:border-[#2C2C2E] dark:bg-[#1E1E1E] dark:text-white"
     >
       <KokLoadingScreen v-if="saving" variant="sending" />
-      <form novalidate class="space-y-3.5" @submit.prevent="handleSubmit">
-        <header class="flex items-start justify-between gap-3 border-b border-slate-200 dark:border-[#2C2C2E] pb-3">
+      <form novalidate class="space-y-3" @submit.prevent="handleSubmit">
+        <header class="flex items-start justify-between gap-3 border-b border-slate-200 dark:border-[#2C2C2E] pb-2.5">
           <div class="flex items-center gap-3">
             <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-sky-50 text-sky-600 border border-sky-200 dark:bg-[#00E5FF]/15 dark:text-[#00E5FF] dark:border-transparent">
               <ClipboardList class="h-5 w-5" />
             </div>
             <div>
               <h2 id="survey-title" class="text-lg font-bold text-slate-900 dark:text-white sm:text-xl">ทำแบบสำรวจ</h2>
-              <p class="text-sm text-slate-600 dark:text-[#98A2A8]">บันทึกผลตรวจชุดทดสอบสารหนูภาคสนาม 9 ระดับ</p>
+              <p class="text-sm text-slate-600 dark:text-[#98A2A8]">บันทึกผลตรวจชุดทดสอบสารหนูภาคสนาม 6 ระดับ (0–100 ppb)</p>
             </div>
           </div>
           <button
@@ -199,8 +200,6 @@ async function handleSubmit() {
           <label :class="label">
             ชุดตรวจที่ใช้ (ยี่ห้อ) <span class="text-rose-600 dark:text-[#FF453A]">*จำเป็น</span>
             <select v-model="testKit" :class="field" :disabled="saving" @change="formError = null">
-              <option value="" disabled>เลือกชุดตรวจ</option>
-              <option value="ADPC">ชุดตรวจจาก ADPC</option>
               <option value="Oxfam">ชุดตรวจจาก Oxfam</option>
               <option value="other">อื่น ๆ (ระบุยี่ห้อ)</option>
             </select>

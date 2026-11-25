@@ -1,11 +1,24 @@
 import { reactive } from 'vue'
-import type { PublicPlace } from '../../src/lib/map-data'
+import { DEFAULT_PLACE_MAP, type PublicPlace } from '../../src/lib/map-data'
+import type { NewsContentBlock } from './news-types'
 
 // ข้อมูลแผนที่ที่ผู้ดูแลแก้ได้ (สถานที่สำคัญ เส้นทางอพยพ การ์ดรู้จักชุมชน) ที่หน้าบ้านอ่านจาก /api/map-data
 // ถ้า API ยังไม่พร้อมจะคงค่าว่าง และผู้ใช้ส่วนอื่นของแอปใช้ไฟล์เดิมเป็นค่าสำรอง (หน้าบ้านไม่พังเมื่อฐานข้อมูลล่ม)
 export type PublicRoutes = { routes: Array<Array<[number, number]>>; alignment: string; source: string }
-export type PublicProfileText = { title: string; basin: string; people: string; livelihood: string; risk: string }
+export type PublicProfileText = {
+  title: string
+  basin: string
+  people: string
+  livelihood: string
+  risk: string
+  cover_image_url?: string
+  content_blocks?: NewsContentBlock[]
+}
 export type PublicHamlet = { id: string; name: string; note: string; center: { latitude: number; longitude: number } | null; households: number; householdsLabel: string }
+
+// Places with no map name belong to the main map ("แผนที่จากสถานที่"); the survey topics are separate maps.
+export const mapNameOfPlace = (place: PublicPlace) => place.mapName?.trim() || DEFAULT_PLACE_MAP
+export const isMainMapPlace = (place: PublicPlace) => mapNameOfPlace(place) === DEFAULT_PLACE_MAP
 
 export const publicMapData = reactive({
   loaded: false,

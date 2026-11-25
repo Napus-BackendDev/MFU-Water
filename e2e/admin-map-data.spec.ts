@@ -1,3 +1,4 @@
+import { fillPasscode, superAdminMe } from './admin-login'
 import { readFileSync } from 'node:fs'
 import { expect, test, type Page } from '@playwright/test'
 // @ts-expect-error shared plain-JS rules, typed by src/lib/map-data.d.ts for the app only
@@ -24,6 +25,7 @@ async function mockApi(page: Page) {
     const url = new URL(request.url())
     const path = url.pathname
     if (path.includes('verify-passcode')) return route.fulfill({ json: { ok: true, token: '1.mock' } })
+    if (path.endsWith('/api/admin/me')) return route.fulfill({ json: superAdminMe })
     if (path.includes('/samples') || path.includes('/pending-samples')) return route.fulfill({ json: { samples: [], counts: { total: 0, pending: 0, approved: 0, autoPublished: 0, rejected: 0 }, alerts: [] } })
     if (path.includes('/news')) return route.fulfill({ json: { ok: true, items: [], counts: { total: 0, published: 0, draft: 0, pinned: 0 } } })
     if (!path.includes('/map-data')) return route.fulfill({ json: { ok: true } })
@@ -61,7 +63,7 @@ async function mockApi(page: Page) {
 async function openMapData(page: Page) {
   await mockApi(page)
   await page.goto('/?view=admin')
-  await page.locator('input[type=password]').fill('mock')
+  await fillPasscode(page, 'mock')
   await page.getByRole('button', { name: /เข้าสู่ระบบ/ }).click()
 }
 
@@ -79,8 +81,8 @@ test('the overview shows what the public sees and the privacy reminder', async (
   await openMapData(page)
   await selectSidebarMenu(page, 'ภาพรวม')
   await expect(page.getByText('อยู่ในคิวอพยพ')).toBeVisible()
-  await expect(page.getByText('หมู่บ้านในทะเบียน')).toBeVisible()
-  await expect(page.getByText('สถานที่สำคัญที่เผยแพร่')).toBeVisible()
+  await expect(page.getByText('ตัวอย่างน้ำรออนุมัติ')).toBeVisible()
+  await expect(page.getByText('สถานที่สำคัญที่เผยแพร่', { exact: true })).toBeVisible()
   await expect(page.getByText('หน้าบ้านกำลังแสดงหมุดตำแหน่งรายครัวเรือน')).toHaveCount(0)
 })
 
@@ -88,17 +90,13 @@ test('a place without coordinates is saved as waiting to be located and no conta
   await openMapData(page)
   await selectSidebarMenu(page, 'สถานที่สำคัญ')
   await expect(page.getByText('ศูนย์พักพิงตามแผน').first()).toBeVisible()
-  await page.getByRole('button', { name: 'เพิ่มสถานที่' }).click()
-  await page.getByLabel('ชื่อสถานที่ *').fill('ศาลาประชาคม')
-  await page.getByLabel('ชนิด *').selectOption('community_hall')
-  await expect(page.getByText('ฉบับร่าง: หน้าบ้านยังไม่เห็น')).toBeVisible()
-  await page.getByLabel('สถานะบนหน้าบ้าน').selectOption('published')
-  await expect(page.getByText('หน้าบ้านแสดงในรายการ “รอผูกจุด” ไม่ปักบนแผนที่')).toBeVisible()
-  await page.getByLabel('สถานะบนหน้าบ้าน').selectOption('draft')
-  await page.getByRole('button', { name: 'บันทึก', exact: true }).click()
+  // The form is a pin form now: name, note and optional coordinates (kind and status are no longer asked).
+  await page.getByRole('button', { name: 'เพิ่มหมุด' }).first().click()
+  await page.locator('#place-name').fill('ศาลาประชาคม')
+  await page.getByRole('button', { name: 'บันทึกหมุด' }).click()
   await expect(page.getByText('บันทึกสถานที่เรียบร้อย')).toBeVisible()
   const sent = writes.find((write) => write.method === 'POST')!.body as Record<string, unknown>
-  expect(sent).toMatchObject({ name: 'ศาลาประชาคม', kind: 'community_hall', latitude: null, longitude: null, status: 'draft' })
+  expect(sent).toMatchObject({ name: 'ศาลาประชาคม', latitude: null, longitude: null })
   expect(Object.keys(sent).some((key) => /phone|tel|contact/i.test(key))).toBe(false)
 })
 

@@ -244,6 +244,10 @@ export async function createNewsArticle(settings, data) {
     content: String(data.content || '').trim(),
     cover_image_url: data.cover_image_url !== undefined ? String(data.cover_image_url).trim() : '',
     gallery_image_urls: Array.isArray(data.gallery_image_urls) ? data.gallery_image_urls : [],
+    content_blocks: Array.isArray(data.content_blocks) ? data.content_blocks : [],
+    research_tags: Array.isArray(data.research_tags)
+      ? data.research_tags.map(Number).filter((n) => Number.isInteger(n) && n >= 1 && n <= 7)
+      : [],
     is_pinned: Boolean(data.is_pinned),
     status: 'published',
     author: data.author || 'ศูนย์ประสานงานวิจัยลุ่มน้ำกก มฟล.',
@@ -267,6 +271,12 @@ export async function updateNewsArticle(settings, id, data) {
   if (data.content !== undefined) update.content = String(data.content).trim()
   if (data.cover_image_url !== undefined) update.cover_image_url = data.cover_image_url
   if (data.gallery_image_urls !== undefined) update.gallery_image_urls = data.gallery_image_urls
+  if (data.content_blocks !== undefined) update.content_blocks = Array.isArray(data.content_blocks) ? data.content_blocks : []
+  if (data.research_tags !== undefined) {
+    update.research_tags = Array.isArray(data.research_tags)
+      ? data.research_tags.map(Number).filter((n) => Number.isInteger(n) && n >= 1 && n <= 7)
+      : []
+  }
   if (data.is_pinned !== undefined) update.is_pinned = Boolean(data.is_pinned)
   const existing = await col.findOne({ id }, { projection: { published_at: 1 } })
   if (!existing?.published_at) update.published_at = now

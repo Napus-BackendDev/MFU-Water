@@ -83,3 +83,6 @@ Desktop.ini
 
 # Household-level survey data: coordinates and contacts that must never reach the repository.
 data/private/
+
+# Runtime user-uploaded images and documents stored in public/uploads/ and indexed in MongoDB.
+public/uploads/

@@ -9,6 +9,7 @@ export type Answers = Record<string, string | number>
 export type Household = {
   id: string
   seq: number
+  name?: string
   community_id: CommunityId
   latitude: number
   longitude: number
@@ -52,6 +53,9 @@ export type Place = {
   last_checked: string | null
   note: string
   status: PublishStatus
+  map_name?: string
+  pin_color?: string | null
+  pin_icon?: string | null
   verified_at?: string | null
   updated_at?: string
   updated_by?: string | null
@@ -68,6 +72,9 @@ export type PublicPlace = {
   color: string
   evacuationColor: string
   path: string
+  mapName?: string
+  pinIcon?: string
+  pinColor?: string
   sourceSection: string
   precisionLabel: string
   operationalLabel: string
@@ -93,7 +100,16 @@ export type CommunityReview = {
 export type CommunityMeta = { sourceUrl: string; title: string; importedAt: string; surveyDate: string | null }
 
 export type Routes = { routes: Array<Array<[number, number]>>; alignment: string; source: string }
-export type CommunityProfileDoc = { community_id: CommunityId; title: string; basin: string; people: string; livelihood: string; risk: string }
+export type CommunityProfileDoc = {
+  community_id: CommunityId
+  title: string
+  basin: string
+  people: string
+  livelihood: string
+  risk: string
+  cover_image_url?: string
+  content_blocks?: unknown[]
+}
 
 export type CommunityLayer = { id: string; label: string; fields: string[]; level(answers: Answers): string }
 
@@ -107,6 +123,14 @@ export const PROFILE_FIELDS: string[]
 export const FIELD_OPTIONS: Record<string, string[]>
 export const LEVEL_DEFS: Record<string, LevelDef[]>
 export const COMMUNITY_LAYERS: CommunityLayer[]
+export type PinIconId = 'house' | 'flag' | 'drop' | 'sensor' | 'alert' | 'cross' | 'temple' | 'book' | 'building' | 'pier' | 'pot' | 'car' | 'chat' | 'dot'
+export type PinIconOption = { id: PinIconId; label: string; usage: string; kind: PlaceKind; defaultColor: string; path: string }
+export type PinColorOption = { hex: string; label: string }
+
+export const DEFAULT_PLACE_MAP: string
+export const PIN_PATHS: Record<PinIconId, string>
+export const PIN_ICON_OPTIONS: PinIconOption[]
+export const PIN_COLOR_OPTIONS: PinColorOption[]
 export const PLACE_KINDS: Record<PlaceKind, { label: string; color: string; evacuationColor?: string; path: string }>
 export const PLACE_PRECISIONS: Record<PlacePrecision, string>
 export const PLACE_OPERATIONAL: Record<PlaceOperational, string>
@@ -127,6 +151,8 @@ export function buildCommunityReview(input: {
   pointsPublic?: boolean
 }): CommunityReview
 export function seedFromReview(review: unknown, options?: { communityId?: CommunityId }): { hamlets: Hamlet[]; households: Household[] }
+export function describeSurveyPin(layerIndex: number, record: { status?: string; fields?: Record<string, string> }): string
+export function layerMapPlaces(review: unknown, options?: { communityId?: CommunityId }): Place[]
 export function metaFromReview(review: unknown): CommunityMeta
 export function levelGroups(households: Household[], layerId?: string): Array<LevelDef & { count: number }>
 export function isThaiCoordinate(latitude: number, longitude: number): boolean

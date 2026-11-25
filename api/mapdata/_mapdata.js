@@ -1,5 +1,6 @@
 import { readJsonBody, respond } from '../surveys/_shared.js'
-import { getAdminSettings, reviewerName, verifyAdminAuth } from '../admin/_admin_shared.js'
+import { getAdminSettings, requireAdmin, reviewerName } from '../admin/_admin_shared.js'
+import { canAccessCommunity } from '../../src/lib/admin-rbac.js'
 import {
   COMMUNITY_IDS,
   COMMUNITY_LAYERS,
@@ -19,12 +20,20 @@ import * as store from './_mapdata_db.js'
 const ID = /^[A-Za-z0-9_-]{1,40}$/
 const asText = (value) => (typeof value === 'string' ? value : '')
 
-function readBody(request) {
+function readBody(request, maxBytes = 16384) {
   try {
-    return readJsonBody(request)
+    return readJsonBody(request, maxBytes)
   } catch {
     return null
   }
+}
+
+// Admin page that owns each kind of map data. Hamlets and households exist for ท่าตอน only.
+const PAGE_OF_KIND = { '': 'overview', audit: 'settings', settings: 'overview', places: 'places', hamlets: 'hamlets', households: 'evacuation', evacuation: 'evacuation', profiles: 'hamlets', preview: 'overview' }
+const THATON_ONLY = new Set(['hamlets', 'households'])
+const outOfScope = (request, response, community) => {
+  if (canAccessCommunity(request.adminContext?.allowedCommunities, community)) return null
+  return respond(response, 403, { error: 'บัญชีนี้ไม่มีสิทธิ์ในชุมชนนี้' })
 }
 
 const bad = (response, message, errors) => respond(response, 400, { error: message, ...(errors ? { errors } : {}) })
@@ -45,6 +54,28 @@ const editor = (request, body) => fromHeader(request.headers?.['x-admin-name']) 
 
 async function placesRoute({ request, response, settings, id, action }) {
   const { method, query } = request
+  const ctx = request.adminContext
+  const restricted = !canAccessCommunity(ctx?.allowedCommunities, 'all')
+  if (id) {
+    // Existing place: the account must have its village (also blocks reading or changing someone else's place).
+    const existing = await store.getPlace(settings, id)
+    if (existing) {
+      const denied = outOfScope(request, response, existing.community_id ?? 'thaton')
+      if (denied) return denied
+    }
+  }
+  if (method === 'GET' && !id && restricted) {
+    const asked = asText(query?.community)
+    const allowedList = ctx?.allowedCommunities ?? []
+    if (asked) {
+      const denied = outOfScope(request, response, asked)
+      if (denied) return denied
+    } else if (allowedList.length === 1) {
+      query.community = allowedList[0]
+    } else {
+      return respond(response, 403, { error: 'กรุณาระบุชุมชนที่ต้องการดู' })
+    }
+  }
   if (method === 'GET' && !id) return respond(response, 200, { ok: true, ...(await store.listPlaces(settings, { kind: asText(query?.kind), status: asText(query?.status), q: asText(query?.q), community: asText(query?.community) })) })
   if (method === 'GET') {
     const place = await store.getPlace(settings, id)
@@ -56,6 +87,8 @@ async function placesRoute({ request, response, settings, id, action }) {
   if (method === 'POST' && !id) {
     const result = validatePlace(body)
     if (!result.ok) return invalid(response, result.errors)
+    const denied = outOfScope(request, response, result.value.community_id ?? 'thaton')
+    if (denied) return denied
     return respond(response, 201, { ok: true, place: await store.createPlace(settings, result.value, by) })
   }
   if (method === 'POST' && action === 'publish') {
@@ -66,6 +99,8 @@ async function placesRoute({ request, response, settings, id, action }) {
     if (!(await store.getPlace(settings, id))) return notFound(response, 'สถานที่นี้')
     const result = validatePlace(body)
     if (!result.ok) return invalid(response, result.errors)
+    const denied = outOfScope(request, response, result.value.community_id ?? 'thaton')
+    if (denied) return denied
     return respond(response, 200, { ok: true, place: await store.updatePlace(settings, id, result.value, by) })
   }
   if (method === 'DELETE' && id) {
@@ -125,7 +160,7 @@ async function householdsRoute({ request, response, settings, id, action }) {
   if (method === 'GET' && !id) {
     return respond(response, 200, {
       ok: true,
-      ...(await store.listHouseholds(settings, { hamlet: asText(query?.hamlet), layer: asText(query?.layer) || 'layer-1', level: asText(query?.level), q: asText(query?.q), published: asText(query?.published), page: asText(query?.page), pageSize: asText(query?.pageSize) })),
+      ...(await store.listHouseholds(settings, { hamlet: asText(query?.hamlet), layer: asText(query?.layer) || 'layer-1', level: asText(query?.level), q: asText(query?.q), published: asText(query?.published), page: asText(query?.page), pageSize: asText(query?.pageSize), community: asText(query?.community) })),
     })
   }
   if (method === 'GET') {
@@ -172,6 +207,8 @@ async function householdsRoute({ request, response, settings, id, action }) {
 async function evacuationRoute({ request, response, settings, id }) {
   const { method, query } = request
   const comm = asText(query?.community) || 'thaton'
+  const deniedRead = outOfScope(request, response, comm)
+  if (deniedRead) return deniedRead
   if (method === 'GET') {
     const [households, routes, places] = await Promise.all([
       store.allHouseholds(settings, comm),
@@ -194,6 +231,8 @@ async function evacuationRoute({ request, response, settings, id }) {
     const result = validateRoutes(body)
     if (!result.ok) return invalid(response, result.errors)
     const comm = asText(body?.community || query?.community) || 'thaton'
+    const denied = outOfScope(request, response, comm)
+    if (denied) return denied
     return respond(response, 200, { ok: true, routes: await store.saveRoutes(settings, result.value, editor(request, body), comm) })
   }
   return null
@@ -203,8 +242,10 @@ async function profilesRoute({ request, response, settings, id }) {
   const { method } = request
   if (method === 'GET') return respond(response, 200, { ok: true, items: await store.listProfiles(settings) })
   if (!COMMUNITY_IDS.includes(id)) return bad(response, 'ไม่รู้จักรหัสชุมชนนี้')
+  const denied = outOfScope(request, response, id)
+  if (denied) return denied
   if (method === 'PUT') {
-    const body = readBody(request)
+    const body = readBody(request, 256 * 1024)
     if (!body) return bad(response, 'ข้อมูลที่ส่งมาไม่ถูกต้อง')
     const result = validateProfile({ ...body, community_id: id })
     if (!result.ok) return invalid(response, result.errors)
@@ -220,7 +261,7 @@ async function settingsRoute({ request, response, settings }) {
   const { method } = request
   if (method === 'GET') return respond(response, 200, { ok: true, settings: await store.getCommunitySettings(settings), layers: COMMUNITY_LAYERS.map((layer) => ({ id: layer.id, label: layer.label })) })
   if (method === 'PUT') {
-    const body = readBody(request)
+    const body = readBody(request, 256 * 1024)
     if (!body) return bad(response, 'ข้อมูลที่ส่งมาไม่ถูกต้อง')
     const layerIds = COMMUNITY_LAYERS.map((layer) => layer.id)
     const value = {}
@@ -278,8 +319,11 @@ export function routeFromPath(path = '') {
 }
 
 export async function adminMapDataHandler(request, response, route = routeFromQuery(request.query)) {
-  if (!verifyAdminAuth(request)) return respond(response, 401, { error: 'กรุณาเข้าสู่ระบบด้วยรหัสผ่านแอดมินก่อน' })
-  const handle = Object.hasOwn(adminRoutes, route.kind) ? adminRoutes[route.kind] : null
+  const known = Object.hasOwn(adminRoutes, route.kind)
+  // Role, page and (for ท่าตอน-only data) village are checked before any handler runs.
+  const ctx = await requireAdmin(request, response, { page: known ? PAGE_OF_KIND[route.kind] : undefined, community: THATON_ONLY.has(route.kind) ? 'thaton' : undefined })
+  if (!ctx) return
+  const handle = known ? adminRoutes[route.kind] : null
   if (!handle) return notFound(response, 'หน้านี้')
   if (!['GET', 'POST', 'PUT', 'DELETE'].includes(request.method)) {
     response.setHeader('Allow', 'GET, POST, PUT, DELETE')

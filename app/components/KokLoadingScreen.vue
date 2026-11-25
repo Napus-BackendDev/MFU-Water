@@ -76,8 +76,8 @@ const sponsors = [
 
     <div class="absolute inset-x-0 bottom-5 flex flex-col items-center gap-2.5 px-3.5">
       <small class="text-xs text-slate-500">ได้รับการสนับสนุนโดย</small>
-      <ul class="flex flex-wrap items-center justify-center gap-x-6 gap-y-3">
-        <li v-for="sponsor in sponsors" :key="sponsor.name" class="flex h-10 items-center sm:h-12">
+      <ul class="grid grid-cols-2 place-items-center gap-x-6 gap-y-3 md:grid-cols-4 md:gap-x-8">
+        <li v-for="sponsor in sponsors" :key="sponsor.name" class="flex h-10 items-center justify-center sm:h-12">
           <img :src="sponsor.src" :alt="sponsor.name" :width="sponsor.width" :height="sponsor.height" class="h-full w-auto max-w-[120px] object-contain sm:max-w-[160px]">
         </li>
       </ul>

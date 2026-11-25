@@ -59,9 +59,9 @@ export function config(requireSubmission = true) {
   return settings
 }
 
-export function readJsonBody(request) {
+export function readJsonBody(request, maxBytes = 16384) {
   const body = typeof request.body === 'string' ? JSON.parse(request.body) : request.body
-  if (!body || typeof body !== 'object' || Array.isArray(body) || Buffer.byteLength(JSON.stringify(body)) > 16384) throw new Error('Invalid request body')
+  if (!body || typeof body !== 'object' || Array.isArray(body) || Buffer.byteLength(JSON.stringify(body)) > maxBytes) throw new Error('Invalid request body')
   return body
 }
 
@@ -77,7 +77,7 @@ export function validateSurvey(body) {
   return Boolean(body && typeof body === 'object' && !Array.isArray(body)
     && typeof body.fullName === 'string' && body.fullName.trim().length > 0 && body.fullName.length <= 200
     && typeof body.phoneNumber === 'string' && body.phoneNumber.trim().length > 0 && body.phoneNumber.length <= 40
-    && [0, 5, 10, 30, 50, 100, 200, 300, 500].includes(body.arsenicLevelPpb)
+    && [0, 5, 10, 30, 50, 100].includes(body.arsenicLevelPpb)
     && Number.isFinite(point?.latitude) && Math.abs(point.latitude) <= 90
     && Number.isFinite(point?.longitude) && Math.abs(point.longitude) <= 180
     && (body.gpsAccuracyMeters === null || Number.isSafeInteger(body.gpsAccuracyMeters) && body.gpsAccuracyMeters >= 0 && body.gpsAccuracyMeters <= 2147483647)

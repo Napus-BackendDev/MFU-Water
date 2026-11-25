@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import { devSuperAdminLogin } from './admin-login'
 
 const now = new Date().toISOString()
 const sample = (id: string, ppb: number, lat: number, lon: number) => ({
@@ -14,6 +15,7 @@ test('the wall map prints only the map sheet, built from real samples, at the ch
   }))
   await page.setViewportSize({ width: 1440, height: 900 })
   await page.goto('/?view=admin')
+  await devSuperAdminLogin(page)
   await page.getByRole('button', { name: /สร้างแผนที่พิมพ์/ }).first().click()
 
   const sheet = page.locator('#printable-map-canvas')

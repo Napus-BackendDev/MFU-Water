@@ -3,10 +3,11 @@ import { computed } from 'vue'
 import { Search, X } from 'lucide-vue-next'
 import { pillClass, searchFieldClass, selectInPillClass, selectPillClass } from '../utils/admin-ui'
 import { statusMeta, type AdminCounts } from '../utils/admin-types'
-import type { SampleTab, SeverityFilter } from '../composables/useSampleFilters'
+import type { SampleTab, SeverityFilter, TimeRangeFilter } from '../composables/useSampleFilters'
 
 const tab = defineModel<SampleTab>('tab', { required: true })
-const severity = defineModel<SeverityFilter>('severity', { required: true })
+defineModel<SeverityFilter>('severity')
+const timeRange = defineModel<TimeRangeFilter>('timeRange', { default: 'all' })
 const query = defineModel<string>('query', { required: true })
 const props = defineProps<{ counts: AdminCounts }>()
 
@@ -32,19 +33,19 @@ const tabs = computed(() => [
     </button>
 
     <label :class="selectPillClass">
-      <span>ระดับ</span>
-      <select v-model="severity" :class="selectInPillClass">
+      <span>ช่วงเวลา</span>
+      <select v-model="timeRange" aria-label="กรองตามช่วงเวลา" :class="selectInPillClass">
         <option value="all">ทั้งหมด</option>
-        <option value="normal">ปกติ (&lt; 5 ppb)</option>
-        <option value="watch">เฝ้าระวัง (5–10 ppb)</option>
-        <option value="over">เกินเกณฑ์ คพ. (&gt; 10 ppb)</option>
+        <option value="24h">24 ชั่วโมงล่าสุด</option>
+        <option value="7d">7 วันที่ผ่านมา</option>
+        <option value="30d">30 วันที่ผ่านมา</option>
       </select>
     </label>
 
     <div class="flex w-full items-center gap-2 xl:ml-auto xl:w-auto">
       <div class="relative min-w-0 flex-1 xl:w-72 xl:flex-none">
         <Search class="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-500" />
-        <input v-model="query" type="text" aria-label="ค้นหาตัวอย่างน้ำ" placeholder="ค้นหารหัส ชื่อผู้ส่ง เบอร์ พิกัด หรือค่า ppb..." :class="searchFieldClass">
+        <input v-model="query" type="text" aria-label="ค้นหาตัวอย่างน้ำ" placeholder="ค้นหาชื่อผู้ส่ง เบอร์ ชุดตรวจ พิกัด หรือค่า ppb..." :class="searchFieldClass">
         <button v-if="query" type="button" aria-label="ล้างคำค้นหา" class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-800" @click="query = ''">
           <X class="h-3.5 w-3.5" />
         </button>

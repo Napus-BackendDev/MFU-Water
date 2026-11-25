@@ -9,7 +9,7 @@ import KokModalShell from './KokModalShell.vue'
 const props = defineProps<{ sample: AdminSample; saving: boolean; error: string | null }>()
 const emit = defineEmits<{ (e: 'save', values: SampleEdit): void; (e: 'close'): void }>()
 
-const kitLevels = [0, 5, 10, 30, 50, 100, 200, 300, 500]
+const kitLevels = [0, 5, 10, 30, 50, 100]
 const waterSources = ['แม่น้ำ', 'บ่อ', 'ประปา']
 
 // datetime-local works in the viewer's local time, without a zone.
@@ -62,7 +62,6 @@ function submit() {
       <header class="flex items-start justify-between gap-3">
         <div class="min-w-0">
           <h3 class="text-[15px] font-bold">แก้ไขข้อมูลตัวอย่างน้ำ</h3>
-          <p class="mt-0.5 font-mono text-xs text-slate-500 dark:text-[#98A2A8]">{{ sample.sample_code }}</p>
         </div>
         <button type="button" aria-label="ปิด" class="rounded-lg p-1 text-slate-500 hover:bg-slate-100 hover:text-slate-800 dark:hover:bg-[#252525] dark:hover:text-white" @click="$emit('close')"><X class="h-4 w-4" /></button>
       </header>
@@ -75,12 +74,6 @@ function submit() {
           </select>
         </div>
         <div>
-          <label for="sample-source" :class="fieldLabelClass">แหล่งน้ำ</label>
-          <select id="sample-source" v-model="form.waterSource" :class="fieldClass" class="cursor-pointer">
-            <option v-for="source in sources" :key="source" :value="source">{{ source }}</option>
-          </select>
-        </div>
-        <div class="sm:col-span-2">
           <label for="sample-time" :class="fieldLabelClass">เวลาเก็บตัวอย่าง</label>
           <input id="sample-time" v-model="form.collectionTime" type="datetime-local" :class="fieldClass">
         </div>

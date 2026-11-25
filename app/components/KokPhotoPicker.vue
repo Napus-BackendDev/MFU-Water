@@ -11,6 +11,11 @@ defineProps<{
 const emit = defineEmits<{ (e: 'select', slot: 0 | 1, input: HTMLInputElement): void; (e: 'remove', slot: 0 | 1): void }>()
 
 const onChange = (slot: 0 | 1, event: Event) => emit('select', slot, event.target as HTMLInputElement)
+
+const slotMeta = [
+  { title: 'ภาพที่ 1 · เครื่องมือการเทสต์น้ำ', hint: 'ถ่ายแถบสีผลตรวจหรือชุดอุปกรณ์ที่ใช้ทดสอบน้ำ' },
+  { title: 'ภาพที่ 2 · ภาพสถานที่เก็บตัวอย่าง', hint: 'ถ่ายจุดเก็บน้ำ เช่น ก๊อกประปา บ่อน้ำ หรือริมแม่น้ำ' },
+] as const
 </script>
 
 <template>
@@ -25,9 +30,12 @@ const onChange = (slot: 0 | 1, event: Event) => emit('select', slot, event.targe
         :key="slot"
         class="rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-[#2C2C2E] dark:bg-[#141416] flex flex-col justify-between gap-2"
       >
-        <div class="flex items-center justify-between">
-          <span class="text-sm font-semibold text-slate-800 dark:text-white">ภาพที่ {{ slot + 1 }}</span>
-          <span v-if="photos[slot]" class="text-xs text-emerald-600 dark:text-emerald-400 font-medium">แนบไฟล์แล้ว</span>
+        <div>
+          <div class="flex items-center justify-between gap-2">
+            <span class="text-sm font-semibold text-slate-800 dark:text-white">{{ slotMeta[slot].title }}</span>
+            <span v-if="photos[slot]" class="text-xs text-emerald-600 dark:text-emerald-400 font-medium shrink-0">แนบไฟล์แล้ว</span>
+          </div>
+          <p class="mt-0.5 text-xs text-slate-500 dark:text-[#98A2A8]">{{ slotMeta[slot].hint }}</p>
         </div>
 
         <div v-if="previews[slot]" class="relative my-1 flex items-center gap-2.5 rounded-lg border border-slate-200 bg-white p-2 dark:border-[#2C2C2E] dark:bg-[#1E1E1E]">

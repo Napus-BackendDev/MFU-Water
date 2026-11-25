@@ -10,6 +10,7 @@ import {
   metaFromReview,
   publicHamletSummary,
   publicPlaces,
+  layerMapPlaces,
   seedFromReview,
   COMMUNITY_LAYERS,
   changedKeys,
@@ -32,7 +33,7 @@ const loadPlaceSeed = () => readSeed(new URL('../../data/private/public-evacuati
 
 // ที่มาของข้อมูลตั้งต้น (เทสต์สลับเป็นค่าว่างเพื่อจำลองว่าไฟล์ไม่ถูกรวมเข้าฟังก์ชัน)
 const loadLandmarkSeed = () => readSeed(new URL('../../data/thaton-landmarks.json', import.meta.url))
-export const seedSources = { community: loadCommunitySeed, route: loadRouteSeed, place: loadPlaceSeed, landmark: loadLandmarkSeed }
+export const seedSources = { community: loadCommunitySeed, route: loadRouteSeed, place: loadPlaceSeed, landmark: loadLandmarkSeed, layerMaps: loadCommunitySeed }
 
 export function plain(doc) {
   if (!doc) return null
@@ -88,6 +89,15 @@ async function seedOnce(db) {
     }))
     await upsertAll(db.collection(C.places), places, now)
     done[key] = now.toISOString()
+  }
+  // The six My Maps survey topics become six maps of pins on the important-places page, once.
+  if (!done.layerMaps) {
+    const review = seedSources.layerMaps()
+    const pins = review ? layerMapPlaces(review) : []
+    if (pins.length) {
+      await upsertAll(db.collection(C.places), pins, now)
+      done.layerMaps = now.toISOString()
+    }
   }
   if (!done.routes) {
     const evacuation = seedSources.route()
@@ -598,7 +608,22 @@ export async function publicRoutesPayload(settings, community = 'thaton') {
 
 export async function publicProfilesPayload(settings) {
   const profiles = await listProfiles(settings)
-  return { profiles: Object.fromEntries(profiles.map(({ community_id: id, title, basin, people, livelihood, risk }) => [id, { title, basin, people, livelihood, risk }])) }
+  return {
+    profiles: Object.fromEntries(
+      profiles.map(({ community_id: id, title, basin, people, livelihood, risk, cover_image_url, content_blocks }) => [
+        id,
+        {
+          title,
+          basin,
+          people,
+          livelihood,
+          risk,
+          ...(cover_image_url !== undefined ? { cover_image_url } : {}),
+          ...(Array.isArray(content_blocks) ? { content_blocks } : {}),
+        },
+      ]),
+    ),
+  }
 }
 
 export async function publicAvailability(settings) {

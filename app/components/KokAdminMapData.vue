@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { watch } from 'vue'
-import { AlertTriangle, CheckCircle2, Eye, X } from 'lucide-vue-next'
 import type { CommunityId } from '../../src/lib/map-data'
+import type { AdminSample } from '../utils/admin-types'
 import { useAdminMapData } from '../composables/useAdminMapData'
-import { feedbackBannerClass, mutedClass } from '../utils/map-data-ui'
+import KokAlertToast from './KokAlertToast.vue'
 import KokAdminEvacuationPage from './KokAdminEvacuationPage.vue'
 import KokAdminHamletsPage from './KokAdminHamletsPage.vue'
 import KokAdminMapOverview from './KokAdminMapOverview.vue'
@@ -15,18 +15,37 @@ export type MapTab = 'overview' | 'hamlets' | 'samples' | 'evacuation' | 'places
 const props = withDefaults(defineProps<{
   community?: CommunityId
   pendingSamplesCount?: number
+  samples?: AdminSample[]
+  selectedSampleCode?: string | null
+  readOnlySamples?: boolean
 }>(), {
   community: 'thaton',
   pendingSamplesCount: 0,
+  samples: () => [],
+  selectedSampleCode: null,
+  readOnlySamples: false,
 })
 
-const emit = defineEmits<{ (e: 'sessionExpired', message: string): void }>()
+const emit = defineEmits<{
+  (e: 'sessionExpired', message: string): void
+  (e: 'update:community', value: CommunityId): void
+  (e: 'goNews'): void
+  (e: 'selectSample', sample: AdminSample): void
+  (e: 'editSample', sample: AdminSample): void
+  (e: 'deleteSample', sample: AdminSample): void
+}>()
 const ctx = useAdminMapData((message) => emit('sessionExpired', message), props.community)
-const { feedback, publicView } = ctx
+const { feedback } = ctx
 
 watch(() => props.community, (next) => {
   if (next && ctx.community.value !== next) {
     ctx.community.value = next
+  }
+})
+
+watch(ctx.community, (next) => {
+  if (next !== props.community) {
+    emit('update:community', next)
   }
 })
 
@@ -44,27 +63,23 @@ function go(next: MapTab | 'community') {
 
 <template>
   <div class="space-y-4">
-    <div v-if="feedback" role="status" class="flex items-center justify-between gap-3 rounded-xl border p-3.5 text-xs font-medium" :class="feedbackBannerClass(feedback.type)">
-      <div class="flex items-center gap-2">
-        <CheckCircle2 v-if="feedback.type === 'success'" class="h-4 w-4 shrink-0" />
-        <AlertTriangle v-else class="h-4 w-4 shrink-0" />
-        <span>{{ feedback.message }}</span>
-      </div>
-      <button type="button" aria-label="ปิดข้อความ" class="cursor-pointer text-slate-500 hover:text-slate-700" @click="feedback = null"><X class="h-4 w-4" /></button>
-    </div>
+    <KokAlertToast :feedback="feedback" @close="feedback = null" />
 
-    <div v-if="tab === 'evacuation' || tab === 'places'" class="flex flex-wrap items-center gap-3">
-      <label class="flex cursor-pointer items-center gap-2 text-xs font-semibold" title="เปิดแล้วแผนที่แสดงเฉพาะสิ่งที่หน้าบ้านเห็นจริง (เผยแพร่แล้ว ตามตั้งค่าหน้าบ้าน) ปิดแล้วเห็นทั้งหมดรวมฉบับร่าง">
-        <input v-model="publicView" type="checkbox" class="h-4 w-4">
-        <Eye class="h-4 w-4" />
-        <span>ดูตามหน้าบ้านจริง</span>
-      </label>
-      <p :class="mutedClass">{{ publicView ? 'กำลังแสดงเฉพาะที่หน้าบ้านเห็น' : 'กำลังแสดงทั้งหมด รวมฉบับร่างและที่ซ่อนอยู่ (จางกว่าปกติ)' }}</p>
-    </div>
-
-    <KokAdminMapOverview v-if="tab === 'overview'" :ctx="ctx" @go="go" />
+    <KokAdminMapOverview
+      v-if="tab === 'overview'"
+      :ctx="ctx"
+      :pending-samples-count="pendingSamplesCount"
+      :samples="samples"
+      :selected-sample-code="selectedSampleCode"
+      :read-only-samples="readOnlySamples"
+      @go="go"
+      @go-news="emit('goNews')"
+      @select-sample="emit('selectSample', $event)"
+      @edit-sample="emit('editSample', $event)"
+      @delete-sample="emit('deleteSample', $event)"
+    />
     <KokAdminHamletsPage v-else-if="tab === 'hamlets'" :ctx="ctx" />
-    <div v-else-if="tab === 'samples'">
+    <div v-else-if="tab === 'samples'" class="space-y-4">
       <slot name="samples" />
     </div>
     <KokAdminEvacuationPage v-else-if="tab === 'evacuation'" :ctx="ctx" @go="go" />

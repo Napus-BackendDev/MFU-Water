@@ -1,0 +1,29 @@
+{
+  "question": "สิ่งที่ปรับปรุงใหม่ใน MFU Kok Water Watch ทั้งฝั่งแผนที่สาธารณะ/แบบสำรวจ และระบบผู้ใช้งาน/บทบาทหลังบ้าน ทำงานอย่างไร?",
+  "audience": "เจ้าของโครงการและทีมผู้ใช้งาน MFU Kok Water Watch",
+  "findings": [
+    "ผลตรวจ >50 ppb จะไม่แสดงบนแผนที่สาธารณะทันที แต่ถูกส่งเข้าคิวรอผู้ตรวจหลังบ้านอนุมัติก่อน (api/surveys/waypoints.js:18)",
+    "ในโหมด Localhost หากไม่ได้ต่อ MongoDB ระบบยังแสดง 4 บทบาทตั้งต้นและทดสอบสิทธิ์ได้ แต่การสร้าง/บันทึกบัญชีผู้ใช้จริงต้องต่อฐานข้อมูล (api/admin/_users.js:77)"
+  ],
+  "exceptions": [
+    "หากผู้ใช้ไม่อนุญาต GPS สามารถปักหมุดหรือกรอกพิกัดเองได้",
+    "บทบาทที่มีสิทธิ์ระดับ 'ดูไม่ได้เลย' จะถูกซ่อนเมนูและบล็อก API (403); ระดับ 'ดูได้เฉย ๆ' จะเห็นแบนเนอร์ View-Only"
+  ],
+  "claims": {
+    "u1": { "status": "verified", "evidence": "app/components/KokMapPanel.vue:1" },
+    "u2": { "status": "verified", "evidence": "app/components/KokSurveyModal.vue:1" },
+    "u3": { "status": "verified", "evidence": "app/components/KokMapPanel.vue:1" },
+    "u4": { "status": "verified", "evidence": "api/surveys/waypoints.js:1" },
+    "a1": { "status": "verified", "evidence": "app/components/KokAdminLogin.vue:1" },
+    "a2": { "status": "verified", "evidence": "src/lib/admin-rbac.js:1" },
+    "a3": { "status": "verified", "evidence": "app/components/KokAdminUsers.vue:1" },
+    "a4": { "status": "verified", "evidence": "app/components/KokAdminDataTablePage.vue:1" },
+    "u1-u2": { "status": "verified", "evidence": "app/components/KokSurveyModal.vue:1" },
+    "u2-u3": { "status": "verified", "evidence": "app/components/KokMapPanel.vue:1" },
+    "u3-u4": { "status": "verified", "evidence": "api/surveys/waypoints.js:1" },
+    "a1-a2": { "status": "verified", "evidence": "src/lib/admin-rbac.js:1" },
+    "a2-a3": { "status": "verified", "evidence": "app/components/KokAdminUsers.vue:1" },
+    "a3-a4": { "status": "verified", "evidence": "app/components/KokAdminDataTablePage.vue:1" },
+    "u4-a4": { "status": "verified", "evidence": "api/admin/review.js:1" }
+  }
+}

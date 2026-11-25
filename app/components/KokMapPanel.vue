@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue'
+import { Check, ChevronDown, Layers } from 'lucide-vue-next'
 import { clusterSurveyWaypoints } from '../../src/lib/waypoints'
 import type { SurveyWaypoint } from '../../src/lib/survey'
 import { communityTargets, publicSurveyGridCells, type CommunityTarget, type PublicGridCell } from '../utils/kok-contract'
@@ -8,10 +9,9 @@ import { buildChemicalPopup } from '../utils/chemical-popup'
 import { hasPublicMapLayer, publicFloodHistory, publicEvacuationReference, type CommunityMapType } from '../utils/community-map-layers'
 import { existingWaterColor, floodDepthLevels, floodImpactStages, loadFloodSimulation, loadFloodScenario, sampleFloodGrid, floodDepthAtPoint, type FloodScenario, type FloodSimulation, type FloodView } from '../utils/flood-simulation'
 import { loadMyMapsData, type MyMapsReview } from '../utils/mymaps-review'
-import { loadPublicEvacuation } from '../utils/public-evacuation'
-import { publicMapData, loadPublicMapData } from '../utils/map-data-public'
+import { publicMapData, loadPublicMapData, isMainMapPlace, mapNameOfPlace } from '../utils/map-data-public'
 import { pinIconOptions } from '../utils/map-pin'
-import { PLACE_KINDS } from '../../src/lib/map-data'
+import { DEFAULT_PLACE_MAP, PLACE_KINDS } from '../../src/lib/map-data'
 import { loadObservationRegions, observationYears, observationWaterColor, type ObservationDate, type ObservationRegions } from '../utils/flood-observations'
 import { rankEvacuationPriority, priorityTiers, type EvacuationPriority, type PriorityPoint } from '../utils/evacuation-priority'
 
@@ -64,9 +64,6 @@ const emit = defineEmits<{
 }>()
 
 const mapContainer = ref<HTMLDivElement | null>(null)
-const evacuationError = ref(false)
-const evacuationRoutes = ref<Array<Array<[number, number]>>>([])
-const routesRoadAligned = ref(false)
 const myMapsData = shallowRef<MyMapsReview | null>(null)
 const floodSimulationData = shallowRef<FloodSimulation | null>(null)
 const floodScenarioData = shallowRef<FloodScenario | null>(null)
@@ -110,7 +107,6 @@ let labelTileLayer: import('leaflet').TileLayer | null = null
 let thematicGroup: import('leaflet').LayerGroup | null = null
 let communityMapGroup: import('leaflet').LayerGroup | null = null
 let simulationMapGroup: import('leaflet').LayerGroup | null = null
-let evacuationRenderer: import('leaflet').SVG | null = null
 let observationMapGroup: import('leaflet').LayerGroup | null = null
 let observationRenderer: import('leaflet').Canvas | null = null
 let floodRenderer: import('leaflet').Canvas | null = null
@@ -165,6 +161,34 @@ function evacuationDestinationList() {
     const kind = PLACE_KINDS[point.kind === 'shelter' ? 'shelter' : 'assembly']
     return { label: point.label, latitude: point.latitude, longitude: point.longitude, color: kind.evacuationColor ?? kind.color, path: kind.path }
   })
+}
+
+// Important places come as several maps (the main one plus the survey topics); one is shown at a time.
+const selectedPlaceMap = ref(DEFAULT_PLACE_MAP)
+const placeMapDropdownOpen = ref(false)
+const placeMapDropdownRef = ref<HTMLDivElement | null>(null)
+const placeMapsHere = computed(() => {
+  const counts = new Map<string, number>([[DEFAULT_PLACE_MAP, 0]])
+  for (const place of publicMapData.places.placed) {
+    if (props.selectedCommunityId !== 'all' && place.communityId !== props.selectedCommunityId) continue
+    const name = mapNameOfPlace(place)
+    counts.set(name, (counts.get(name) ?? 0) + 1)
+  }
+  return [...counts].filter(([name, count]) => count > 0 || name === DEFAULT_PLACE_MAP).map(([name, count]) => ({ name, count }))
+})
+const activePlaceMapCount = computed(() => placeMapsHere.value.find((m) => m.name === selectedPlaceMap.value)?.count ?? 0)
+function choosePlaceMap(name: string) {
+  selectedPlaceMap.value = name
+  placeMapDropdownOpen.value = false
+  renderCommunityMapLayer()
+}
+function handlePlaceMapOutsideClick(event: MouseEvent) {
+  if (placeMapDropdownRef.value && !placeMapDropdownRef.value.contains(event.target as Node)) {
+    placeMapDropdownOpen.value = false
+  }
+}
+function handlePlaceMapEscape(event: KeyboardEvent) {
+  if (event.key === 'Escape') placeMapDropdownOpen.value = false
 }
 
 const placesPendingHere = computed(() => publicMapData.places.pending.filter((place) => props.selectedCommunityId === 'all' || place.communityId === props.selectedCommunityId))
@@ -306,30 +330,9 @@ function renderCommunityMapLayer() {
         const icon = L.divIcon({ html: iconHtml, className: '', iconSize: [0, 0] })
         L.marker([d.latitude, d.longitude], { icon, zIndexOffset: 2000 }).addTo(communityMapGroup)
       }
-
-      if (sel) {
-        const dest = destinations.find((d: any) => d.id === sel.destinationId || d.label === sel.destinationLabel)
-        if (dest) {
-          L.polyline([[sel.latitude, sel.longitude], [dest.latitude, dest.longitude]], {
-            color: '#1D4ED8',
-            weight: 4,
-            dashArray: '8 6',
-          }).addTo(communityMapGroup)
-        }
-      }
       return
     }
 
-    evacuationRenderer ??= L.svg({ pane: 'evacuation-routes' })
-    for (const route of evacuationRoutes.value) {
-      L.polyline(route, { renderer: evacuationRenderer, color: '#FFFFFF', weight: 6, opacity: 0.85, interactive: false, smoothFactor:0 }).addTo(communityMapGroup)
-      const popup = document.createElement('div')
-      popup.textContent = routesRoadAligned.value
-        ? 'เส้นทางตามแผน PDF และช่วงเชื่อมตามถนน OpenStreetMap · ยังไม่ยืนยันภาคสนาม ไม่ใช่การนำทางหรือการยืนยันว่าถนนปลอดภัยในปัจจุบัน'
-        : 'เส้นทางอพยพตามภาพ PDF · ตำแหน่งประมาณ ยังไม่ยืนยันภาคสนาม ไม่ใช่เส้นทางนำทางหรือประกาศความปลอดภัยปัจจุบัน'
-      L.polyline(route, { renderer: evacuationRenderer, color: '#D97706', weight: 3.5, dashArray: '7 5', smoothFactor:0, className: 'community-evacuation-route' })
-        .bindPopup(popup, { autoPan: false }).addTo(communityMapGroup)
-    }
     for (const point of evacuationDestinationList()) {
       const icon = communityPinIcon(point.color, point.path, 'community-evacuation-marker')
       const label = `${point.label} · ตำแหน่งประมาณ`
@@ -395,12 +398,17 @@ function renderCommunityMapLayer() {
   if (props.communityMapType === 'places') {
     for (const place of publicMapData.places.placed) {
       if (props.selectedCommunityId !== 'all' && place.communityId !== props.selectedCommunityId) continue
+      if (mapNameOfPlace(place) !== selectedPlaceMap.value) continue
       const icon = communityPinIcon(place.color, place.path, 'community-place-marker')
       const popup = document.createElement('div')
       const heading = document.createElement('strong')
       heading.textContent = place.name
       popup.append(heading)
-      for (const line of [`${place.kindLabel}${place.sourceSection ? ` · ที่มา ${place.sourceSection}` : ''}`, place.precisionLabel, place.capacityLabel, place.operationalLabel, place.note]) {
+      // A surveyed household has no capacity or readiness to report: show its map, status and answers only.
+      const lines = isMainMapPlace(place)
+        ? [`${place.kindLabel}${place.sourceSection ? ` · ที่มา ${place.sourceSection}` : ''}`, place.precisionLabel, place.capacityLabel, place.operationalLabel, place.note]
+        : [place.mapName, place.note]
+      for (const line of lines) {
         if (!line) continue
         const row = document.createElement('p')
         row.textContent = line
@@ -722,8 +730,16 @@ function applyFocusRequest(req: NonNullable<typeof props.focusRequest>) {
   if (req.sampleCode) openMarkerPopupWhenReady(req.sampleCode)
 }
 
+let mobileLegendMedia: MediaQueryList | null = null
+const syncLegendForViewport = (e?: MediaQueryListEvent | MediaQueryList) => {
+  const isMobile = e ? e.matches : Boolean(mobileLegendMedia?.matches)
+  legendOpen.value = !isMobile
+}
+
 onMounted(async () => {
-  legendOpen.value = !window.matchMedia('(max-width: 767px)').matches
+  mobileLegendMedia = window.matchMedia('(max-width: 767px)')
+  syncLegendForViewport(mobileLegendMedia)
+  mobileLegendMedia.addEventListener?.('change', syncLegendForViewport)
   if (!mapContainer.value) return
   const leafletModule = await import('leaflet')
   L = (leafletModule.default ?? leafletModule) as typeof import('leaflet')
@@ -747,13 +763,12 @@ onMounted(async () => {
     attributionControl: false,
   })
 
-  L.control.zoom({ position: 'topleft', zoomInTitle: 'ขยายเข้า', zoomOutTitle: 'ถอยออก' }).addTo(mapInstance)
+  L.control.zoom({ position: 'topright', zoomInTitle: 'ขยายเข้า', zoomOutTitle: 'ถอยออก' }).addTo(mapInstance)
   L.control.attribution({ position: 'bottomleft', prefix: false }).addTo(mapInstance)
   mapInstance.on('click', inspectFloodPoint)
   thematicGroup = L.layerGroup().addTo(mapInstance)
   mapInstance.createPane('flood-simulation').style.zIndex = '390'
   simulationMapGroup = L.layerGroup().addTo(mapInstance)
-  mapInstance.createPane('evacuation-routes').style.zIndex = '475'
   communityMapGroup = L.layerGroup().addTo(mapInstance)
   mapInstance.createPane('flood-observations').style.zIndex = '450'
   observationMapGroup = L.layerGroup().addTo(mapInstance)
@@ -778,18 +793,7 @@ onMounted(async () => {
     renderCommunityMapLayer()
   }).catch(() => { /* My Maps data unavailable */ })
 
-  void loadPublicEvacuation().then((data) => {
-    evacuationRoutes.value = data.routes
-    routesRoadAligned.value = data.routeAlignment === 'offline_osm_road_alignment'
-    renderCommunityMapLayer()
-  }).catch(() => { evacuationError.value = true })
-
   void loadPublicMapData().then(() => {
-    const edited = publicMapData.routes
-    if (edited) {
-      evacuationRoutes.value = edited.routes
-      routesRoadAligned.value = edited.alignment === 'offline_osm_road_alignment'
-    }
     renderCommunityMapLayer()
   })
 
@@ -798,6 +802,8 @@ onMounted(async () => {
   }
   if (typeof window !== 'undefined') {
     window.addEventListener('resize', resizeHandler)
+    document.addEventListener('click', handlePlaceMapOutsideClick)
+    document.addEventListener('keydown', handlePlaceMapEscape)
   }
   setTimeout(() => {
     mapInstance?.invalidateSize()
@@ -816,6 +822,10 @@ watch(() => [props.evacuationModeActive, props.selectedEvacuationCase, props.eva
 watch(prioritizeActive, renderCommunityMapLayer)
 watch(() => props.selectedCommunityId, renderCommunityOverview)
 watch(() => publicMapData.hamlets, renderCommunityMapLayer, { deep: true })
+watch(placeMapsHere, (maps) => {
+  if (!maps.some((map) => map.name === selectedPlaceMap.value)) selectedPlaceMap.value = DEFAULT_PLACE_MAP
+  if (props.communityMapType === 'places') renderCommunityMapLayer()
+})
 watch(
   () => props.communityMapType,
   (type) => {
@@ -870,8 +880,11 @@ watch(
 )
 
 onBeforeUnmount(() => {
+  mobileLegendMedia?.removeEventListener?.('change', syncLegendForViewport)
   if (typeof window !== 'undefined') {
     window.removeEventListener('resize', () => mapInstance?.invalidateSize())
+    document.removeEventListener('click', handlePlaceMapOutsideClick)
+    document.removeEventListener('keydown', handlePlaceMapEscape)
   }
   mapInstance?.remove()
   mapInstance = null
@@ -884,8 +897,90 @@ onBeforeUnmount(() => {
       ref="mapContainer"
       role="region"
       aria-label="แผนที่ Leaflet (OpenStreetMap)"
-      :class="isFullScreen ? 'h-full w-full rounded-none border-0' : 'wv-map-frame'"
+      :class="isFullScreen ? 'isolate h-full w-full rounded-none border-0' : 'wv-map-frame isolate'"
     />
+    <div
+      v-if="communityMapType === 'places' && placeMapsHere.length > 1"
+      ref="placeMapDropdownRef"
+      class="place-map-dropdown pointer-events-auto"
+    >
+      <button
+        type="button"
+        class="flex cursor-pointer items-center gap-2 rounded-xl border border-slate-200/90 bg-white/95 px-2.5 py-1.5 shadow-lg backdrop-blur-md transition-all hover:border-[#0284C7] focus:outline-hidden focus:ring-2 focus:ring-[#0284C7]/40 dark:border-[#2C2C2E] dark:bg-[#1E1E1E]/95 dark:hover:border-[#00E5FF] dark:focus:ring-[#00E5FF]/40 sm:px-3"
+        :aria-expanded="placeMapDropdownOpen"
+        aria-haspopup="listbox"
+        aria-label="เลือกแผนที่สถานที่สำคัญ"
+        @click.stop="placeMapDropdownOpen = !placeMapDropdownOpen"
+      >
+        <div class="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[#0284C7]/15 text-[#0284C7] sm:h-8 sm:w-8 dark:bg-[#00E5FF]/20 dark:text-[#00E5FF]">
+          <Layers class="h-4 w-4" />
+        </div>
+        <div class="flex min-w-0 flex-col text-left leading-tight">
+          <span class="text-[11px] font-medium text-slate-500 dark:text-zinc-400">
+            เลือกแผนที่
+          </span>
+          <div class="my-0.5 flex items-center gap-1.5">
+            <span class="max-w-[155px] truncate text-xs font-bold tracking-tight text-slate-900 sm:max-w-[230px] sm:text-sm dark:text-white">
+              {{ selectedPlaceMap }}
+            </span>
+            <span class="shrink-0 rounded-full bg-slate-100 px-1.5 py-0.5 font-mono text-[10px] font-bold text-slate-600 dark:bg-[#2C2C2E] dark:text-zinc-300">
+              {{ activePlaceMapCount }}
+            </span>
+          </div>
+        </div>
+        <ChevronDown
+          class="ml-0.5 h-4 w-4 shrink-0 text-slate-500 transition-transform duration-200 dark:text-zinc-400"
+          :class="{ 'rotate-180': placeMapDropdownOpen }"
+        />
+      </button>
+
+      <transition
+        enter-active-class="transition duration-150 ease-out"
+        enter-from-class="transform scale-95 opacity-0"
+        enter-to-class="transform scale-100 opacity-100"
+        leave-active-class="transition duration-100 ease-in"
+        leave-from-class="transform scale-100 opacity-100"
+        leave-to-class="transform scale-95 opacity-0"
+      >
+        <div
+          v-if="placeMapDropdownOpen"
+          class="absolute left-0 top-full z-[1050] mt-1.5 w-72 max-h-80 overflow-y-auto rounded-2xl border border-slate-200/90 bg-white/98 p-2 shadow-2xl backdrop-blur-xl sm:w-84 dark:border-[#2C2C2E] dark:bg-[#1C1C1E]/98"
+          role="listbox"
+          aria-label="รายชื่อแผนที่สถานที่สำคัญ"
+        >
+          <div class="mb-1 border-b border-slate-100 px-2.5 py-1.5 dark:border-zinc-800">
+            <span class="text-xs font-semibold text-slate-500 dark:text-zinc-400">
+              เลือกแผนที่ที่ต้องการแสดง ({{ placeMapsHere.length }} แผนที่)
+            </span>
+          </div>
+          <button
+            v-for="map in placeMapsHere"
+            :key="map.name"
+            type="button"
+            role="option"
+            :aria-selected="selectedPlaceMap === map.name"
+            class="flex w-full cursor-pointer items-center justify-between gap-2.5 rounded-xl px-2.5 py-2 text-left text-xs transition"
+            :class="selectedPlaceMap === map.name
+              ? 'bg-sky-50/90 font-bold text-[#0369A1] dark:bg-sky-950/50 dark:text-[#00E5FF]'
+              : 'font-medium text-slate-700 hover:bg-slate-50 dark:text-zinc-200 dark:hover:bg-[#252528]'"
+            @click="choosePlaceMap(map.name)"
+          >
+            <span class="min-w-0 flex-1 leading-snug">{{ map.name }}</span>
+            <span class="flex shrink-0 items-center gap-1.5">
+              <span
+                class="rounded-full px-2 py-0.5 font-mono text-[10px] font-bold"
+                :class="selectedPlaceMap === map.name
+                  ? 'bg-[#0284C7]/15 text-[#0369A1] dark:bg-[#00E5FF]/20 dark:text-[#00E5FF]'
+                  : 'bg-slate-100 text-slate-500 dark:bg-[#2C2C2E] dark:text-zinc-400'"
+              >
+                {{ map.count }}
+              </span>
+              <Check v-if="selectedPlaceMap === map.name" class="h-3.5 w-3.5 shrink-0" />
+            </span>
+          </button>
+        </div>
+      </transition>
+    </div>
     <aside v-if="communityMapType === 'places' && placesPendingHere.length" class="evacuation-legend" aria-label="สถานที่ที่ยังไม่มีพิกัด">
       <strong>รอผูกจุด (ยังไม่ปักบนแผนที่)</strong>
       <div v-for="place in placesPendingHere" :key="place.id"><span :style="{ background: place.color }" />{{ place.name }} · {{ place.kindLabel }}</div>
@@ -921,10 +1016,9 @@ onBeforeUnmount(() => {
         <div><span style="background:#B45309" />ศูนย์พักพิง</div>
         <div><span style="background:#047857" />จุดรวมพล</div>
         <template v-if="evacuationLegend.length">
-          <div v-for="item in evacuationLegend" :key="item.label"><span :style="{background:item.color}" />{{ item.label.replace(/\s*\(.*\)$/, '') }} ({{ item.rows }})</div>
+          <div v-for="item in evacuationLegend" :key="item.label"><span :style="{background:item.color}" />{{ item.label.replace(/^4\./, '3.').replace(/\s*\(.*\)$/, '') }} ({{ item.rows }})</div>
         </template>
       </template>
-      <div v-if="evacuationRoutes.length"><span class="route-swatch" />เส้นทางตามแผน</div>
       <section v-if="simulationVisible || observationsVisible" class="water-legend" aria-label="สีน้ำท่วม">
         <template v-if="simulationVisible">
           <strong>น้ำจำลอง +{{ floodStage }} ม.</strong>
@@ -941,11 +1035,13 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .evacuation-legend { position:absolute; right:16px; bottom:96px; z-index:1000; width:max-content; max-width:calc(100vw - 32px); padding:12px 14px; border-radius:12px; background:var(--wv-card,white); color:var(--wv-text,#0f172a); box-shadow:0 4px 18px #0002; font-size:13.5px; line-height:1.5; pointer-events:none; }
+/* Floating dropdown chooser for important-places maps, aligned beside KokCommunityDropdown. */
+.place-map-dropdown { position:absolute; z-index:15; top:12px; left:272px; }
+@media (max-width:899px) { .place-map-dropdown { top:84px; left:12px; max-width:calc(100vw - 84px); } }
 .evacuation-legend strong { display:block; margin-bottom:6px; font-size:15px; }
 .evacuation-legend div { display:flex; align-items:center; gap:8px; margin-top:5px; }
 .evacuation-legend span { width:11px; height:11px; flex-shrink:0; border-radius:50%; }
 .water-legend { margin-top:8px; padding-top:8px; border-top:1px solid #94a3b844; }
-.evacuation-legend .route-swatch { height:0; border-top:2px dashed #D97706; border-radius:0; }
 .active-toggle { display:flex; align-items:center; gap:8px; font-weight:700; font-size:14px; pointer-events:auto; cursor:pointer; margin-bottom:4px; }
 .active-toggle.disabled { opacity:.5; cursor:not-allowed; }
 .active-toggle input { pointer-events:auto; }
@@ -957,9 +1053,9 @@ onBeforeUnmount(() => {
 .priority-list .row-label { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .priority-list .tier-dot { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
 /* On a phone the legend folds to one button so it does not cover the pins; it opens on tap. */
-.legend-toggle { display:none; pointer-events:auto; font-weight:700; font-size:14px; padding:4px 2px; min-height:36px; }
+.legend-toggle { display:none; pointer-events:auto; font-weight:700; font-size:13px; padding:2px 4px; min-height:32px; white-space:nowrap; }
 @media (max-width:767px) {
-  .evacuation-legend { bottom:214px; right:12px; padding:8px 12px; font-size:13px; max-height:calc(100dvh - 300px); overflow-y:auto; pointer-events:auto; }
+  .evacuation-legend { bottom:92px; left:12px; right:auto; padding:8px 12px; font-size:13px; max-width:calc(100vw - 24px); max-height:calc(100dvh - 230px); overflow-y:auto; pointer-events:auto; }
   .legend-toggle { display:block; }
 }
 
@@ -1001,31 +1097,43 @@ onBeforeUnmount(() => {
 </style>
 
 <style>
-/* Zoom buttons sit under the community-data button on the left, clear of the floating panels. */
-.leaflet-top.leaflet-left .leaflet-control-zoom {
-  margin-top: 164px;
-  margin-left: 12px;
-  border: 0;
-  box-shadow: 0 3px 12px rgba(15, 23, 42, 0.18);
+/* Zoom buttons sit on the right, styled to match the floating round controls. */
+[aria-label="แผนที่ Leaflet (OpenStreetMap)"] .leaflet-top.leaflet-right .leaflet-control-zoom {
+  margin-top: 76px;
+  margin-right: 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 9999px;
+  overflow: hidden;
+  background: var(--wv-card, #ffffff);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
 }
-.leaflet-control-zoom a {
-  width: 36px;
-  height: 36px;
-  line-height: 36px;
+[aria-label="แผนที่ Leaflet (OpenStreetMap)"] .leaflet-control-zoom a {
+  width: 42px;
+  height: 40px;
+  line-height: 38px;
   color: var(--wv-text, #0f172a);
-  background: var(--wv-card, #fff);
-  border-color: rgba(203, 213, 225, 0.9);
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid #e2e8f0;
   font-size: 18px;
+  font-weight: 600;
+  transition: background-color 0.15s ease, color 0.15s ease;
 }
-.leaflet-control-zoom a:hover { background: var(--wv-hover, #f1f5f9); }
-html.dark .leaflet-control-zoom a { border-color: #2c2c2e; }
+[aria-label="แผนที่ Leaflet (OpenStreetMap)"] .leaflet-control-zoom a:last-child { border-bottom: 0; }
+[aria-label="แผนที่ Leaflet (OpenStreetMap)"] .leaflet-control-zoom a:hover {
+  background: var(--wv-hover, #f8fafc);
+  color: #0284c7;
+}
+html.dark [aria-label="แผนที่ Leaflet (OpenStreetMap)"] .leaflet-top.leaflet-right .leaflet-control-zoom { border-color: #2c2c2e; }
+html.dark [aria-label="แผนที่ Leaflet (OpenStreetMap)"] .leaflet-control-zoom a { border-bottom-color: #2c2c2e; }
 @media (max-width: 639px) {
-  .leaflet-top.leaflet-left .leaflet-control-zoom { margin-top: 160px; margin-left: 10px; }
+  [aria-label="แผนที่ Leaflet (OpenStreetMap)"] .leaflet-top.leaflet-right .leaflet-control-zoom { margin-top: 286px; margin-right: 12px; }
+  [aria-label="แผนที่ Leaflet (OpenStreetMap)"] .leaflet-control-zoom a { width: 38px; height: 36px; line-height: 34px; font-size: 17px; }
 }
-/* On a phone the bottom menu covers the map's lower edge, so the OpenStreetMap credit moves under the area picker. */
-@media (max-width: 767px) {
-  [aria-label="แผนที่ Leaflet (OpenStreetMap)"] .leaflet-bottom.leaflet-left { bottom: auto; top: 68px; }
-  [aria-label="แผนที่ Leaflet (OpenStreetMap)"] .leaflet-control-attribution { margin: 0 0 0 12px; border-radius: 6px; }
+/* On a phone, place the OpenStreetMap credit cleanly right above the bottom footer bar. */
+@media (max-width: 639px) {
+  [aria-label="แผนที่ Leaflet (OpenStreetMap)"] .leaflet-bottom.leaflet-left { top: auto; bottom: 64px; }
+  [aria-label="แผนที่ Leaflet (OpenStreetMap)"] .leaflet-control-attribution { margin: 0 0 0 8px; padding: 1px 6px; font-size: 10px; line-height: 1.3; border-radius: 6px; }
 }
 
 /* Community markers shown when the map is zoomed out past a single village. */

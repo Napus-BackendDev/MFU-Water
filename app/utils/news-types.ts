@@ -2,6 +2,22 @@ export type NewsCategory = 'urgent' | 'water' | 'flood' | 'event' | 'knowledge'
 
 export type NewsStatus = 'published'
 
+export type NewsImageLayout = 'top' | 'left' | 'right'
+
+export type NewsAttachmentFile = {
+  name: string
+  size?: number
+  url: string
+}
+
+export type NewsContentBlock =
+  | { id: string; type: 'text'; heading?: string; body: string }
+  | { id: string; type: 'image_text'; layout: NewsImageLayout; imageUrl: string; caption?: string; heading?: string; body: string }
+  | { id: string; type: 'gallery'; columns: 1 | 2 | 3; images: string[]; caption?: string }
+  | { id: string; type: 'file'; files: NewsAttachmentFile[] }
+
+export const RESEARCH_GROUP_TAGS = [1, 2, 3, 4, 5, 6, 7] as const
+
 export interface NewsArticle {
   id: string
   title: string
@@ -12,6 +28,8 @@ export interface NewsArticle {
   content: string
   cover_image_url: string
   gallery_image_urls?: string[]
+  content_blocks?: NewsContentBlock[]
+  research_tags?: number[]
   is_pinned: boolean
   status: NewsStatus
   author: string

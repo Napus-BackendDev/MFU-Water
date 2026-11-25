@@ -1,7 +1,9 @@
 // @vitest-environment node
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync, unlinkSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { config } from '../surveys/_shared.js'
+import { getDb } from '../surveys/_db.js'
 import newsDispatcher, { pickNewsHandler } from './index.js'
 import newsIndexHandler from './_public.js'
 import newsPhotoHandler from './_photo.js'
@@ -96,7 +98,10 @@ describe('admin news api and MongoDB GridFS photo upload', () => {
     const result = uploadRes.json.mock.calls[0][0]
     expect(result.ok).toBe(true)
     expect(result.url).toMatch(/^\/api\/news\/photo\//)
+    expect(result.publicUrl).toMatch(/^\/uploads\/news\/images\//)
+    expect(result.diskPath).toMatch(/^public\/uploads\/news\/images\//)
     expect(result.filename).toBeDefined()
+    expect(existsSync(resolve(process.cwd(), result.diskPath))).toBe(true)
 
     // Test public photo retrieval from GridFS
     const photoReq = {
@@ -110,6 +115,46 @@ describe('admin news api and MongoDB GridFS photo upload', () => {
     expect(photoRes.status).toHaveBeenCalledWith(200)
     expect(photoRes.setHeader).toHaveBeenCalledWith('Content-Type', 'image/jpeg')
     expect(photoRes.send).toHaveBeenCalled()
+
+    if (existsSync(resolve(process.cwd(), result.diskPath))) {
+      unlinkSync(resolve(process.cwd(), result.diskPath))
+    }
+    const db = await getDb(config(false))
+    await db.collection('uploaded_files').deleteOne({ publicUrl: result.publicUrl })
+  })
+
+  it('uploads a news file attachment to public/uploads/news/files and records path in MongoDB uploaded_files', async () => {
+    vi.stubEnv('VERCEL', '')
+    vi.stubEnv('APP_ENV', 'development')
+
+    const fakePdf = Buffer.from('%PDF-1.4\n1 0 obj\n<<>>\nendobj\n%%EOF\n')
+    const uploadReq = {
+      method: 'POST',
+      headers: { 'content-type': 'application/pdf' },
+      query: { filename: 'kok-test-report.pdf', kind: 'file' },
+      body: fakePdf,
+    }
+    const uploadRes = reply()
+    await uploadAdminNewsPhotoHandler(uploadReq, uploadRes)
+
+    expect(uploadRes.status).toHaveBeenCalledWith(201)
+    const result = uploadRes.json.mock.calls[0][0]
+    expect(result.ok).toBe(true)
+    expect(result.publicUrl).toMatch(/^\/uploads\/news\/files\/news-file-.*\.pdf$/)
+    expect(result.diskPath).toMatch(/^public\/uploads\/news\/files\/news-file-.*\.pdf$/)
+
+    const diskFile = resolve(process.cwd(), result.diskPath)
+    expect(existsSync(diskFile)).toBe(true)
+
+    const db = await getDb(config(false))
+    const stored = await db.collection('uploaded_files').findOne({ publicUrl: result.publicUrl })
+    expect(stored).toBeTruthy()
+    expect(stored.category).toBe('news_file')
+    expect(stored.diskPath).toBe(result.diskPath)
+    expect(stored.contentType).toBe('application/pdf')
+
+    if (existsSync(diskFile)) unlinkSync(diskFile)
+    await db.collection('uploaded_files').deleteOne({ publicUrl: result.publicUrl })
   })
 
   it('creates, updates, pins, and deletes article', async () => {

@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { Maximize2, Minimize2 } from 'lucide-vue-next'
 import type { CommunityId } from '../../src/lib/map-data'
 import { pinIconOptions, type EditorMarker } from '../utils/map-pin'
 
@@ -17,10 +18,11 @@ const props = withDefaults(defineProps<{
   routeDraft?: Array<[number, number]> | null
   pickMode?: boolean
   fitToken?: number
+  focusArea?: { points: Array<[number, number]>; zoom?: number; nonce: number } | null
   heightClass?: string
   community?: CommunityId
   center?: [number, number]
-}>(), { lines: () => [], routeDraft: null, pickMode: false, fitToken: 0, heightClass: 'h-[440px]' })
+}>(), { lines: () => [], routeDraft: null, pickMode: false, fitToken: 0, focusArea: null, heightClass: 'h-[440px]' })
 
 const emit = defineEmits<{
   (e: 'select', id: string): void
@@ -98,6 +100,7 @@ function fit() {
 onMounted(async () => {
   if (!container.value) return
   const leaflet = await import('leaflet')
+  if (!container.value) return
   L = (leaflet.default ?? leaflet) as typeof import('leaflet')
   map = L.map(container.value, { center: activeCenter.value, zoom: 15, zoomControl: true, attributionControl: true })
   L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -127,6 +130,15 @@ watch(() => props.markers, renderMarkers, { deep: true })
 watch(() => props.lines, renderLines, { deep: true })
 watch(() => props.routeDraft, renderDraft, { deep: true })
 watch(() => props.fitToken, () => setTimeout(fit, 0))
+watch(() => props.focusArea?.nonce, () => {
+  const focus = props.focusArea
+  if (!L || !map || !focus?.points.length) return
+  if (focus.points.length === 1) {
+    map.setView(focus.points[0]!, focus.zoom ?? 17, { animate: true })
+  } else {
+    map.fitBounds(L.latLngBounds(focus.points), { padding: [36, 36], maxZoom: focus.zoom ?? 17, animate: true })
+  }
+})
 watch(activeCenter, (next) => {
   if (!map) return
   const points: Array<[number, number]> = [...props.markers.map((marker) => [marker.latitude, marker.longitude] as [number, number]), ...props.lines.flat(), ...(props.routeDraft ?? [])]
@@ -137,6 +149,15 @@ watch(activeCenter, (next) => {
   }
 })
 
+const isExpanded = ref(false)
+async function toggleExpand() {
+  isExpanded.value = !isExpanded.value
+  await nextTick()
+  setTimeout(() => {
+    map?.invalidateSize()
+  }, 60)
+}
+
 onBeforeUnmount(() => {
   map?.remove()
   map = null
@@ -144,14 +165,40 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="relative isolate overflow-hidden rounded-2xl border border-slate-200 dark:border-[#2C2C2E]" :class="heightClass">
-    <div ref="container" role="region" aria-label="แผนที่แก้ไขข้อมูล" class="h-full w-full" :class="{ 'cursor-crosshair': pickMode || routeDraft }" />
+  <div v-if="isExpanded" class="fixed inset-0 z-[1039] bg-slate-900/55 backdrop-blur-[1px]" @click="toggleExpand" />
+  <div
+    class="overflow-hidden rounded-2xl border border-slate-200 bg-white dark:border-[#2C2C2E] dark:bg-[#1E1E1E]"
+    :class="[
+      isExpanded ? 'fixed inset-3 z-[1040] h-auto! shadow-2xl sm:inset-5' : ['relative isolate', heightClass],
+      { 'kok-map-pick': pickMode || Boolean(routeDraft) },
+    ]"
+  >
+    <div ref="container" role="region" aria-label="แผนที่แก้ไขข้อมูล" class="h-full w-full" />
     <p
       v-if="pickMode || routeDraft"
       class="pointer-events-none absolute left-1/2 top-3 z-[1000] -translate-x-1/2 rounded-full bg-[#0284C7] px-3.5 py-1.5 text-xs font-bold text-white shadow-lg"
     >
       {{ routeDraft ? 'คลิกบนแผนที่เพื่อเพิ่มจุดเส้นทาง · ลากจุดเพื่อย้าย' : 'คลิกบนแผนที่เพื่อเลือกตำแหน่ง' }}
     </p>
+    <button
+      type="button"
+      :aria-label="isExpanded ? 'ย่อแผนที่' : 'ขยายแผนที่'"
+      :aria-pressed="isExpanded"
+      class="absolute right-3 top-3 z-[1000] inline-flex cursor-pointer items-center gap-1.5 rounded-xl border border-slate-200 bg-white/95 px-2.5 py-1.5 text-xs font-bold text-slate-800 shadow-md backdrop-blur-xs transition hover:bg-slate-50 hover:text-[#0284C7] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0284C7] dark:border-[#2C2C2E] dark:bg-[#1E1E1E]/95 dark:text-slate-100 dark:hover:bg-[#252525]"
+      @click.stop="toggleExpand"
+    >
+      <Minimize2 v-if="isExpanded" class="h-3.5 w-3.5 text-[#0284C7] dark:text-[#00E5FF]" />
+      <Maximize2 v-else class="h-3.5 w-3.5 text-[#0284C7] dark:text-[#00E5FF]" />
+      <span>{{ isExpanded ? 'ย่อแผนที่' : 'ขยายแผนที่' }}</span>
+    </button>
     <slot />
   </div>
 </template>
+
+<style scoped>
+/* Keep :class off the Leaflet mount element so Vue patching does not strip .leaflet-container. */
+.kok-map-pick :deep(.leaflet-container),
+.kok-map-pick :deep(.leaflet-grab) {
+  cursor: crosshair;
+}
+</style>

@@ -1,0 +1,106 @@
+{
+ "question": "ข้อมูลทีมวิจัยส่วนไหนไม่ควรขึ้นระบบหรือต้องยืนยันก่อน",
+ "audience": "ผู้ใช้โครงการ",
+ "findings": [
+  "SWG2.1 อ้างผล biochar ที่ SWG1 ยังไม่มีผลทดสอบรองรับ (SWG2.1!B4 กับ SWG1!E9)"
+ ],
+ "noExceptionsBecause": "ภาพรายการข้อควรระวัง ไม่ใช่ลำดับงาน",
+ "claims": {
+  "r0c0": {
+   "status": "verified",
+   "evidence": "MFU_IP3_SWG_6M-Progress SWG5!B4 SWG6!C13"
+  },
+  "r0c1": {
+   "status": "assumption",
+   "evidence": "ข้อเสนอ"
+  },
+  "r0c2": {
+   "status": "assumption",
+   "evidence": "ข้อเสนอ"
+  },
+  "z0": {
+   "status": "user-confirmed",
+   "evidence": "ผู้ใช้ 2026-11-16 ขอให้ภาพสวยและต่อกันเป็น flow"
+  },
+  "r1c0": {
+   "status": "verified",
+   "evidence": "MFU_IP3_SWG_6M-Progress SWG5!B5"
+  },
+  "r1c1": {
+   "status": "assumption",
+   "evidence": "ข้อเสนอ"
+  },
+  "r1c2": {
+   "status": "assumption",
+   "evidence": "ข้อเสนอ"
+  },
+  "z1": {
+   "status": "user-confirmed",
+   "evidence": "ผู้ใช้ 2026-11-16 ขอให้ภาพสวยและต่อกันเป็น flow"
+  },
+  "r2c0": {
+   "status": "verified",
+   "evidence": "MFU_IP3_SWG_6M-Progress SWG1!C35 SWG1!G40"
+  },
+  "r2c1": {
+   "status": "assumption",
+   "evidence": "ข้อเสนอ"
+  },
+  "r2c2": {
+   "status": "assumption",
+   "evidence": "ข้อเสนอ"
+  },
+  "z2": {
+   "status": "user-confirmed",
+   "evidence": "ผู้ใช้ 2026-11-16 ขอให้ภาพสวยและต่อกันเป็น flow"
+  },
+  "r3c0": {
+   "status": "verified",
+   "evidence": "MFU_IP3_SWG_6M-Progress SWG2.1!B4"
+  },
+  "r3c1": {
+   "status": "verified",
+   "evidence": "MFU_IP3_SWG_6M-Progress SWG1!E9"
+  },
+  "r3c2": {
+   "status": "assumption",
+   "evidence": "ข้อเสนอ"
+  },
+  "z3": {
+   "status": "user-confirmed",
+   "evidence": "ผู้ใช้ 2026-11-16 ขอให้ภาพสวยและต่อกันเป็น flow"
+  },
+  "r4c0": {
+   "status": "verified",
+   "evidence": "MFU_IP3_SWG_6M-Progress SWG2.1!E8 SWG2.1!D13 SWG6!C13"
+  },
+  "r4c1": {
+   "status": "verified",
+   "evidence": "MFU_IP3_SWG_6M-Progress SWG2.1!E8 SWG2.1!D13"
+  },
+  "r4c2": {
+   "status": "assumption",
+   "evidence": "ข้อเสนอ"
+  },
+  "z4": {
+   "status": "user-confirmed",
+   "evidence": "ผู้ใช้ 2026-11-16 ขอให้ภาพสวยและต่อกันเป็น flow"
+  },
+  "r5c0": {
+   "status": "verified",
+   "evidence": "MFU_IP3_SWG_6M-Progress SWG4.1!B4 SWG4.1!E7"
+  },
+  "r5c1": {
+   "status": "verified",
+   "evidence": "MFU_IP3_SWG_6M-Progress SWG4.1!B4"
+  },
+  "r5c2": {
+   "status": "assumption",
+   "evidence": "ข้อเสนอ"
+  },
+  "z5": {
+   "status": "user-confirmed",
+   "evidence": "ผู้ใช้ 2026-11-16 ขอให้ภาพสวยและต่อกันเป็น flow"
+  }
+ }
+}

@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { devSuperAdminLogin } from './admin-login';
 
 test('sidebar community switch updates map and data in places and evacuation tabs', async ({ page }) => {
   await page.addInitScript(() => {
@@ -7,6 +8,7 @@ test('sidebar community switch updates map and data in places and evacuation tab
   });
 
   await page.goto('http://127.0.0.1:5173/?view=admin', { waitUntil: 'networkidle' });
+  await devSuperAdminLogin(page);
 
   // 1. In Sidebar, open community dropdown and select "บ้านปงของ"
   const communitySelect = page.locator('aside button:has-text("บ้านท่าตอน")').first();

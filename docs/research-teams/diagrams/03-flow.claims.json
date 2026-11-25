@@ -1,0 +1,90 @@
+{
+ "question": "ผลงานของทีมวิจัยผ่านขั้นตอนไหนก่อนขึ้นหน้าเว็บของระบบ",
+ "audience": "ผู้ใช้โครงการ",
+ "findings": [
+  "ระบบมีที่รองรับแล้ว 3 ที่ (ชั้นแผนที่ การ์ดชุมชน ข่าว) ส่วนหน้าสถานะทีมวิจัยสาธารณะยังไม่มี (api/express-app.js:200 เป็นเฉพาะหลังบ้าน)"
+ ],
+ "noExceptionsBecause": "ภาพแสดงทางไหลของผลงานเข้าสู่ระบบ ไม่มีกรณีผิดพลาดที่ต้องแยกแสดง",
+ "claims": {
+  "r0c0": {
+   "status": "verified",
+   "evidence": "MFU_IP3_SWG_6M-Progress SWG5!E8 SWG6!E9"
+  },
+  "r0c1": {
+   "status": "assumption",
+   "evidence": "ข้อเสนอ ยังไม่ได้ตกลงกับทีม"
+  },
+  "r0c2": {
+   "status": "verified",
+   "evidence": "app/components/KokAdminMapData.vue:1"
+  },
+  "r0c3": {
+   "status": "verified",
+   "evidence": "app/components/KokMapTypesControl.vue:17"
+  },
+  "z0": {
+   "status": "user-confirmed",
+   "evidence": "ผู้ใช้ 2026-11-16 ขอให้ภาพสวยและต่อกันเป็น flow"
+  },
+  "r1c0": {
+   "status": "verified",
+   "evidence": "MFU_IP3_SWG_6M-Progress Village!A1 SWG3!C10 SWG7!E8"
+  },
+  "r1c1": {
+   "status": "assumption",
+   "evidence": "ข้อเสนอ ยังไม่ได้ตกลงกับทีม"
+  },
+  "r1c2": {
+   "status": "verified",
+   "evidence": "app/utils/map-data-admin.ts:122"
+  },
+  "r1c3": {
+   "status": "verified",
+   "evidence": "app/components/KokCommunityProfileCard.vue:1"
+  },
+  "z1": {
+   "status": "user-confirmed",
+   "evidence": "ผู้ใช้ 2026-11-16 ขอให้ภาพสวยและต่อกันเป็น flow"
+  },
+  "r2c0": {
+   "status": "verified",
+   "evidence": "MFU_IP3_SWG_6M-Progress SWG1!E8 SWG2.1!E8 SWG4.1!E7 SWG6!E10"
+  },
+  "r2c1": {
+   "status": "assumption",
+   "evidence": "ข้อเสนอ ยังไม่ได้ตกลงกับทีม"
+  },
+  "r2c2": {
+   "status": "verified",
+   "evidence": "app/components/KokAdminNewsForm.vue:1"
+  },
+  "r2c3": {
+   "status": "verified",
+   "evidence": "app/utils/news-types.ts:38"
+  },
+  "z2": {
+   "status": "user-confirmed",
+   "evidence": "ผู้ใช้ 2026-11-16 ขอให้ภาพสวยและต่อกันเป็น flow"
+  },
+  "r3c0": {
+   "status": "verified",
+   "evidence": "MFU_IP3_SWG_6M-Progress SWG1!D7 SWG6!D12"
+  },
+  "r3c1": {
+   "status": "assumption",
+   "evidence": "ข้อเสนอ ยังไม่ได้ตกลงกับทีม"
+  },
+  "r3c2": {
+   "status": "verified",
+   "evidence": "app/components/KokAdminResearchHub.vue:1"
+  },
+  "r3c3": {
+   "status": "assumption",
+   "evidence": "ข้อเสนอ ยังไม่มีหน้าสาธารณะ (หลังบ้าน api/express-app.js:200)"
+  },
+  "z3": {
+   "status": "user-confirmed",
+   "evidence": "ผู้ใช้ 2026-11-16 ขอให้ภาพสวยและต่อกันเป็น flow"
+  }
+ }
+}

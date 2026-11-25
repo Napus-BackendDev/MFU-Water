@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Kok River Story</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+Thai:wght@500;700&family=Noto+Sans+Thai:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<style>
+:root{--ink:#111418;--paper:#F7F5F0;--muted:#5d646d;--line:#d9d5cc;--kok:#2f7fd1;--alert:#d6452f;--ok:#2e8b57;--sand:#c49a5a}
+*{box-sizing:border-box}html,body{margin:0;background:var(--paper);color:var(--ink);font-family:'Noto Sans Thai',system-ui,sans-serif;font-size:18px;line-height:1.75}
+h1,h2,h3{font-family:'Noto Serif Thai',serif;font-weight:700;line-height:1.25;margin:0}
+.mono{font-family:'IBM Plex Mono',monospace}
+.kicker{font-size:13px;letter-spacing:.08em;color:var(--alert);font-weight:600}
+.src{font-size:12px;color:var(--muted);line-height:1.5;margin-top:10px}
+.prose{max-width:680px;margin:0 auto;padding:12vh 20px}
+.prose p{margin:0 0 1.2em}
+/* hero */
+.hero{position:relative;height:100vh;overflow:hidden;color:#fff}
+.hero img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transform:scale(1.15)}
+.hero::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.05) 30%,rgba(0,0,0,.75))}
+.hero .t{position:absolute;left:0;right:0;bottom:9vh;z-index:2;max-width:980px;margin:0 auto;padding:0 20px}
+.hero h1{font-size:clamp(40px,7vw,92px)}
+.hero p{font-size:clamp(17px,1.6vw,21px);max-width:640px;margin:14px 0 0}
+.credit{position:absolute;right:12px;bottom:10px;z-index:2;font-size:11px;opacity:.8}
+/* sticky scrolly */
+.scrolly{position:relative}
+.sticky{position:sticky;top:0;height:100vh;overflow:hidden}
+.steps{position:relative;z-index:5;margin-top:-100vh;pointer-events:none}
+.step{min-height:100vh;display:flex;align-items:center;padding:0 5vw}
+.step .box{pointer-events:auto;max-width:400px;background:rgba(255,255,255,.96);border-radius:6px;padding:22px 24px;box-shadow:0 10px 30px rgba(0,0,0,.18);font-size:17px}
+.step .box h3{font-size:22px;margin-bottom:8px}
+.step:first-child{min-height:80vh}
+#map{position:absolute;inset:0;background:#0b1a24}
+.pulse{width:18px;height:18px;border-radius:50%;background:var(--alert);box-shadow:0 0 0 0 rgba(214,69,47,.7);animation:pl 1.8s infinite;border:2px solid #fff}
+@keyframes pl{70%{box-shadow:0 0 0 22px rgba(214,69,47,0)}100%{box-shadow:0 0 0 0 rgba(214,69,47,0)}}
+.lbl{background:#fff;padding:2px 10px;border-radius:3px;font:600 14px 'Noto Sans Thai';white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,.25)}
+/* chart */
+#chart{background:#fff;display:grid;place-items:center}
+#chart{place-items:start center;padding-top:3vh}#chart svg{width:min(1000px,94vw);height:62vh}
+#ars .step{align-items:flex-end;justify-content:center;padding-bottom:5vh}#ars .step .box{max-width:640px}
+/* big numbers */
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:28px;max-width:1100px;margin:0 auto;padding:4vh 20px 14vh}
+.stat .n{font-family:'Noto Serif Thai';font-size:clamp(44px,5vw,68px);font-weight:700;line-height:1}
+.stat .l{font-size:16px;margin-top:8px}
+/* communities */
+.comm{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px;background:var(--ink)}
+.cc{position:relative;height:70vh;overflow:hidden;color:#fff}
+.cc .bg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transform:scale(1.12)}
+.cc .mm{position:absolute;inset:0;z-index:0}.cc::after{z-index:1}
+.cc::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,transparent 35%,rgba(0,0,0,.8));pointer-events:none}
+.cc .t{position:absolute;left:24px;right:24px;bottom:22px;z-index:3}
+.cc h3{font-size:30px}.cc p{margin:4px 0 0;font-size:15px;line-height:1.55}
+.cc .tag{display:inline-block;font-size:12px;background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.5);padding:1px 10px;border-radius:99px;margin-top:8px}
+/* flood */
+#flood{background:#101418;color:#fff}
+.fwrap{position:absolute;inset:0;display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:4vw;align-items:center;padding:0 5vw}
+.cmp{position:relative;aspect-ratio:1;max-height:82vh;border-radius:4px;overflow:hidden}
+.cmp img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.cmp .after{clip-path:inset(0 0 0 100%)}
+.cmp .line{position:absolute;top:0;bottom:0;width:3px;background:#fff;left:100%}
+.cmp .lab{position:absolute;top:12px;font-size:13px;background:rgba(0,0,0,.6);padding:2px 10px;border-radius:3px}
+.bars{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:8px;align-items:end;height:34vh;border-bottom:1px solid #444;margin-top:20px}
+.bar{background:#5aa9ff;height:0;position:relative;border-radius:2px 2px 0 0}.bar.peak{background:var(--alert)}
+.bar b{position:absolute;top:-22px;left:0;right:0;text-align:center;font:500 12px 'IBM Plex Mono'}
+.bl{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:8px;font-size:11px;color:#aaa;text-align:center;margin-top:6px}
+/* teams */
+.teams{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;max-width:1150px;margin:0 auto;padding:0 20px 14vh}
+.team{background:#fff;border-top:4px solid var(--kok);padding:20px;opacity:0;transform:translateY(30px)}
+.team .id{font:500 13px 'IBM Plex Mono';color:var(--kok)}.team h3{font-size:20px;margin:4px 0 6px}.team p{font-size:15px;line-height:1.6;margin:0}
+.team .k{font-family:'Noto Serif Thai';font-size:28px;font-weight:700;margin-top:10px}
+.end{background:var(--ink);color:#fff;text-align:center;padding:16vh 20px}
+@media (max-width:820px){.comm{grid-template-columns:1fr}.fwrap{grid-template-columns:1fr;align-content:center;gap:16px;padding:16px}.cmp{max-height:44vh;margin:0 auto}.bars{height:18vh}.step{padding:0 16px}.step .box{max-width:none}}
+@media (prefers-reduced-motion:reduce){.pulse{animation:none}}
+</style>
+</head>
+<body>
+
+<header class="hero">
+ <img id="heroimg" src="../../KokData/เก็บข้อมูลแม่น้ำกก อาจารย์อภิสม/03_ภาพและสื่อ/Facebook/ภูมิประเทศและภาพโดรน/FB08_ปากอิงใต้_2025-07-05/FB08_01.jpg" alt="ภาพมุมสูงจุดที่แม่น้ำอิงไหลลงแม่น้ำโขง บ้านปากอิงใต้">
+ <div class="t"><div class="kicker" style="color:#ffd27a">MFU KOK WATER WATCH · 4 ชุมชน · 7 กลุ่มวิจัย</div>
+  <h1>แม่น้ำที่เรา<br>ยังต้องพึ่งพา</h1>
+  <p>คนริมกก–อิง–โขงเผชิญน้ำท่วมอยู่แล้ว วันนี้มีคำถามเพิ่มว่า น้ำที่ใช้มีโลหะหนักไหม ตรวจเมื่อไร และเกี่ยวกับบ้าน นา และรายได้ของเราอย่างไร</p></div>
+ <div class="credit">ภาพ: นพ.สมหมาย เอี่ยวประดิษฐ์ · ปากอิงลงโขง 5 ก.ค. 2568 · ต้นแบบภายใน ต้องขออนุญาตก่อนเผยแพร่</div>
+</header>
+
+<section class="prose">
+ <p class="kicker">บทนำ</p>
+ <p>มหาวิทยาลัยแม่ฟ้าหลวงและเครือข่ายทำงานกับ 4 ชุมชนนำร่อง ตั้งแต่หุบเขาต้นน้ำกกที่ท่าตอน ไปจนถึงจุดที่แม่น้ำอิงไหลลงแม่น้ำโขงที่ปากอิงใต้</p>
+ <p>เรื่องนี้เล่าจากเอกสารจริงของโครงการ: ผลตรวจน้ำทางการ ภาพดาวเทียมน้ำท่วม ผลสำรวจครัวเรือน และงานของ 7 กลุ่มวิจัย พร้อมบอกด้วยว่าอะไรที่เรายังไม่รู้</p>
+</section>
+
+<!-- MAP SCROLLY -->
+<section class="scrolly" id="mapscrolly">
+ <div class="sticky"><div id="map"></div></div>
+ <div class="steps">
+  <div class="step" data-v="0"><div class="box"><div class="kicker">ลุ่มน้ำ</div><h3>สามแม่น้ำ สี่ชุมชน</h3><p>แม่น้ำกกไหลจากเมียนมาเข้าไทยที่ อ.แม่อาย ผ่านเชียงรายแล้วลงแม่น้ำโขง ส่วนแม่น้ำอิงไหลลงโขงที่ อ.เชียงของ</p></div></div>
+  <div class="step" data-v="1"><div class="box"><div class="kicker">ชุมชน 1 · ต้นน้ำกก</div><h3>บ้านท่าตอน</h3><p>อ.แม่อาย จ.เชียงใหม่ หุบเขาหินปูนสูง 470–600 ม. จุดแรกที่รับการเปลี่ยนแปลงของน้ำและตะกอนจากต้นน้ำ</p><p class="src">มีชุดสำรวจครัวเรือน 129 แถว และภาพดาวเทียมน้ำท่วม 2565–2569</p></div></div>
+  <div class="step" data-v="2"><div class="box"><div class="kicker">ชุมชน 2 · กกตอนกลาง</div><h3>บ้านกะเหรี่ยงรวมมิตร</h3><p>ที่ราบริมน้ำล้อมเขาหินปูน ชุมชนหลายชาติพันธุ์ อยู่กับปางช้าง โฮมสเตย์ และทอผ้า ความเสี่ยงหลักคือตลิ่งพัง</p></div></div>
+  <div class="step" data-v="3"><div class="box"><div class="kicker">ชุมชน 3 · ลุ่มน้ำโขงตอนบน</div><h3>บ้านปงของ</h3><p>ที่ราบลอนคลื่น ลำห้วยไหลลงโขง ทำนา ข้าวโพด มันสำปะหลัง เสี่ยงน้ำป่าหลากจากร่องเขาและดินกร่อน</p></div></div>
+  <div class="step" data-v="4"><div class="box"><div class="kicker">ชุมชน 4 · ปากแม่น้ำอิง</div><h3>บ้านปากอิงใต้</h3><p>อ.เชียงของ ที่ราบลุ่มตรงจุดบรรจบอิง–โขง ประมงพื้นบ้านและนาลุ่มน้ำท่วมถึง เมื่อโขงสูง น้ำอิงระบายไม่ออก (น้ำเท้อ)</p><p class="src">ที่มา: ชีต Village · MFU_IP3_SWG_6M-Progress.xlsx · พิกัดโดยประมาณ</p></div></div>
+ </div>
+</section>
+
+<!-- ARSENIC CHART SCROLLY -->
+<section class="scrolly" id="ars">
+ <div class="sticky" id="chart"><svg id="cs" viewBox="0 0 1000 560" role="img" aria-label="กราฟสารหนูในน้ำผิวดิน ผลตรวจครั้งที่ 22"></svg></div>
+ <div class="steps">
+  <div class="step"><div class="box"><div class="kicker">ผลตรวจน้ำผิวดิน ครั้งที่ 22</div><h3>เกณฑ์สารหนูในน้ำผิวดิน คือ 10 ppb</h3><p>หน่วยงานรัฐเก็บตัวอย่างวันที่ 3–7 ส.ค. 2569 เส้นประคือเกณฑ์ (0.01 mg/L = 10 ppb)</p></div></div>
+  <div class="step"><div class="box"><h3>แม่น้ำกก: เกินเกณฑ์เล็กน้อยทุกจุดที่รายงาน</h3><p>6 สถานีบนแม่น้ำกกวัดได้ 11–13 ppb</p><p class="src">KK01 ย้ายจากสะพานท่าตอนไปชายแดนแก่งตุ้มตั้งแต่ พ.ค. 2569 จึงเทียบข้ามเวลาไม่ได้ตรง ๆ</p></div></div>
+  <div class="step"><div class="box"><h3>แม่น้ำสาย: สูงกว่าเกณฑ์ 18–28 เท่า</h3><p>3 สถานีบนแม่น้ำสายวัดได้ 184–284 ppb ต้องขยายแกนกราฟเพื่อให้เห็นทั้งหมด</p></div></div>
+  <div class="step"><div class="box"><h3>แม่น้ำรวกและโขง</h3><p>รวก RU01/RU02 = 17/12 ppb และโขง NK09 = 14 ppb ส่วน NK01–NK04 ต่ำกว่าเกณฑ์</p><p class="src">ที่มา: 3.3 ผลน้ำครั้งที่ 22.pdf ตาราง 18 หน้า 14 · สรุปหน้า 17 ของรายงานพิมพ์ค่ารวกคลาดเคลื่อน จึงยึดตารางรายสถานี</p></div></div>
+ </div>
+</section>
+
+<section class="prose" style="padding-bottom:4vh">
+ <p class="kicker">ผลกระทบต่อคน</p>
+ <h2 style="font-size:clamp(28px,3.4vw,42px);margin-bottom:16px">ตัวเลขที่ต้องอ่านพร้อมตัวส่วน</h2>
+ <p>แต่ละตัวเลขมาจากคนละการสำรวจ คนละพื้นที่ จึงไม่นำมาบวกหรือเทียบกันตรง ๆ</p>
+</section>
+<div class="stats">
+ <div class="stat"><div class="n" data-n="8018">0</div><div class="l">บาท/ครัวเรือน/เดือน ผลกระทบเฉลี่ยจากปัญหาน้ำ</div><div class="src">SWG3 · สำรวจ 109 ครัวเรือน ท่าตอน พ.ค. 2569 · ค่าเฉลี่ย ไม่ใช่ทุกบ้าน</div></div>
+ <div class="stat"><div class="n" data-n="60">0</div><div class="l">จาก 129 แถวสำรวจ เคยถูกน้ำท่วมบ้าน</div><div class="src">SWG6 · ท่าตอน · data/public-aggregate.json</div></div>
+ <div class="stat"><div class="n" data-n="569">0</div><div class="l">คนตรวจปัสสาวะ พบสารหนูอนินทรีย์เกินเกณฑ์ 31 คน</div><div class="src">สไลด์ 3.6 ประชุมจังหวัด 30 ก.ย. 2569 · คัดกรอง 6,269 คน · ไม่ใช่อัตราป่วย</div></div>
+</div>
+
+<!-- COMMUNITIES -->
+<section class="comm" id="comm">
+ <div class="cc"><img class="bg" src="../../KokData/thaton-flood-events-2022-2026/05_2024-09/01_before_cloudfree.png" alt="ภาพดาวเทียมบ้านท่าตอน"><div class="t"><h3>ท่าตอน</h3><p>เรือโดยสาร สวนส้ม ลิ้นจี่ ค้าขายชายแดน</p><span class="tag">ภาพดาวเทียม Sentinel-2 · ก.ย. 2567</span></div></div>
+ <div class="cc"><div class="mm" id="mm-ruammit"></div><div class="t"><h3>กะเหรี่ยงรวมมิตร</h3><p>ปางช้าง โฮมสเตย์ ทอผ้า ทำนาตามฤดู</p><span class="tag">ภาพถ่ายดาวเทียม Esri · รอภาพชุมชนจริง</span></div></div>
+ <div class="cc"><div class="mm" id="mm-pongkhong"></div><div class="t"><h3>ปงของ</h3><p>ทำนา ข้าวโพดเลี้ยงสัตว์ สวนยางและผลไม้</p><span class="tag">ภาพถ่ายดาวเทียม Esri · รอภาพชุมชนจริง</span></div></div>
+ <div class="cc"><img class="bg" src="../../KokData/เก็บข้อมูลแม่น้ำกก อาจารย์อภิสม/03_ภาพและสื่อ/Facebook/ภูมิประเทศและภาพโดรน/FB08_ปากอิงใต้_2025-07-05/FB08_01.jpg" alt="ปากแม่น้ำอิง"><div class="t"><h3>ปากอิงใต้</h3><p>ประมงพื้นบ้าน นาลุ่มน้ำท่วมถึง</p><span class="tag">ภาพโดรน 5 ก.ค. 2568 · ต้องขออนุญาตก่อนเผยแพร่</span></div></div>
+</section>
+
+<!-- FLOOD SCROLLY -->
+<section class="scrolly" id="flood" style="height:320vh">
+ <div class="sticky"><div class="fwrap">
+  <div class="cmp"><img src="../../KokData/thaton-flood-events-2022-2026/05_2024-09/01_before_cloudfree.png" alt="ท่าตอนก่อนน้ำท่วม"><img class="after" src="../../KokData/thaton-flood-events-2022-2026/05_2024-09/03_peak_with_max_flood_extent.png" alt="ท่าตอนน้ำท่วมสูงสุด"><div class="line"></div><span class="lab" style="left:12px">ก่อนเกิดเหตุ</span><span class="lab" style="right:12px">15 ก.ย. 2567</span></div>
+  <div><div class="kicker" style="color:#ff8a73">น้ำท่วมท่าตอน 2565–2569</div><h2 style="font-size:clamp(26px,3vw,40px);margin-top:6px">พายุยางิ ท่วมราว <span class="mono" id="yagi">0</span> ไร่</h2>
+   <p style="color:#ccc;font-size:16px">ภาพดาวเทียมก่อนและหลัง สีแดงคือพื้นที่น้ำท่วม เทียบกับน้ำท่วมครั้งอื่นในรอบ 5 ปี</p>
+   <div class="bars" id="fbars"></div><div class="bl" id="fbl"></div>
+   <p class="src" style="color:#aaa">หน่วย: ไร่ · ต.ค. 69 ดาวเทียมไม่พบน้ำท่วม · ภาพแสงรวมแม่น้ำเดิมและไม่วัดความลึก · ที่มา KokData/thaton-flood-events-2022-2026</p></div>
+ </div></div>
+</section>
+
+<!-- TEAMS -->
+<section class="prose" style="padding-bottom:4vh"><p class="kicker">ใครทำอะไร</p><h2 style="font-size:clamp(28px,3.4vw,42px)">7 กลุ่มวิจัย ต่อกันเป็นภาพเดียว</h2>
+<p style="margin-top:14px">จากทางเลือกบำบัดน้ำ คนเก็บข้อมูล เศรษฐกิจ สุขภาพ การรับมือภัย ความมั่นคงน้ำ ไปจนถึงความรู้ท้องถิ่น แต่ละกลุ่มใช้ตัวอย่างของตัวเอง</p></section>
+<div class="teams" id="teams"></div>
+<p class="src" style="text-align:center;margin:-10vh 0 12vh">ที่มา: MFU_IP3_SWG_6M-Progress.xlsx รายงาน ม.ค.–มิ.ย. 2569 (สถานะช่วงนั้น)</p>
+
+<section class="end"><h2 style="font-size:clamp(30px,4vw,52px)">ให้ข้อมูลเดินทางถึงคนริมน้ำ</h2><p style="max-width:620px;margin:16px auto 0;color:#ccc">MFU Kok Water Watch รวมผลตรวจภาคสนาม แผนที่น้ำท่วม และแผนรับมือของชุมชนไว้ในที่เดียว ค่าที่เกิน 50 ppb จะรอนักวิจัยตรวจก่อนเผยแพร่</p></section>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+<script>
+gsap.registerPlugin(ScrollTrigger)
+const IMG='https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
+const REF='https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}'
+const steps=(sel,fn)=>document.querySelectorAll(sel+' .step').forEach((s,i)=>ScrollTrigger.create({trigger:s,start:'top 55%',end:'bottom 55%',onToggle:t=>t.isActive&&fn(i)}))
+
+/* hero: Ken Burns */
+gsap.to('#heroimg',{scale:1,yPercent:8,ease:'none',scrollTrigger:{trigger:'.hero',start:'top top',end:'bottom top',scrub:true}})
+
+/* map */
+const P=[['ท่าตอน',[20.058,99.361]],['กะเหรี่ยงรวมมิตร',[19.9605,99.7082]],['ปงของ',[20.3076,100.2102]],['ปากอิงใต้',[20.203878,100.449169]]]
+const map=L.map('map',{zoomControl:false,scrollWheelZoom:false,dragging:false,doubleClickZoom:false,attributionControl:true}).setView([20.1,99.9],9)
+L.tileLayer(IMG,{attribution:'Esri World Imagery',maxZoom:17}).addTo(map);L.tileLayer(REF,{maxZoom:17,opacity:.85}).addTo(map)
+const mk=P.map(([n,c])=>L.marker(c,{icon:L.divIcon({className:'',html:'<div class="pulse"></div>',iconSize:[18,18],iconAnchor:[9,9]})}).bindTooltip(n,{permanent:true,direction:'right',offset:[12,0],className:'lbl'}).addTo(map))
+const views=[[[20.12,99.9],9],[P[0][1],14],[P[1][1],14],[P[2][1],14],[P[3][1],14]]
+let cv=-1;steps('#mapscrolly',i=>{if(i===cv)return;cv=i;map.stop();map.flyTo(views[i][0],views[i][1],{duration:2.4,easeLinearity:.2})})
+
+/* arsenic chart (ppb) */
+const D=[['KK01',11,'kok'],['KK02',11,'kok'],['KK05',13,'kok'],['KK07',13,'kok'],['KK10',13,'kok'],['KK11',11,'kok'],['SA01',284,'sai'],['SA02',208,'sai'],['SA03',184,'sai'],['RU01',17,'ruak'],['RU02',12,'ruak'],['NK09',14,'mekong']]
+const svg=document.getElementById('cs'),NS='http://www.w3.org/2000/svg',X0=90,X1=970,Y0=480,Y1=60,bw=(X1-X0)/D.length
+const el=(t,a,p=svg)=>{const e=document.createElementNS(NS,t);for(const k in a)e.setAttribute(k,a[k]);p.appendChild(e);return e}
+const grid=el('g',{}),bars=D.map((d,i)=>{const g=el('g',{});const r=el('rect',{x:X0+i*bw+8,width:bw-16,y:Y0,height:0,fill:'#c9c4b8'},g);const t=el('text',{x:X0+i*bw+bw/2,y:Y0,'text-anchor':'middle','font-size':14,'font-family':'IBM Plex Mono',fill:'#111',opacity:0},g);t.textContent=d[1];el('text',{x:X0+i*bw+bw/2,y:Y0+22,'text-anchor':'middle','font-size':12,'font-family':'IBM Plex Mono',fill:'#5d646d'},g).textContent=d[0];return{r,t,d}})
+const groups=[['แม่น้ำกก',0,6],['แม่น้ำสาย',6,9],['รวก',9,11],['โขง',11,12]];groups.forEach(([n,a,b])=>{el('text',{x:X0+(a+b)/2*bw,y:Y0+48,'text-anchor':'middle','font-size':15,'font-weight':600,fill:'#111'}).textContent=n;el('line',{x1:X0+a*bw+6,x2:X0+b*bw-6,y1:Y0+30,y2:Y0+30,stroke:'#999'})})
+const std=el('line',{x1:X0-10,x2:X1,stroke:'#d6452f','stroke-width':2,'stroke-dasharray':'8 6'}),stdT=el('text',{x:X0-14,'text-anchor':'end','font-size':13,fill:'#d6452f'});stdT.textContent='10 ppb'
+el('text',{x:X0-14,y:Y1-20,'text-anchor':'end','font-size':13,fill:'#5d646d'}).textContent='ppb'
+let max=20
+function draw(stage,dur=.9){max=stage>=2?300:20;const y=v=>Y0-(Math.min(v,max)/max)*(Y0-Y1)
+ grid.innerHTML='';(max===20?[0,5,10,15,20]:[0,50,100,150,200,250,300]).forEach(v=>{el('line',{x1:X0,x2:X1,y1:y(v),y2:y(v),stroke:'#eee'},grid);el('text',{x:X0-14,y:y(v)+4,'text-anchor':'end','font-size':12,fill:'#999'},grid).textContent=max===20&&v===10?'':v})
+ gsap.to(std,{attr:{y1:y(10),y2:y(10)},duration:dur});gsap.to(stdT,{attr:{y:y(10)-6},duration:dur})
+ bars.forEach(({r,t,d})=>{const show=stage>=1&&d[2]==='kok'||stage>=2&&d[2]==='sai'||stage>=3,hl=(stage===1&&d[2]==='kok')||(stage===2&&d[2]==='sai')||(stage===3&&(d[2]==='ruak'||d[2]==='mekong'))
+  const v=show?d[1]:0,clip=d[1]>max;gsap.to(r,{attr:{y:y(v),height:Y0-y(v)},fill:hl?'#d6452f':(show?'#9aa3ad':'#c9c4b8'),duration:dur,ease:'power2.out'})
+  gsap.to(t,{attr:{y:y(v)-8},opacity:show?1:0,duration:dur});t.textContent=clip?d[1]+' ↑':d[1]})}
+draw(0,0);let cs=-1;steps('#ars',i=>{if(i!==cs){cs=i;draw(i)}})
+
+/* counters */
+document.querySelectorAll('.stat .n').forEach(n=>gsap.to({v:0},{v:+n.dataset.n,duration:1.6,ease:'power2.out',scrollTrigger:{trigger:n,start:'top 85%'},onUpdate(){n.textContent=Math.round(this.targets()[0].v).toLocaleString('th-TH')}}))
+
+/* communities: slow zoom + mini satellite maps */
+document.querySelectorAll('.cc .bg').forEach(i=>gsap.to(i,{scale:1,ease:'none',scrollTrigger:{trigger:i.parentNode,start:'top bottom',end:'bottom top',scrub:true}}))
+;[['mm-ruammit',P[1][1]],['mm-pongkhong',P[2][1]]].forEach(([id,c])=>{const m=L.map(id,{zoomControl:false,dragging:false,scrollWheelZoom:false,doubleClickZoom:false,attributionControl:false}).setView(c,13);L.tileLayer(IMG,{maxZoom:17}).addTo(m)
+ ScrollTrigger.create({trigger:'#'+id,start:'top 70%',once:true,onEnter:()=>m.flyTo(c,15,{duration:6})})})
+gsap.from('.cc .t',{y:40,opacity:0,stagger:.15,duration:.8,scrollTrigger:{trigger:'#comm',start:'top 70%'}})
+
+/* flood */
+const F=[['ก.ค.65',37],['ส.ค.65',208],['ส.ค.66',56],['ส.ค.67',231],['ก.ย.67',500],['ก.ค.68',99],['ก.ค.69',95],['ต.ค.69',null]]
+document.getElementById('fbars').innerHTML=F.map(f=>`<div class="bar ${f[1]===500?'peak':''}" data-h="${f[1]?f[1]/500*100:2}"><b>${f[1]??'–'}</b></div>`).join('')
+document.getElementById('fbl').innerHTML=F.map(f=>`<div>${f[0]}</div>`).join('')
+const ft=gsap.timeline({scrollTrigger:{trigger:'#flood',start:'top top',end:'bottom bottom',scrub:true}})
+ft.to('#flood .after',{clipPath:'inset(0 0 0 0%)',ease:'none',duration:1},0).to('#flood .line',{left:'0%',ease:'none',duration:1},0)
+ .to({v:0},{v:500,duration:1,onUpdate(){document.getElementById('yagi').textContent=Math.round(this.targets()[0].v)}},0)
+document.querySelectorAll('#fbars .bar').forEach((b,k)=>ft.to(b,{height:b.dataset.h+'%',duration:.4},.6+k*.08))
+
+/* teams */
+const T=[['SWG1','ทางเลือกบำบัดน้ำ','ทดลอง biochar และพื้นที่ชุ่มน้ำ มีต้นแบบห้องปฏิบัติการ การทดสอบในชุมชนยังดำเนินอยู่','ร่วมกับ ม.นเรศวร'],
+ ['SWG2.1','คนตรวจวัดน้ำ','สร้างเครือข่ายเก็บข้อมูลผ่านครูและโรงเรียน อบรม 6–7 มิ.ย. 2569','Reading the River'],
+ ['SWG3','ผลกระทบเศรษฐกิจ','แปลงปัญหาน้ำเป็นต้นทุนของครัวเรือน ทั้งผลผลิต รายได้ น้ำทดแทน สุขภาพ','8,018 บาท/เดือน'],
+ ['SWG4.1','ความรอบรู้สุขภาพ','อบรมอาสาสมัครและสำรวจความเข้าใจ พฤติกรรมป้องกัน และความกังวล','166 ครัวเรือน'],
+ ['SWG4.2','ความเปราะบางทางสังคม','ม.ราชภัฏเชียงราย ประเมินแบบมีส่วนร่วมและเตรียม SIMVA','ผู้นำ 15 คน'],
+ ['SWG5','แผนเผชิญเหตุ','ม.มหาสารคาม ทำแผนที่ชุมชน จุดรวมพล เส้นทางอพยพ ศูนย์พักพิง','9 หย่อมบ้าน'],
+ ['SWG6','ความมั่นคงน้ำและแผนที่เสี่ยง','อ.อภิสม: เครื่องมือ WSI/FVI/DVI สำรวจนำร่อง GIS/risk map และ policy brief','129 ครัวเรือน'],
+ ['SWG7','ความรู้ท้องถิ่น','ประวัติศาสตร์ ปฏิทินวัฒนธรรมและการผลิต เหตุผลที่แต่ละจุดของแม่น้ำสำคัญ','คำบอกเล่าชุมชน']]
+document.getElementById('teams').innerHTML=T.map(t=>`<div class="team"><div class="id">${t[0]}</div><h3>${t[1]}</h3><p>${t[2]}</p><div class="k">${t[3]}</div></div>`).join('')
+gsap.to('.team',{opacity:1,y:0,stagger:.1,duration:.7,ease:'power2.out',scrollTrigger:{trigger:'#teams',start:'top 75%'}})
+</script>
+</body>
+</html>

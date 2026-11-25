@@ -241,6 +241,13 @@ export async function updateSample(settings, sampleCode, values, editor = null) 
 }
 
 // Every stored photo path of a sample, or null when the sample does not exist.
+// Where a sample was taken, so an account limited to some villages can be refused samples of other villages.
+export async function getSampleLocation(settings, sampleCode) {
+  const db = await getDb(settings)
+  const row = await db.collection('kok_water_samples').findOne({ sample_code: sampleCode }, { projection: { _id: 0, latitude: 1, longitude: 1 } })
+  return row ? { latitude: row.latitude, longitude: row.longitude } : null
+}
+
 export async function findSamplePhotoPaths(settings, sampleCode) {
   const db = await getDb(settings)
   const [sample, survey] = await Promise.all([

@@ -99,7 +99,7 @@ test('existing survey points pulse, and submitting <= 50 ppb pans to the point, 
   const form = page.getByRole('dialog', { name: 'ทำแบบสำรวจ' })
   await form.getByPlaceholder('ระบุชื่อ-นามสกุลผู้เก็บตัวอย่าง').fill('ผู้ทดสอบ อพยพ')
   await form.getByPlaceholder('08X-XXX-XXXX').fill('0812345678')
-  await form.getByLabel('ชุดตรวจที่ใช้').selectOption('ADPC')
+  await expect(form.getByLabel('ชุดตรวจที่ใช้')).toHaveValue('Oxfam')
   await form.getByRole('radio', { name: '4: 30 ppb' }).click()
   await form.getByRole('button', { name: /พิกัด GPS/ }).click()
   await expect(form.getByText(/ความแม่นยำ GPS/)).toBeVisible()
